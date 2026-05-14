@@ -1,50 +1,41 @@
 import { AbstractDto } from '../../../common/dto/abstract.dto.ts';
+import { AccountStatus } from '../../../constants/account-status.ts';
 import { RoleType } from '../../../constants/role-type.ts';
 import {
-  BooleanFieldOptional,
-  EmailFieldOptional,
-  EnumFieldOptional,
-  PhoneFieldOptional,
+  EmailField,
+  EnumField,
+  StringField,
   StringFieldOptional,
 } from '../../../decorators/field.decorators.ts';
 import type { UserEntity } from '../user.entity.ts';
 
-// TODO, remove this class and use constructor's second argument's type
-export type UserDtoOptions = Partial<{ isActive: boolean }>;
-
 export class UserDto extends AbstractDto {
-  @StringFieldOptional({ nullable: true })
-  firstName?: string | null;
+  @StringField({ minLength: 2 })
+  firstName!: string;
 
-  @StringFieldOptional({ nullable: true })
-  lastName?: string | null;
+  @StringField({ minLength: 2 })
+  lastName!: string;
 
-  @StringFieldOptional({ nullable: true })
-  username!: string;
+  @EnumField(() => RoleType)
+  role!: RoleType;
 
-  @EnumFieldOptional(() => RoleType)
-  role?: RoleType;
+  @EmailField()
+  email!: string;
 
-  @EmailFieldOptional({ nullable: true })
-  email?: string | null;
+  @StringField({ minLength: 6 })
+  password!: string;
+
+  @EnumField(() => AccountStatus)
+  status!: AccountStatus;
 
   @StringFieldOptional({ nullable: true })
   avatar?: string | null;
 
-  @PhoneFieldOptional({ nullable: true })
-  phone?: string | null;
-
-  @BooleanFieldOptional()
-  isActive?: boolean;
-
-  constructor(user: UserEntity, options?: UserDtoOptions) {
+  constructor(user: UserEntity) {
     super(user);
     this.firstName = user.firstName;
     this.lastName = user.lastName;
     this.role = user.role;
     this.email = user.email;
-    this.avatar = user.avatar;
-    this.phone = user.phone;
-    this.isActive = options?.isActive;
   }
 }

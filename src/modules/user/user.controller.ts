@@ -1,8 +1,10 @@
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
+  Post,
   Query,
   ValidationPipe,
 } from '@nestjs/common';
@@ -11,43 +13,23 @@ import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PageDto } from '../../common/dto/page.dto.ts';
 import { RoleType } from '../../constants/role-type.ts';
 import { ApiPageResponse } from '../../decorators/api-page-response.decorator.ts';
-import { AuthUser } from '../../decorators/auth-user.decorator.ts';
 import {
   ApiUUIDParam,
   Auth,
   UUIDParam,
 } from '../../decorators/http.decorators.ts';
-import { UseLanguageInterceptor } from '../../interceptors/language-interceptor.service.ts';
-import { TranslationService } from '../../shared/services/translation.service.ts';
+import { CreateUserDto } from './dtos/create-user.dto.ts';
 import { UserDto } from './dtos/user.dto.ts';
 import type { UsersPageOptionsDto } from './dtos/users-page-options.dto.ts';
-import type { UserEntity } from './user.entity.ts';
 import { UserService } from './user.service.ts';
 
 @Controller('users')
 @ApiTags('users')
 export class UserController {
-  constructor(
-    private userService: UserService,
-    private readonly translationService: TranslationService,
-  ) {}
-
-  @Get('admin')
-  @Auth([RoleType.USER])
-  @HttpCode(HttpStatus.OK)
-  @UseLanguageInterceptor()
-  async admin(@AuthUser() user: UserEntity) {
-    const translation = await this.translationService.translate(
-      'admin.keywords.admin',
-    );
-
-    return {
-      text: `${translation} ${user.firstName}`,
-    };
-  }
+  constructor(private userService: UserService) {}
 
   @Get()
-  @Auth([RoleType.USER])
+  @Auth([RoleType.ADMIN])
   @HttpCode(HttpStatus.OK)
   @ApiPageResponse({
     description: 'Get users list',
@@ -60,8 +42,15 @@ export class UserController {
     return this.userService.getUsers(pageOptionsDto);
   }
 
+  @Post()
+  @Auth([RoleType.ADMIN])
+  @HttpCode(HttpStatus.OK)
+  createUser(@Body() createUserDto: CreateUserDto): Promise<UserDto> {
+    return this.userService.create(createUserDto);
+  }
+
   @Get(':id')
-  @Auth([RoleType.USER])
+  @Auth([RoleType.ADMIN])
   @HttpCode(HttpStatus.OK)
   @ApiUUIDParam('id')
   @ApiResponse({

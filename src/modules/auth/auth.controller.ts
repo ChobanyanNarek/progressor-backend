@@ -5,32 +5,22 @@ import {
   HttpCode,
   HttpStatus,
   Post,
-  UploadedFile,
-  Version,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { RoleType } from '../../constants/role-type.ts';
 import { AuthUser } from '../../decorators/auth-user.decorator.ts';
 import { Auth } from '../../decorators/http.decorators.ts';
-import { ApiFile } from '../../decorators/swagger.schema.ts';
-import type { IFile } from '../../interfaces/IFile.ts';
-import type { Reference } from '../../types.ts';
 import { UserDto } from '../user/dtos/user.dto.ts';
 import type { UserEntity } from '../user/user.entity.ts';
-import { UserService } from '../user/user.service.ts';
 import { AuthService } from './auth.service.ts';
 import { LoginPayloadDto } from './dto/login-payload.dto.ts';
 import type { UserLoginDto } from './dto/user-login.dto.ts';
-import type { UserRegisterDto } from './dto/user-register.dto.ts';
 
 @Controller('auth')
 @ApiTags('auth')
 export class AuthController {
-  constructor(
-    private userService: UserService,
-    private authService: AuthService,
-  ) {}
+  constructor(private authService: AuthService) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -43,39 +33,17 @@ export class AuthController {
   ): Promise<LoginPayloadDto> {
     const userEntity = await this.authService.validateUser(userLoginDto);
 
-    const token = await this.authService.createAccessToken({
+    const accessToken = await this.authService.createAccessToken({
       userId: userEntity.id,
       role: userEntity.role,
     });
 
-    return LoginPayloadDto.create({
-      user: userEntity.toDto(),
-      accessToken: token,
-    });
+    return LoginPayloadDto.create({ accessToken });
   }
 
-  @Post('register')
-  @HttpCode(HttpStatus.OK)
-  @ApiOkResponse({ type: UserDto, description: 'Successfully Registered' })
-  @ApiFile({ name: 'avatar' })
-  async userRegister(
-    @Body() userRegisterDto: UserRegisterDto,
-    @UploadedFile() file?: Reference<IFile>,
-  ): Promise<UserDto> {
-    const createdUser = await this.userService.createUser(
-      userRegisterDto,
-      file,
-    );
-
-    return createdUser.toDto({
-      isActive: true,
-    });
-  }
-
-  @Version('1')
   @Get('me')
   @HttpCode(HttpStatus.OK)
-  @Auth([RoleType.USER, RoleType.ADMIN])
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
   @ApiOkResponse({ type: UserDto, description: 'current user info' })
   getCurrentUser(@AuthUser() user: UserEntity): UserDto {
     return user.toDto();
