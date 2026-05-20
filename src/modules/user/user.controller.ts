@@ -20,6 +20,7 @@ import {
 } from '../../decorators/http.decorators.ts';
 import { CreateUserDto } from './dtos/create-user.dto.ts';
 import { UserDto } from './dtos/user.dto.ts';
+import { UserListDto } from './dtos/user-list.dto.ts';
 import type { UsersPageOptionsDto } from './dtos/users-page-options.dto.ts';
 import { UserService } from './user.service.ts';
 
@@ -33,19 +34,19 @@ export class UserController {
   @HttpCode(HttpStatus.OK)
   @ApiPageResponse({
     description: 'Get users list',
-    type: PageDto,
+    type: UserListDto,
   })
   getUsers(
     @Query(new ValidationPipe({ transform: true }))
     pageOptionsDto: UsersPageOptionsDto,
-  ): Promise<PageDto<UserDto>> {
+  ): Promise<PageDto<UserListDto>> {
     return this.userService.getUsers(pageOptionsDto);
   }
 
   @Post()
   @Auth([RoleType.ADMIN])
   @HttpCode(HttpStatus.OK)
-  createUser(@Body() createUserDto: CreateUserDto): Promise<UserDto> {
+  createUser(@Body() createUserDto: CreateUserDto): Promise<Uuid> {
     return this.userService.create(createUserDto);
   }
 
@@ -55,7 +56,8 @@ export class UserController {
   @ApiUUIDParam('id')
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Get users list',
+    description: 'Get user by id',
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
     type: UserDto,
   })
   getUser(@UUIDParam('id') userId: Uuid): Promise<UserDto> {

@@ -11,11 +11,11 @@ import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { RoleType } from '../../constants/role-type.ts';
 import { AuthUser } from '../../decorators/auth-user.decorator.ts';
 import { Auth } from '../../decorators/http.decorators.ts';
-import { UserDto } from '../user/dtos/user.dto.ts';
 import type { UserEntity } from '../user/user.entity.ts';
 import { AuthService } from './auth.service.ts';
+import { GetMeDto } from './dto/get-me.dto.ts';
 import { LoginPayloadDto } from './dto/login-payload.dto.ts';
-import type { UserLoginDto } from './dto/user-login.dto.ts';
+import { UserLoginDto } from './dto/user-login.dto.ts';
 
 @Controller('auth')
 @ApiTags('auth')
@@ -25,6 +25,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
     type: LoginPayloadDto,
     description: 'User info with access token',
   })
@@ -44,8 +45,16 @@ export class AuthController {
   @Get('me')
   @HttpCode(HttpStatus.OK)
   @Auth([RoleType.CREATOR, RoleType.ADMIN])
-  @ApiOkResponse({ type: UserDto, description: 'current user info' })
-  getCurrentUser(@AuthUser() user: UserEntity): UserDto {
-    return user.toDto();
+  @ApiOkResponse({ description: 'current user info' })
+  getCurrentUser(@AuthUser() user: UserEntity): GetMeDto {
+    const { firstName, lastName, email, role, avatar } = user;
+
+    return GetMeDto.create({
+      firstName,
+      lastName,
+      email,
+      role,
+      avatar,
+    });
   }
 }

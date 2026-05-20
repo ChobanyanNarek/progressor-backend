@@ -2,10 +2,10 @@ import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { CreateUserHandler } from './commands/create-user.handler.ts';
-import { UpdateUserHandler } from './commands/update-user.handler.ts';
-import { GetUserHandler } from './queries/get-user.handler.ts';
-import { GetUsersHandler } from './queries/get-users.handler.ts';
+import { CreateUserHandler } from './commands/create-user/create-user.handler.ts';
+import { UpdateUserHandler } from './commands/update-user/update-user.handler.ts';
+import { GetUserHandler } from './queries/get-user/get-user.handler.ts';
+import { GetUsersHandler } from './queries/get-users/get-users.handler.ts';
 import { UserController } from './user.controller.ts';
 import { UserEntity } from './user.entity.ts';
 import { UserService } from './user.service.ts';
