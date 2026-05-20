@@ -43,10 +43,12 @@ export class AuthService {
       user?.password,
     );
 
-    if (!isPasswordValid) {
+    if (!user || !isPasswordValid) {
       throw new UserNotFoundException();
     }
 
-    return user!;
+    await this.userService.update(user.id, { lastLogin: new Date() });
+
+    return user;
   }
 }

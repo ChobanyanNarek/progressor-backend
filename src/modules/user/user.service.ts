@@ -1,128 +1,55 @@
 import { Injectable } from '@nestjs/common';
-import { CommandBus } from '@nestjs/cqrs';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
-import { plainToClass } from 'class-transformer';
-import type { FindOptionsWhere } from 'typeorm';
-import type { Repository } from 'typeorm';
-import { Transactional } from 'typeorm-transactional';
+import type { FindOptionsWhere, Repository } from 'typeorm';
 
 import type { PageDto } from '../../common/dto/page.dto.ts';
-import { FileNotImageException } from '../../exceptions/file-not-image.exception.ts';
-import { UserNotFoundException } from '../../exceptions/user-not-found.exception.ts';
-import type { IFile } from '../../interfaces/IFile.ts';
-import { AwsS3Service } from '../../shared/services/aws-s3.service.ts';
-import { ValidatorService } from '../../shared/services/validator.service.ts';
-import type { Reference } from '../../types.ts';
-import type { UserRegisterDto } from '../auth/dto/user-register.dto.ts';
-import { CreateSettingsCommand } from './commands/create-settings.command.ts';
-import { CreateSettingsDto } from './dtos/create-settings.dto.ts';
+import { CreateUserCommand } from './commands/create-user/create-user.command.ts';
+import { UpdateUserCommand } from './commands/update-user/update-user.command.ts';
+import type { CreateUserDto } from './dtos/create-user.dto.ts';
+import type { UpdateUserDto } from './dtos/update-user.dto.ts';
 import type { UserDto } from './dtos/user.dto.ts';
+import type { UserListDto } from './dtos/user-list.dto.ts';
 import type { UsersPageOptionsDto } from './dtos/users-page-options.dto.ts';
+import { GetUserQuery } from './queries/get-user/get-user.query.ts';
+import { GetUsersQuery } from './queries/get-users/get-users.query.ts';
 import { UserEntity } from './user.entity.ts';
-import type { UserSettingsEntity } from './user-settings.entity.ts';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(UserEntity)
-    private userRepository: Repository<UserEntity>,
-    private validatorService: ValidatorService,
-    private awsS3Service: AwsS3Service,
-    private commandBus: CommandBus,
+    private readonly userRepository: Repository<UserEntity>,
+    private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
   ) {}
 
-  /**
-   * Find single user
-   */
   findOne(findData: FindOptionsWhere<UserEntity>): Promise<UserEntity | null> {
+    // eslint-disable-next-line awesome-nest/no-typeorm-finder-methods
     return this.userRepository.findOneBy(findData);
   }
 
-  findByUsernameOrEmail(
-    options: Partial<{ username: string; email: string }>,
-  ): Promise<UserEntity | null> {
-    const queryBuilder = this.userRepository
-      .createQueryBuilder('user')
-      .leftJoinAndSelect<UserEntity, 'user'>('user.settings', 'settings');
-
-    if (options.email) {
-      queryBuilder.orWhere('user.email = :email', {
-        email: options.email,
-      });
-    }
-
-    if (options.username) {
-      queryBuilder.orWhere('user.username = :username', {
-        username: options.username,
-      });
-    }
-
-    return queryBuilder.getOne();
-  }
-
-  @Transactional()
-  async createUser(
-    userRegisterDto: UserRegisterDto,
-    file?: Reference<IFile>,
-  ): Promise<UserEntity> {
-    const user = this.userRepository.create(userRegisterDto);
-
-    if (file && !this.validatorService.isImage(file.mimetype)) {
-      throw new FileNotImageException();
-    }
-
-    if (file) {
-      user.avatar = await this.awsS3Service.uploadImage(file);
-    }
-
-    await this.userRepository.save(user);
-
-    user.settings = await this.createSettings(
-      user.id,
-      plainToClass(CreateSettingsDto, {
-        isEmailVerified: false,
-        isPhoneVerified: false,
-      }),
+  create(createUserDto: CreateUserDto): Promise<Uuid> {
+    return this.commandBus.execute<CreateUserCommand>(
+      new CreateUserCommand(createUserDto),
     );
-
-    return user;
   }
 
-  async getUsers(
-    pageOptionsDto: UsersPageOptionsDto,
-  ): Promise<PageDto<UserDto>> {
-    const queryBuilder = this.userRepository.createQueryBuilder('user');
-
-    if (pageOptionsDto.q) {
-      queryBuilder.searchByString(pageOptionsDto.q, ['firstName', 'email']);
-    }
-
-    const [items, pageMetaDto] = await queryBuilder.paginate(pageOptionsDto);
-
-    // eslint-disable-next-line sonarjs/argument-type
-    return items.toPageDto(pageMetaDto);
+  getUsers(pageOptionsDto: UsersPageOptionsDto): Promise<PageDto<UserListDto>> {
+    return this.queryBus.execute<GetUsersQuery, PageDto<UserListDto>>(
+      new GetUsersQuery(pageOptionsDto),
+    );
   }
 
-  async getUser(userId: Uuid): Promise<UserDto> {
-    const queryBuilder = this.userRepository.createQueryBuilder('user');
-
-    queryBuilder.where('user.id = :userId', { userId });
-
-    const userEntity = await queryBuilder.getOne();
-
-    if (!userEntity) {
-      throw new UserNotFoundException();
-    }
-
-    return userEntity.toDto();
+  getUser(userId: Uuid): Promise<UserDto> {
+    return this.queryBus.execute<GetUserQuery, UserDto>(
+      new GetUserQuery(userId),
+    );
   }
 
-  createSettings(
-    userId: Uuid,
-    createSettingsDto: CreateSettingsDto,
-  ): Promise<UserSettingsEntity> {
-    return this.commandBus.execute<CreateSettingsCommand, UserSettingsEntity>(
-      new CreateSettingsCommand(userId, createSettingsDto),
+  update(userId: Uuid, updateUserDto: UpdateUserDto): Promise<void> {
+    return this.commandBus.execute<UpdateUserCommand>(
+      new UpdateUserCommand(userId, updateUserDto),
     );
   }
 }
