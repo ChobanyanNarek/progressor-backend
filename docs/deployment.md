@@ -99,11 +99,12 @@ NATS_ENABLED=false
 NATS_HOST=your-nats-host
 NATS_PORT=4222
 
-# AWS S3 (if using file uploads)
-AWS_S3_BUCKET_NAME=your-bucket-name
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_REGION=us-east-1
+# Google Cloud Storage (if using file uploads)
+GCP_PROJECT_ID=your-gcp-project-id
+GCS_BUCKET_NAME=your-bucket-name
+# On Cloud Run/GKE, credentials resolve via the attached service account (ADC).
+# Locally, set GOOGLE_APPLICATION_CREDENTIALS to a service-account key file.
+# GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 ```
 
 ### Database Configuration
@@ -159,7 +160,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=8192"
 ARG PORT=3000
-ARG secret_manager_arn
 EXPOSE $PORT
 COPY --from=build /app/dist ./dist
 COPY --from=prod-deps /app/node_modules ./node_modules

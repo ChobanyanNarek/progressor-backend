@@ -150,17 +150,17 @@ export function ToUpperCase(): PropertyDecorator {
   );
 }
 
-export function S3UrlParser(): PropertyDecorator {
+export function GcsUrlParser(): PropertyDecorator {
   return Transform((params) => {
     const key = params.value as string;
 
     switch (params.type) {
       case TransformationType.CLASS_TO_PLAIN: {
-        return GeneratorProvider.getS3PublicUrl(key);
+        return GeneratorProvider.getGcsPublicUrl(key);
       }
 
       case TransformationType.PLAIN_TO_CLASS: {
-        return GeneratorProvider.getS3Key(key);
+        return GeneratorProvider.getGcsKey(key);
       }
 
       default: {

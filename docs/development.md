@@ -269,8 +269,9 @@ REDIS_URL=redis://localhost:6379
 TELEGRAM_BOT_TOKEN=your-telegram-bot-token
 TELEGRAM_BOT_USERNAME=your-telegram-bot-username
 
-# AWS S3 (optional)
-AWS_S3_BUCKET_NAME=your-bucket-name
+# Google Cloud Storage (optional)
+GCP_PROJECT_ID=your-gcp-project-id
+GCS_BUCKET_NAME=your-bucket-name
 
 # MeiliSearch (optional)
 MEILI_HOST=http://localhost:7700

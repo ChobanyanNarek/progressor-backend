@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Enterprise-grade NestJS 11 boilerplate — TypeScript, PostgreSQL + TypeORM, JWT auth (RS256), CQRS, i18n, AWS S3, NATS microservices (conditional), multi-runtime (Node/Bun/Deno).
+Enterprise-grade NestJS 11 boilerplate — TypeScript, PostgreSQL + TypeORM, JWT auth (RS256), CQRS, i18n, Google Cloud Storage, NATS microservices (conditional), multi-runtime (Node/Bun/Deno).
 
 ## Package Manager
 

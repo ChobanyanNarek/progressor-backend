@@ -1,0 +1,67 @@
+name: Build and Deploy to Cloud Run for Development
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+
+# Required for keyless auth via Workload Identity Federation.
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Authenticate to Google Cloud via Workload Identity Federation (no keys).
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build & Deploy to the Development environment
+        if: github.ref == 'refs/heads/develop'
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: ${{ secrets.GCP_REGION }}
+          # Artifact Registry Docker repo, e.g. "ghost-app".
+          AR_REPOSITORY: ${{ secrets.GCP_AR_REPOSITORY }}
+          SERVICE: "ghost-app-dev-api"
+          # Runtime service account the Cloud Run service runs as (used by ADC
+          # for GCS access). e.g. ghost-app-dev-api@<project>.iam.gserviceaccount.com
+          RUNTIME_SERVICE_ACCOUNT: ${{ secrets.GCP_RUNTIME_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/${SERVICE}:${GITHUB_SHA}"
+
+          # Build and push to Artifact Registry via Cloud Build.
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          gcloud builds submit --tag "${IMAGE}" --project "${PROJECT_ID}"
+
+          # Deploy to Cloud Run. Secrets are sourced from Secret Manager via the
+          # service's existing --set-secrets configuration; this only updates the
+          # image and runtime service account.
+          gcloud run deploy "${SERVICE}" \
+            --image "${IMAGE}" \
+            --project "${PROJECT_ID}" \
+            --region "${REGION}" \
+            --service-account "${RUNTIME_SERVICE_ACCOUNT}" \
+            --platform managed \
+            --quiet
+
+      # Push workflow final status to slack
+      - uses: act10ns/slack@v1.0.9
+        with:
+          status: ${{ job.status }}
+        if: always()
