@@ -60,8 +60,8 @@ jobs:
             --platform managed \
             --quiet
 
-      # Push workflow final status to slack
+      # Push workflow final status to slack (skipped when no webhook is set)
       - uses: act10ns/slack@v1.0.9
         with:
           status: ${{ job.status }}
-        if: always()
+        if: always() && env.SLACK_WEBHOOK_URL != ''
