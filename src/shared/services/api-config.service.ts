@@ -122,11 +122,10 @@ export class ApiConfigService {
     };
   }
 
-  get awsS3Config() {
+  get gcsConfig() {
     return {
-      bucketRegion: this.getString('AWS_S3_BUCKET_REGION'),
-      bucketApiVersion: this.getString('AWS_S3_API_VERSION'),
-      bucketName: this.getString('AWS_S3_BUCKET_NAME'),
+      projectId: this.getString('GCP_PROJECT_ID'),
+      bucketName: this.getString('GCS_BUCKET_NAME'),
     };
   }
 

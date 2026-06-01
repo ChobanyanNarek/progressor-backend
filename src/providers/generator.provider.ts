@@ -10,21 +10,21 @@ export class GeneratorProvider {
     return `${GeneratorProvider.uuid()}.${ext}`;
   }
 
-  static getS3PublicUrl(key: string): string {
+  static getGcsPublicUrl(key: string): string {
     if (!key) {
       throw new TypeError('key is required');
     }
 
-    return `https://s3.${process.env.AWS_S3_BUCKET_NAME_REGION}.amazonaws.com/${process.env.AWS_S3_BUCKET_NAME}/${key}`;
+    return `https://storage.googleapis.com/${process.env.GCS_BUCKET_NAME}/${key}`;
   }
 
-  static getS3Key(publicUrl: string): string {
+  static getGcsKey(publicUrl: string): string {
     if (!publicUrl) {
       throw new TypeError('key is required');
     }
 
     const exec = new RegExp(
-      `(?<=https://s3.${process.env.AWS_S3_BUCKET_NAME_REGION}.amazonaws.com/${process.env.AWS_S3_BUCKET_NAME}/).*`,
+      `(?<=https://storage.googleapis.com/${process.env.GCS_BUCKET_NAME}/).*`,
     ).exec(publicUrl);
 
     if (!exec) {
