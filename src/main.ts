@@ -19,12 +19,19 @@ import { AppModule } from './app.module.ts';
 import { HttpExceptionFilter } from './filters/bad-request.filter.ts';
 import { QueryFailedFilter } from './filters/query-failed.filter.ts';
 import { TranslationInterceptor } from './interceptors/translation-interceptor.service.ts';
+import { loadSecrets } from './load-secrets.ts';
 import { setupSwagger } from './setup-swagger.ts';
 import { ApiConfigService } from './shared/services/api-config.service.ts';
 import { TranslationService } from './shared/services/translation.service.ts';
 import { SharedModule } from './shared/shared.module.ts';
 
 export async function bootstrap(): Promise<NestExpressApplication> {
+  // Load runtime config from Secret Manager BEFORE the app module is created,
+  // so ConfigModule/ApiConfigService read the merged process.env.
+  if (process.env.NODE_ENV === 'production') {
+    await loadSecrets();
+  }
+
   initializeTransactionalContext();
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule,
