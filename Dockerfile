@@ -1,5 +1,7 @@
 FROM node:25-slim AS base
-RUN corepack enable
+# node:25-slim no longer ships corepack reliably, so install pnpm directly
+# (matches the "packageManager" field in package.json).
+RUN npm install -g pnpm@10.26.2
 
 # --- Build stage: compile TypeScript ---
 FROM base AS build
