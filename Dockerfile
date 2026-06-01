@@ -2,6 +2,9 @@ FROM node:25-slim AS base
 # node:25-slim no longer ships corepack reliably, so install pnpm directly
 # (matches the "packageManager" field in package.json).
 RUN npm install -g pnpm@10.26.2
+# Disable husky during `pnpm install` — the image has no .git (it's in
+# .dockerignore), so the prepare->husky script would otherwise fail the build.
+ENV HUSKY=0
 
 # --- Build stage: compile TypeScript ---
 FROM base AS build
