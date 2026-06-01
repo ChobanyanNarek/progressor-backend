@@ -26,8 +26,10 @@ import { TranslationService } from './shared/services/translation.service.ts';
 import { SharedModule } from './shared/shared.module.ts';
 
 export async function bootstrap(): Promise<NestExpressApplication> {
-  // Load runtime config from Secret Manager BEFORE the app module is created,
-  // so ConfigModule/ApiConfigService read the merged process.env.
+  /*
+   * Load runtime config from Secret Manager BEFORE the app module is created,
+   * so ConfigModule/ApiConfigService read the merged process.env.
+   */
   if (process.env.NODE_ENV === 'production') {
     await loadSecrets();
   }
