@@ -46,8 +46,12 @@ jobs:
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPOSITORY}/${SERVICE}:${GITHUB_SHA}"
 
           # Build and push to Artifact Registry via Cloud Build.
+          # --suppress-logs: the deploy SA can start builds but isn't a project
+          # Viewer, so gcloud can't stream Cloud Build logs (it would exit 1 even
+          # though the build succeeds). Build status is still polled and a real
+          # build failure still fails this step.
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
-          gcloud builds submit --tag "${IMAGE}" --project "${PROJECT_ID}"
+          gcloud builds submit --tag "${IMAGE}" --project "${PROJECT_ID}" --suppress-logs
 
           # Deploy to Cloud Run. Secrets are sourced from Secret Manager via the
           # service's existing --set-secrets configuration; this only updates the
