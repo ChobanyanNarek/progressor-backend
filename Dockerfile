@@ -18,7 +18,10 @@ RUN pnpm run build:prod
 FROM base AS prod-deps
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+# --ignore-scripts: --prod omits devDeps (incl. husky), but the `prepare`
+# lifecycle still calls `husky`, which would be missing -> "husky: not found".
+# Production deps don't need git hooks, so skip lifecycle scripts here.
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # --- Final runtime image ---
 FROM node:25-slim
