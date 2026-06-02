@@ -16,9 +16,11 @@ export class GcsStorageService {
   ) {
     const config = configService.gcsConfig;
 
-    // Credentials are resolved via Application Default Credentials (ADC):
-    // the runtime service account on Cloud Run / Workload Identity on GKE,
-    // or GOOGLE_APPLICATION_CREDENTIALS locally.
+    /*
+     * Credentials are resolved via Application Default Credentials (ADC):
+     * the runtime service account on Cloud Run / Workload Identity on GKE,
+     * or GOOGLE_APPLICATION_CREDENTIALS locally.
+     */
     this.storage = new Storage({ projectId: config.projectId });
   }
 

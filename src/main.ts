@@ -111,10 +111,12 @@ export async function bootstrap(): Promise<NestExpressApplication> {
    * Vite plugin binds the server in dev mode (PROD===false); in all other runtimes import.meta.env is undefined.
    * biome-ignore lint/style/useNamingConvention: PROD is Vite's injected env key
    */
-  const viteEnv = (import.meta as unknown as { env?: { PROD?: boolean } }).env;
+  const viteEnv = (
+    import.meta as unknown as { env?: { DEV?: boolean; PROD?: boolean } }
+  ).env;
 
-  if (viteEnv?.PROD) {
-    await app.listen(port);
+  if (!viteEnv?.DEV) {
+    await app.listen(port, '0.0.0.0');
     console.info(`server running on http://localhost:${port}`);
   }
 
