@@ -62,7 +62,6 @@ jobs:
             --region "${REGION}" \
             --service-account "${RUNTIME_SERVICE_ACCOUNT}" \
             --platform managed \
-            --add-cloudsql-instances "${PROJECT_ID}:${REGION}:ghost-app-dev-db" \
             --set-secrets "DB_DATABASE=DEV_DB_DATABASE:latest,DB_USERNAME=DEV_DB_USERNAME:latest,DB_PASSWORD=DEV_DB_PASSWORD:latest,THROTTLER_TTL=THROTTLER_TTL:latest,THROTTLER_LIMIT=THROTTLER_LIMIT:latest,FALLBACK_LANGUAGE=FALLBACK_LANGUAGE:latest,ENABLE_ORM_LOGS=ENABLE_ORM_LOGS:latest,ENABLE_DOCUMENTATION=ENABLE_DOCUMENTATION:latest,JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest,JWT_EXPIRATION_TIME=JWT_EXPIRATION_TIME:latest,GCP_PROJECT_ID=GCP_PROJECT_ID:latest,GCS_BUCKET_NAME=GCS_BUCKET_NAME:latest" \
             --set-env-vars "NODE_ENV=production,PORT=3000,DB_HOST=/cloudsql/${PROJECT_ID}:${REGION}:ghost-app-dev-db,DB_PORT=5432" \
             --quiet
