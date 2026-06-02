@@ -91,13 +91,8 @@ CORS_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
 ENABLE_DOCUMENTATION=false
 
 # Throttling
-THROTTLER_TTL=60
+THROTTLER_TTL=1m
 THROTTLER_LIMIT=100
-
-# NATS (if using microservices)
-NATS_ENABLED=false
-NATS_HOST=your-nats-host
-NATS_PORT=4222
 
 # Google Cloud Storage (if using file uploads)
 GCP_PROJECT_ID=your-gcp-project-id
@@ -170,10 +165,9 @@ CMD ["node", "dist/main.js"]
 
 The repo's `docker-compose.yml` provides the development stack. For production, adapt it or build your own. The development compose includes:
 
-- **app**: Builds from the multi-stage `Dockerfile`, depends on postgres (healthy) and meilisearch
+- **app**: Builds from the multi-stage `Dockerfile`, depends on postgres (healthy)
 - **postgres**: Standard Postgres image with `pg_isready` health check and `init-data.sh` volume mount
 - **pgadmin**: dpage/pgadmin4, available at `http://localhost:8080`
-- **meilisearch**: getmeili/meilisearch, available at `http://localhost:7701`
 
 Example production-focused override (`docker-compose.prod.yml`):
 

@@ -17,12 +17,15 @@ import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
  * service's runtime service account, which needs `roles/secretmanager.secretAccessor`.
  */
 export async function loadSecrets(): Promise<void> {
-  let secrets: Record<string, string>;
-
   const resource = process.env.SECRET_MANAGER_RESOURCE;
 
   if (!resource) {
-    throw new Error("SECRET_MANAGER_RESOURCE environment variable doesn't exist");
+    /*
+     * No JSON-blob secret configured. Env vars are provided directly by the
+     * runtime (Cloud Run --set-secrets, or a local .env), so there's nothing
+     * to load here — skip instead of failing the boot.
+     */
+    return;
   }
 
   // Accept either a full version resource name or just the secret path.
@@ -47,7 +50,7 @@ export async function loadSecrets(): Promise<void> {
     throw new Error(`Secret ${name} has an empty payload`);
   }
 
-  secrets = JSON.parse(payload) as Record<string, string>;
+  const secrets = JSON.parse(payload) as Record<string, string>;
 
   Object.assign(process.env, secrets);
 }
