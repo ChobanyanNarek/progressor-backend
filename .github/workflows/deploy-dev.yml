@@ -51,19 +51,19 @@ jobs:
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
           gcloud builds submit --tag "${IMAGE}" --project "${PROJECT_ID}"
 
-          # Deploy to Cloud Run. The full env config is declared here so the
-          # workflow is the single source of truth: --set-secrets maps each
-          # Secret Manager secret to the env var the app reads, and
-          # --set-env-vars sets the plain (non-secret) values. Both flags
-          # REPLACE the existing lists, so every required var must be listed.
+          # Deploy to Cloud Run. Runtime config is loaded by the app at boot
+          # from the JSON blob in Secret Manager pointed to by
+          # SECRET_MANAGER_RESOURCE (see src/load-secrets.ts), so this step
+          # only sets the bootstrap env vars needed before that loader runs.
+          # --set-env-vars REPLACES the existing list, so every required var
+          # must be listed here.
           gcloud run deploy "${SERVICE}" \
             --image "${IMAGE}" \
             --project "${PROJECT_ID}" \
             --region "${REGION}" \
             --service-account "${RUNTIME_SERVICE_ACCOUNT}" \
             --platform managed \
-            --set-secrets "DB_DATABASE=DEV_DB_DATABASE:latest,DB_USERNAME=DEV_DB_USERNAME:latest,DB_PASSWORD=DEV_DB_PASSWORD:latest,THROTTLER_TTL=THROTTLER_TTL:latest,THROTTLER_LIMIT=THROTTLER_LIMIT:latest,FALLBACK_LANGUAGE=FALLBACK_LANGUAGE:latest,ENABLE_ORM_LOGS=ENABLE_ORM_LOGS:latest,ENABLE_DOCUMENTATION=ENABLE_DOCUMENTATION:latest,JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest,JWT_EXPIRATION_TIME=JWT_EXPIRATION_TIME:latest,GCP_PROJECT_ID=GCP_PROJECT_ID:latest,GCS_BUCKET_NAME=GCS_BUCKET_NAME:latest" \
-            --set-env-vars "NODE_ENV=production,DB_HOST=/cloudsql/${PROJECT_ID}:${REGION}:ghost-app-dev-db,DB_PORT=5432" \
+            --set-env-vars "NODE_ENV=production,SECRET_MANAGER_RESOURCE=projects/${PROJECT_ID}/secrets/DEV_APP_SECRETS" \
             --quiet
 
       # Push workflow final status to slack (skipped when no webhook is set)
