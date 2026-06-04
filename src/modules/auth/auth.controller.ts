@@ -15,7 +15,7 @@ import { UserDto } from '../user/dtos/user.dto.ts';
 import type { UserEntity } from '../user/user.entity.ts';
 import { AuthService } from './auth.service.ts';
 import { LoginPayloadDto } from './dto/login-payload.dto.ts';
-import type { UserLoginDto } from './dto/user-login.dto.ts';
+import { UserLoginDto } from './dto/user-login.dto.ts';
 
 @Controller('auth')
 @ApiTags('auth')

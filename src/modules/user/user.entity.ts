@@ -1,9 +1,16 @@
-import { Column, Entity, VirtualColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  OneToMany,
+  type Relation,
+  VirtualColumn,
+} from 'typeorm';
 
 import { AbstractEntity } from '../../common/abstract.entity.ts';
 import { AccountStatus } from '../../constants/account-status.ts';
 import { RoleType } from '../../constants/role-type.ts';
 import { UseDto } from '../../decorators/use-dto.decorator.ts';
+import { MemoryPointEntity } from '../memory-points/entities/memory-point.entity.ts';
 import { UserDto } from './dtos/user.dto.ts';
 
 @Entity({ name: 'users' })
@@ -38,4 +45,7 @@ export class UserEntity extends AbstractEntity<UserDto> {
       `SELECT CONCAT(${alias}.first_name, ' ', ${alias}.last_name)`,
   })
   fullName!: string;
+
+  @OneToMany(() => MemoryPointEntity, (memoryPoint) => memoryPoint.user)
+  memoryPoints?: Relation<MemoryPointEntity[]>;
 }

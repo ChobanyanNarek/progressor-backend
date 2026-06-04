@@ -1,0 +1,27 @@
+import { jest } from '@jest/globals';
+
+import { InternalAiGenerationController } from './internal-ai-generation.controller.ts';
+
+describe('InternalAiGenerationController', () => {
+  let aiGenerationService: { processWebhook: jest.Mock };
+  let controller: InternalAiGenerationController;
+
+  beforeEach(() => {
+    aiGenerationService = { processWebhook: jest.fn() };
+    controller = new InternalAiGenerationController(
+      aiGenerationService as never,
+    );
+  });
+
+  describe('process', () => {
+    it('delegates to processWebhook with body.talkId and returns processed:true', async () => {
+      aiGenerationService.processWebhook.mockResolvedValue(undefined);
+
+      const result = await controller.process({ talkId: 'talk-1' } as never);
+
+      expect(aiGenerationService.processWebhook).toHaveBeenCalledTimes(1);
+      expect(aiGenerationService.processWebhook).toHaveBeenCalledWith('talk-1');
+      expect(result).toEqual({ processed: true });
+    });
+  });
+});

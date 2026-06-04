@@ -1,0 +1,128 @@
+import { Injectable } from '@nestjs/common';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
+
+import type { PageDto } from '../../common/dto/page.dto.ts';
+import type { PageOptionsDto } from '../../common/dto/page-options.dto.ts';
+import type { MemoryPointStatus } from '../../constants/memory-point-status.ts';
+import type { RoleType } from '../../constants/role-type.ts';
+import type { AiGenerationStatusResponseDto } from '../memory-point-ai-generation/dtos/ai-generation-status.dto.ts';
+import type { MemoryPointAiGenerationDto } from '../memory-point-ai-generation/dtos/memory-point-ai-generation.dto.ts';
+import { MemoryPointAiGenerationService } from '../memory-point-ai-generation/services/memory-point-ai-generation.service.ts';
+import { CreateMemoryPointCommand } from './commands/create-memory-point/create-memory-point.command.ts';
+import { DeleteMemoryPointCommand } from './commands/delete-memory-point/delete-memory-point.command.ts';
+import { UpdateMemoryPointDetailsCommand } from './commands/update-memory-point-details/update-memory-point-details.command.ts';
+import { UpdateMemoryPointStatusCommand } from './commands/update-memory-point-status/update-memory-point-status.command.ts';
+import { UpsertMemoryPointDetailsCommand } from './commands/upsert-memory-point-details/upsert-memory-point-details.command.ts';
+import type { CreateMemoryPointDto } from './dtos/create-memory-point.dto.ts';
+import type { MemoryPointDto } from './dtos/memory-point.dto.ts';
+import type { MemoryPointDetailsDto } from './dtos/memory-point-details.dto.ts';
+import type { NearbyMemoryPointsPageOptionsDto } from './dtos/nearby-memory-points-page-options.dto.ts';
+import type { UpdateMemoryPointDetailsDto } from './dtos/update-memory-point-details.dto.ts';
+import type { UpsertMemoryPointDetailsDto } from './dtos/upsert-memory-point-details.dto.ts';
+import { GetAllMemoryPointsQuery } from './queries/get-all-memory-points/get-all-memory-points.query.ts';
+import { GetMemoryPointQuery } from './queries/get-memory-point/get-memory-point.query.ts';
+import { GetMyMemoryPointsQuery } from './queries/get-my-memory-points/get-my-memory-points.query.ts';
+import { GetNearbyMemoryPointsQuery } from './queries/get-nearby-memory-points/get-nearby-memory-points.query.ts';
+
+@Injectable()
+export class MemoryPointService {
+  constructor(
+    private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
+    private readonly aiGenerationService: MemoryPointAiGenerationService,
+  ) {}
+
+  createMemoryPoint(
+    userId: Uuid,
+    dto: CreateMemoryPointDto,
+  ): Promise<MemoryPointDto> {
+    return this.commandBus.execute<CreateMemoryPointCommand, MemoryPointDto>(
+      new CreateMemoryPointCommand(userId, dto),
+    );
+  }
+
+  getMemoryPoint(
+    memoryPointId: Uuid,
+    userId?: Uuid,
+    role?: RoleType,
+  ): Promise<MemoryPointDto> {
+    return this.queryBus.execute<GetMemoryPointQuery, MemoryPointDto>(
+      new GetMemoryPointQuery(memoryPointId, userId, role),
+    );
+  }
+
+  getMyMemoryPoints(
+    userId: Uuid,
+    pageOptionsDto: PageOptionsDto,
+  ): Promise<PageDto<MemoryPointDto>> {
+    return this.queryBus.execute<
+      GetMyMemoryPointsQuery,
+      PageDto<MemoryPointDto>
+    >(new GetMyMemoryPointsQuery(userId, pageOptionsDto));
+  }
+
+  getAllMemoryPoints(
+    pageOptionsDto: PageOptionsDto,
+  ): Promise<PageDto<MemoryPointDto>> {
+    return this.queryBus.execute<
+      GetAllMemoryPointsQuery,
+      PageDto<MemoryPointDto>
+    >(new GetAllMemoryPointsQuery(pageOptionsDto));
+  }
+
+  getNearbyMemoryPoints(
+    pageOptionsDto: NearbyMemoryPointsPageOptionsDto,
+  ): Promise<PageDto<MemoryPointDto>> {
+    return this.queryBus.execute<
+      GetNearbyMemoryPointsQuery,
+      PageDto<MemoryPointDto>
+    >(new GetNearbyMemoryPointsQuery(pageOptionsDto));
+  }
+
+  updateStatus(memoryPointId: Uuid, status: MemoryPointStatus): Promise<void> {
+    return this.commandBus.execute<UpdateMemoryPointStatusCommand>(
+      new UpdateMemoryPointStatusCommand(memoryPointId, status),
+    );
+  }
+
+  updateDetails(
+    memoryPointId: Uuid,
+    dto: UpdateMemoryPointDetailsDto,
+  ): Promise<void> {
+    return this.commandBus.execute<UpdateMemoryPointDetailsCommand>(
+      new UpdateMemoryPointDetailsCommand(memoryPointId, dto),
+    );
+  }
+
+  deleteMemoryPoint(memoryPointId: Uuid): Promise<void> {
+    return this.commandBus.execute<DeleteMemoryPointCommand>(
+      new DeleteMemoryPointCommand(memoryPointId),
+    );
+  }
+
+  upsertDetails(
+    memoryPointId: Uuid,
+    userId: Uuid,
+    upsertMemoryPointDetailsDto: UpsertMemoryPointDetailsDto,
+  ): Promise<MemoryPointDetailsDto> {
+    return this.commandBus.execute<UpsertMemoryPointDetailsCommand>(
+      new UpsertMemoryPointDetailsCommand(
+        memoryPointId,
+        userId,
+        upsertMemoryPointDetailsDto,
+      ),
+    );
+  }
+
+  generateVideo(memoryPointId: Uuid): Promise<MemoryPointAiGenerationDto> {
+    return this.aiGenerationService.generate(memoryPointId);
+  }
+
+  getVideoStatus(
+    memoryPointId: Uuid,
+    userId: Uuid,
+    role: RoleType,
+  ): Promise<AiGenerationStatusResponseDto> {
+    return this.aiGenerationService.getStatus(memoryPointId, userId, role);
+  }
+}

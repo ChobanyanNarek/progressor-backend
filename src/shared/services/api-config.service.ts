@@ -159,6 +159,32 @@ export class ApiConfigService {
     };
   }
 
+  get didConfig() {
+    return {
+      apiKey: this.getString('DID_API_KEY'),
+      baseUrl: this.getString('DID_BASE_URL', 'https://api.d-id.com'),
+      webhookUrl: this.getString('DID_WEBHOOK_URL'),
+      webhookSecret: this.getString('DID_WEBHOOK_SECRET'),
+    };
+  }
+
+  get gcsConfig() {
+    return {
+      projectId: this.getString('GCP_PROJECT_ID'),
+      bucket: this.getString('GCS_BUCKET_NAME'),
+    };
+  }
+
+  get cloudTasksConfig() {
+    return {
+      projectId: this.getString('GCP_PROJECT_ID'),
+      location: this.getString('CLOUD_TASKS_LOCATION'),
+      queue: this.getString('CLOUD_TASKS_QUEUE'),
+      targetUrl: this.getString('CLOUD_TASKS_TARGET_URL'),
+      invokerServiceAccount: this.getString('CLOUD_TASKS_INVOKER_SA'),
+    };
+  }
+
   private get(key: string): string {
     const value = this.configService.get<string>(key);
 
