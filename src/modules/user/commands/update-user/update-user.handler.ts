@@ -2,7 +2,7 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
-import { UserEntity } from '../user.entity.ts';
+import { UserEntity } from '../../user.entity.ts';
 import { UpdateUserCommand } from './update-user.command.ts';
 
 @CommandHandler(UpdateUserCommand)

@@ -2,9 +2,9 @@ import { type IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
-import { UserNotFoundException } from '../../../exceptions/user-not-found.exception.ts';
-import type { UserDto } from '../dtos/user.dto.ts';
-import { UserEntity } from '../user.entity.ts';
+import { UserNotFoundException } from '../../../../exceptions/user-not-found.exception.ts';
+import type { UserDto } from '../../dtos/user.dto.ts';
+import { UserEntity } from '../../user.entity.ts';
 import { GetUserQuery } from './get-user.query.ts';
 
 @QueryHandler(GetUserQuery)

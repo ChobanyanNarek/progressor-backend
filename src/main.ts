@@ -7,7 +7,6 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
-import { Transport } from '@nestjs/microservices';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import compression from 'compression';
@@ -19,12 +18,21 @@ import { AppModule } from './app.module.ts';
 import { HttpExceptionFilter } from './filters/bad-request.filter.ts';
 import { QueryFailedFilter } from './filters/query-failed.filter.ts';
 import { TranslationInterceptor } from './interceptors/translation-interceptor.service.ts';
+import { loadSecrets } from './load-secrets.ts';
 import { setupSwagger } from './setup-swagger.ts';
 import { ApiConfigService } from './shared/services/api-config.service.ts';
 import { TranslationService } from './shared/services/translation.service.ts';
 import { SharedModule } from './shared/shared.module.ts';
 
 export async function bootstrap(): Promise<NestExpressApplication> {
+  /*
+   * Load runtime config from Secret Manager BEFORE the app module is created,
+   * so ConfigModule/ApiConfigService read the merged process.env.
+   */
+  if (process.env.NODE_ENV === 'production') {
+    await loadSecrets();
+  }
+
   initializeTransactionalContext();
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule,
@@ -73,20 +81,6 @@ export async function bootstrap(): Promise<NestExpressApplication> {
 
   const configService = app.select(SharedModule).get(ApiConfigService);
 
-  // only start nats if it is enabled
-  if (configService.natsEnabled) {
-    const natsConfig = configService.natsConfig;
-    app.connectMicroservice({
-      transport: Transport.NATS,
-      options: {
-        url: `nats://${natsConfig.host}:${natsConfig.port}`,
-        queue: 'main_service',
-      },
-    });
-
-    await app.startAllMicroservices();
-  }
-
   if (configService.documentationEnabled) {
     setupSwagger(app);
   }
@@ -102,10 +96,12 @@ export async function bootstrap(): Promise<NestExpressApplication> {
    * Vite plugin binds the server in dev mode (PROD===false); in all other runtimes import.meta.env is undefined.
    * biome-ignore lint/style/useNamingConvention: PROD is Vite's injected env key
    */
-  const viteEnv = (import.meta as unknown as { env?: { PROD?: boolean } }).env;
+  const viteEnv = (
+    import.meta as unknown as { env?: { DEV?: boolean; PROD?: boolean } }
+  ).env;
 
-  if (viteEnv?.PROD) {
-    await app.listen(port);
+  if (!viteEnv?.DEV) {
+    await app.listen(port, '0.0.0.0');
     console.info(`server running on http://localhost:${port}`);
   }
 

@@ -2,9 +2,9 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
-import type { UserDto } from '../dtos/user.dto.ts';
-import { UserExistsException } from '../exceptions/user-exists.exception.ts';
-import { UserEntity } from '../user.entity.ts';
+import type { UserDto } from '../../dtos/user.dto.ts';
+import { UserExistsException } from '../../exceptions/user-exists.exception.ts';
+import { UserEntity } from '../../user.entity.ts';
 import { CreateUserCommand } from './create-user.command.ts';
 
 @CommandHandler(CreateUserCommand)
@@ -16,7 +16,7 @@ export class CreateUserHandler
     private readonly userRepository: Repository<UserEntity>,
   ) {}
 
-  async execute(command: CreateUserCommand): Promise<UserDto> {
+  async execute(command: CreateUserCommand): Promise<Uuid> {
     const { firstName, lastName, email, role, password, status } =
       command.createUserDto;
 
@@ -40,6 +40,6 @@ export class CreateUserHandler
 
     await this.userRepository.save(user);
 
-    return user.toDto();
+    return user.id;
   }
 }

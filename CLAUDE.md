@@ -2,9 +2,23 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Architecture Decision Records (read first)
+
+Binding technical decisions live in [`docs/adr/`](docs/adr/README.md). **Before
+changing migrations, configuration, external integrations, or shared structure,
+read the relevant ADR and follow it. When a change establishes or alters a
+significant decision, add or supersede an ADR in the same PR.** Current ADRs:
+
+- **0001** — DB migrations must be **generated** (`pnpm migration:generate`), never hand-written; a clean drift check is required.
+- **0002** — Config is read **explicitly** from env; no code-side defaults (defaults belong in `.env.example`).
+- **0003** — Re-host **expiring** external provider asset URLs to GCS; mark `READY` only after a successful re-host.
+- **0004** — Interfaces live in a dedicated `interfaces/` folder (`I`-prefixed), not in service files.
+- **0005** — External AI/media providers follow the thin-client + server-side + async-state-machine + GET-verified-webhook pattern.
+- **0006** — Every feature/behavioural change ships with automated tests in the same PR (unit for logic, e2e for routes/webhooks; bug fixes get a regression test).
+
 ## Project Overview
 
-Enterprise-grade NestJS 11 boilerplate — TypeScript, PostgreSQL + TypeORM, JWT auth (RS256), CQRS, i18n, AWS S3, NATS microservices (conditional), multi-runtime (Node/Bun/Deno).
+Enterprise-grade NestJS 11 boilerplate — TypeScript, PostgreSQL + TypeORM, JWT auth (RS256), CQRS, i18n, Google Cloud Storage, multi-runtime (Node/Bun/Deno).
 
 ## Package Manager
 
@@ -25,19 +39,23 @@ pnpm generate           # NestJS code generation (awesome-nestjs-schematics)
 pnpm g                  # Shorthand for generate
 ```
 
-**Database migrations** (required for any schema change):
+**Database migrations** (required for any schema change). Migrations are
+**generated, never hand-written** — see ADR 0001.
 ```bash
-pnpm migration:generate -- --name=MigrationName   # Generate from entity changes
+# Generate from entity diff (positional path; DB must be at pre-change state).
+pnpm migration:generate src/database/migrations/<Name>
 pnpm migration:run      # Apply migrations
 pnpm migration:revert   # Revert last migration
 ```
+After generating, apply the lint cleanup noted in ADR 0001 (`import type`,
+kebab-case filename, wrap long SQL) and confirm a clean drift check
+(re-running generate reports "No changes").
 
 ## Architecture
 
 - Feature modules under `src/modules/` — each fully encapsulated (CQRS pattern recommended)
 - Shared services in `src/shared/`
 - Global filters, interceptors, pipes registered in `src/main.ts`
-- NATS microservice conditional on `NATS_ENABLED` env var
 - Swagger available at `/documentation` when `ENABLE_DOCUMENTATION=true`
 
 For detailed architecture: @docs/architecture.md
@@ -76,10 +94,19 @@ For full style rules: @.cursor/rules/nestjs-clean-typescript-cursor-rules.mdc
 
 ## Testing
 
+**Tests are mandatory for every feature/behavioural change — see ADR 0006.**
+Unit-test service/handler logic (state transitions, guards, validation, error
+paths); add an e2e test when adding/altering a route, pipe/guard interaction, or
+webhook; ship a regression test with every bug fix. Pure refactors and
+docs/config-only changes are exempt but must not reduce coverage.
+
 - Unit tests: colocated with source as `*.spec.ts`
 - E2E tests: `test/` directory
 - Run a single test: `pnpm test -- --testNamePattern="test name"`
 - E2E tests require running Docker services (`docker-compose up -d postgres`)
+- New `*.spec.ts` files must be added to `allowDefaultProject` in
+  `eslint.config.mjs` (list explicitly — `**` globs are rejected) so they are
+  type-linted; test files are exempt from the strict `no-unsafe-*` rules.
 
 For testing patterns: @.cursor/rules/testing-guidelines.mdc
 
@@ -102,9 +129,9 @@ Copy `.env.example` to `.env`. Key vars to configure:
 - `DB_*` — PostgreSQL connection
 - `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` — RSA keys (examples in `.env.example`)
 - `CORS_ORIGINS` — comma-separated allowed origins
-- `REDIS_URL` / `MEILI_HOST` / `MEILI_MASTER_KEY` — used by Docker services; not yet wired into application code
+- `REDIS_URL` — used by Docker services; not yet wired into application code
 
-Docker services: `docker-compose up -d` starts Postgres, pgAdmin (port 8080), and Meilisearch (port 7701).
+Docker services: `docker-compose up -d` starts Postgres and pgAdmin (port 8080).
 
 ## Formatter
 

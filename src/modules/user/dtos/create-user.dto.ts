@@ -9,16 +9,16 @@ import {
 } from '../../../decorators/field.decorators.ts';
 
 export class CreateUserDto extends BaseDto {
-  @StringField()
+  @StringField({ minLength: 3 })
   readonly firstName!: string;
 
-  @StringField()
+  @StringField({ minLength: 3 })
   readonly lastName!: string;
 
   @EmailField()
   readonly email!: string;
 
-  @StringField()
+  @StringField({ minLength: 6 })
   readonly password!: string;
 
   @EnumField(() => RoleType)

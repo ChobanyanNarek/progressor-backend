@@ -2,6 +2,7 @@ import { AbstractDto } from '../../../common/dto/abstract.dto.ts';
 import { AccountStatus } from '../../../constants/account-status.ts';
 import { RoleType } from '../../../constants/role-type.ts';
 import {
+  DateField,
   EmailField,
   EnumField,
   StringField,
@@ -10,10 +11,10 @@ import {
 import type { UserEntity } from '../user.entity.ts';
 
 export class UserDto extends AbstractDto {
-  @StringField({ minLength: 2 })
+  @StringField()
   firstName!: string;
 
-  @StringField({ minLength: 2 })
+  @StringField()
   lastName!: string;
 
   @EnumField(() => RoleType)
@@ -22,11 +23,14 @@ export class UserDto extends AbstractDto {
   @EmailField()
   email!: string;
 
-  @StringField({ minLength: 6 })
+  @StringField()
   password!: string;
 
   @EnumField(() => AccountStatus)
   status!: AccountStatus;
+
+  @DateField()
+  lastLogin!: Date;
 
   @StringFieldOptional({ nullable: true })
   avatar?: string | null;
@@ -37,5 +41,8 @@ export class UserDto extends AbstractDto {
     this.lastName = user.lastName;
     this.role = user.role;
     this.email = user.email;
+    this.lastLogin = user.lastLogin;
+    this.status = user.status;
+    this.avatar = user.avatar;
   }
 }

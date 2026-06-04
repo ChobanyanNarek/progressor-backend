@@ -269,12 +269,9 @@ REDIS_URL=redis://localhost:6379
 TELEGRAM_BOT_TOKEN=your-telegram-bot-token
 TELEGRAM_BOT_USERNAME=your-telegram-bot-username
 
-# AWS S3 (optional)
-AWS_S3_BUCKET_NAME=your-bucket-name
-
-# MeiliSearch (optional)
-MEILI_HOST=http://localhost:7700
-MEILI_MASTER_KEY=your-meilisearch-master-key
+# Google Cloud Storage (optional)
+GCP_PROJECT_ID=your-gcp-project-id
+GCS_BUCKET_NAME=your-bucket-name
 
 # CORS
 CORS_ORIGINS=http://localhost:3000,http://localhost:3001
@@ -283,13 +280,8 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:3001
 ENABLE_DOCUMENTATION=true
 
 # Throttling
-THROTTLE_TTL=60
-THROTTLE_LIMIT=10
-
-# NATS (optional)
-NATS_ENABLED=false
-NATS_HOST=localhost
-NATS_PORT=4222
+THROTTLER_TTL=1m
+THROTTLER_LIMIT=10
 ```
 
 ## Docker Development
@@ -325,7 +317,6 @@ The `docker-compose.yml` includes:
 - **app**: NestJS application
 - **postgres**: PostgreSQL database
 - **pgAdmin**: Database administration tool (available at `http://localhost:8080`)
-- **meilisearch**: Meilisearch search engine (available at `http://localhost:7701`)
 
 For MySQL development, use:
 ```bash

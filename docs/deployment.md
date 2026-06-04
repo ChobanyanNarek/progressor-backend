@@ -91,19 +91,15 @@ CORS_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
 ENABLE_DOCUMENTATION=false
 
 # Throttling
-THROTTLER_TTL=60
+THROTTLER_TTL=1m
 THROTTLER_LIMIT=100
 
-# NATS (if using microservices)
-NATS_ENABLED=false
-NATS_HOST=your-nats-host
-NATS_PORT=4222
-
-# AWS S3 (if using file uploads)
-AWS_S3_BUCKET_NAME=your-bucket-name
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_REGION=us-east-1
+# Google Cloud Storage (if using file uploads)
+GCP_PROJECT_ID=your-gcp-project-id
+GCS_BUCKET_NAME=your-bucket-name
+# On Cloud Run/GKE, credentials resolve via the attached service account (ADC).
+# Locally, set GOOGLE_APPLICATION_CREDENTIALS to a service-account key file.
+# GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 ```
 
 ### Database Configuration
@@ -159,7 +155,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=8192"
 ARG PORT=3000
-ARG secret_manager_arn
 EXPOSE $PORT
 COPY --from=build /app/dist ./dist
 COPY --from=prod-deps /app/node_modules ./node_modules
@@ -170,10 +165,9 @@ CMD ["node", "dist/main.js"]
 
 The repo's `docker-compose.yml` provides the development stack. For production, adapt it or build your own. The development compose includes:
 
-- **app**: Builds from the multi-stage `Dockerfile`, depends on postgres (healthy) and meilisearch
+- **app**: Builds from the multi-stage `Dockerfile`, depends on postgres (healthy)
 - **postgres**: Standard Postgres image with `pg_isready` health check and `init-data.sh` volume mount
 - **pgadmin**: dpage/pgadmin4, available at `http://localhost:8080`
-- **meilisearch**: getmeili/meilisearch, available at `http://localhost:7701`
 
 Example production-focused override (`docker-compose.prod.yml`):
 
