@@ -29,7 +29,7 @@ export class UserService {
     return this.userRepository.findOneBy(findData);
   }
 
-  create(createUserDto: CreateUserDto): Promise<Uuid> {
+  create(createUserDto: CreateUserDto): Promise<{ id: Uuid }> {
     return this.commandBus.execute<CreateUserCommand>(
       new CreateUserCommand(createUserDto),
     );

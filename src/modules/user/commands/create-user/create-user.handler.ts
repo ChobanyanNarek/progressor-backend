@@ -16,7 +16,7 @@ export class CreateUserHandler
     private readonly userRepository: Repository<UserEntity>,
   ) {}
 
-  async execute(command: CreateUserCommand): Promise<Uuid> {
+  async execute(command: CreateUserCommand): Promise<{ id: Uuid }> {
     const { firstName, lastName, email, role, password, status } =
       command.createUserDto;
 
@@ -40,6 +40,6 @@ export class CreateUserHandler
 
     await this.userRepository.save(user);
 
-    return user.id;
+    return { id: user.id };
   }
 }

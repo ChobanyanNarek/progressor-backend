@@ -45,8 +45,8 @@ export class UserController {
 
   @Post()
   @Auth([RoleType.ADMIN])
-  @HttpCode(HttpStatus.OK)
-  createUser(@Body() createUserDto: CreateUserDto): Promise<Uuid> {
+  @HttpCode(HttpStatus.CREATED)
+  createUser(@Body() createUserDto: CreateUserDto): Promise<{ id: Uuid }> {
     return this.userService.create(createUserDto);
   }
 
