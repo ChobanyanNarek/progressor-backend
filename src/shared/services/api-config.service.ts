@@ -6,6 +6,12 @@ import type { ThrottlerOptions } from '@nestjs/throttler';
 import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import parse from 'parse-duration';
 
+import type {
+  IAppConfig,
+  IAuthConfig,
+  IDidConfig,
+  IGcpConfig,
+} from '../../common/interfaces';
 import { UserSubscriber } from '../../entity-subscribers/user-subscriber.ts';
 import { SnakeNamingStrategy } from '../../snake-naming.strategy.ts';
 
@@ -77,7 +83,7 @@ export class ApiConfigService {
       throw new Error(`${key} environment variable doesn't exist`);
     }
 
-    return value.toString().replaceAll(String.raw`\n`, '\n');
+    return value.replaceAll(String.raw`\n`, '\n');
   }
 
   get nodeEnv(): string {
@@ -122,18 +128,11 @@ export class ApiConfigService {
     };
   }
 
-  get gcsConfig() {
-    return {
-      projectId: this.getString('GCP_PROJECT_ID'),
-      bucketName: this.getString('GCS_BUCKET_NAME'),
-    };
-  }
-
   get documentationEnabled(): boolean {
     return this.getBoolean('ENABLE_DOCUMENTATION');
   }
 
-  get authConfig() {
+  get authConfig(): IAuthConfig {
     return {
       privateKey: this.getString('JWT_PRIVATE_KEY'),
       publicKey: this.getString('JWT_PUBLIC_KEY'),
@@ -141,9 +140,29 @@ export class ApiConfigService {
     };
   }
 
-  get appConfig() {
+  get appConfig(): IAppConfig {
     return {
       port: this.getString('PORT'),
+    };
+  }
+
+  get didConfig(): IDidConfig {
+    return {
+      apiKey: this.getString('DID_API_KEY'),
+      baseUrl: this.getString('DID_BASE_URL', 'https://api.d-id.com'),
+      webhookUrl: this.getString('DID_WEBHOOK_URL'),
+      webhookSecret: this.getString('DID_WEBHOOK_SECRET'),
+    };
+  }
+
+  get gcpConfig(): IGcpConfig {
+    return {
+      projectId: this.getString('GCP_PROJECT_ID'),
+      bucket: this.getString('GCS_BUCKET_NAME'),
+      location: this.getString('CLOUD_TASKS_LOCATION'),
+      queue: this.getString('CLOUD_TASKS_QUEUE'),
+      targetUrl: this.getString('CLOUD_TASKS_TARGET_URL'),
+      invokerServiceAccount: this.getString('CLOUD_TASKS_INVOKER_SA'),
     };
   }
 

@@ -1,0 +1,57 @@
+import { type IQueryHandler, QueryHandler } from '@nestjs/cqrs';
+import { InjectRepository } from '@nestjs/typeorm';
+import type { Repository } from 'typeorm';
+
+import type { PageDto } from '../../../../common/dto/page.dto.ts';
+import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import type { MemoryPointDto } from '../../dtos/memory-point.dto.ts';
+import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
+import { GetNearbyMemoryPointsQuery } from './get-nearby-memory-points.query.ts';
+
+@QueryHandler(GetNearbyMemoryPointsQuery)
+export class GetNearbyMemoryPointsHandler
+  implements IQueryHandler<GetNearbyMemoryPointsQuery, PageDto<MemoryPointDto>>
+{
+  constructor(
+    @InjectRepository(MemoryPointEntity)
+    private readonly memoryPointRepository: Repository<MemoryPointEntity>,
+  ) {}
+
+  async execute(
+    query: GetNearbyMemoryPointsQuery,
+  ): Promise<PageDto<MemoryPointDto>> {
+    const { latitude, longitude, radiusMeters, name } = query.pageOptionsDto;
+
+    const userPoint =
+      'ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography';
+
+    const queryBuilder = this.memoryPointRepository
+      .createQueryBuilder('mp')
+      .leftJoinAndSelect('mp.memoryPointDetails', 'details')
+      .addSelect(
+        `ST_Distance(mp.location::geography, ${userPoint})`,
+        'distance',
+      )
+      .where('mp.status = :status', { status: MemoryPointStatus.APPROVED })
+      .andWhere(`ST_DWithin(mp.location::geography, ${userPoint}, :radius)`)
+      .orderBy('distance', 'ASC')
+      .setParameters({
+        longitude,
+        latitude,
+        radius: radiusMeters,
+      });
+
+    if (name) {
+      queryBuilder.andWhere('details.title ILIKE :name', {
+        name: `%${name}%`,
+      });
+    }
+
+    const [items, pageMetaDto] = await queryBuilder.paginate(
+      query.pageOptionsDto,
+    );
+
+    // eslint-disable-next-line sonarjs/argument-type
+    return items.toPageDto(pageMetaDto);
+  }
+}

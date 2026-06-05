@@ -19,6 +19,7 @@ import {
   UUIDParam,
 } from '../../decorators/http.decorators.ts';
 import { CreateUserDto } from './dtos/create-user.dto.ts';
+import { CreateUserResultDto } from './dtos/create-user-result.dto.ts';
 import { UserDto } from './dtos/user.dto.ts';
 import { UserListDto } from './dtos/user-list.dto.ts';
 import type { UsersPageOptionsDto } from './dtos/users-page-options.dto.ts';
@@ -45,8 +46,15 @@ export class UserController {
 
   @Post()
   @Auth([RoleType.ADMIN])
-  @HttpCode(HttpStatus.OK)
-  createUser(@Body() createUserDto: CreateUserDto): Promise<Uuid> {
+  @HttpCode(HttpStatus.CREATED)
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Create user',
+    type: CreateUserResultDto,
+  })
+  createUser(
+    @Body() createUserDto: CreateUserDto,
+  ): Promise<CreateUserResultDto> {
     return this.userService.create(createUserDto);
   }
 

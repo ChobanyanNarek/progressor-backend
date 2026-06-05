@@ -19,6 +19,8 @@ import {
 
 import { AuthModule } from './modules/auth/auth.module.ts';
 import { HealthCheckerModule } from './modules/health-checker/health-checker.module.ts';
+import { MemoryPointAiGenerationModule } from './modules/memory-point-ai-generation/memory-point-ai-generation.module.ts';
+import { MemoryPointModule } from './modules/memory-points/memory-point.module.ts';
 import { UserModule } from './modules/user/user.module.ts';
 import { ApiConfigService } from './shared/services/api-config.service.ts';
 import { SharedModule } from './shared/shared.module.ts';
@@ -27,6 +29,8 @@ import { SharedModule } from './shared/shared.module.ts';
   imports: [
     AuthModule,
     UserModule,
+    MemoryPointModule,
+    MemoryPointAiGenerationModule,
     ClsModule.forRoot({
       global: true,
       middleware: {

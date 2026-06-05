@@ -1,43 +1,80 @@
+import type { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+
 import { Storage } from '@google-cloud/storage';
 import { Injectable } from '@nestjs/common';
-import mime from 'mime-types';
 
-import type { IFile } from './../../interfaces/IFile.ts';
 import { ApiConfigService } from './api-config.service.ts';
-import { GeneratorService } from './generator.service.ts';
+
+const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
 @Injectable()
 export class GcsStorageService {
   private readonly storage: Storage;
 
-  constructor(
-    public configService: ApiConfigService,
-    public generatorService: GeneratorService,
-  ) {
-    const config = configService.gcsConfig;
+  private readonly bucketName: string;
 
-    /*
-     * Credentials are resolved via Application Default Credentials (ADC):
-     * the runtime service account on Cloud Run / Workload Identity on GKE,
-     * or GOOGLE_APPLICATION_CREDENTIALS locally.
-     */
-    this.storage = new Storage({ projectId: config.projectId });
+  constructor(apiConfigService: ApiConfigService) {
+    const { projectId, bucket } = apiConfigService.gcpConfig;
+
+    this.storage = new Storage({ projectId });
+    this.bucketName = bucket;
   }
 
-  async uploadImage(file: IFile): Promise<string> {
-    const fileName = this.generatorService.fileName(
-      mime.extension(file.mimetype) as string,
-    );
-    const key = `images/${fileName}`;
-
+  /** Upload a buffer to the given object path and return that path. */
+  async upload(
+    objectPath: string,
+    data: Buffer,
+    contentType: string,
+  ): Promise<string> {
     await this.storage
-      .bucket(this.configService.gcsConfig.bucketName)
-      .file(key)
-      .save(file.buffer, {
-        contentType: file.mimetype,
-        resumable: false,
+      .bucket(this.bucketName)
+      .file(objectPath)
+      .save(data, { contentType, resumable: false });
+
+    return objectPath;
+  }
+
+  /**
+   * Stream data straight into GCS without buffering the whole file in memory.
+   * The source is piped in chunks, so memory stays flat regardless of file size.
+   * `resumable: true` uses GCS chunked uploads, which suits large videos.
+   */
+  async uploadStream(
+    objectPath: string,
+    source: Readable,
+    contentType: string,
+  ): Promise<string> {
+    const writeStream = this.storage
+      .bucket(this.bucketName)
+      .file(objectPath)
+      .createWriteStream({ contentType, resumable: true });
+
+    await pipeline(source, writeStream);
+
+    return objectPath;
+  }
+
+  /** Generate a short-lived signed read URL for a private object. */
+  async getSignedReadUrl(
+    objectPath: string,
+    ttlMs: number = FIFTEEN_MINUTES_MS,
+  ): Promise<string> {
+    const [url] = await this.storage
+      .bucket(this.bucketName)
+      .file(objectPath)
+      .getSignedUrl({
+        action: 'read',
+        expires: Date.now() + ttlMs,
       });
 
-    return key;
+    return url;
+  }
+
+  async delete(objectPath: string): Promise<void> {
+    await this.storage
+      .bucket(this.bucketName)
+      .file(objectPath)
+      .delete({ ignoreNotFound: true });
   }
 }
