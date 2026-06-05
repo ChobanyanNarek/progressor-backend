@@ -15,7 +15,7 @@ export class GcsStorageService {
   private readonly bucketName: string;
 
   constructor(apiConfigService: ApiConfigService) {
-    const { projectId, bucket } = apiConfigService.gcsConfig;
+    const { projectId, bucket } = apiConfigService.gcpConfig;
 
     this.storage = new Storage({ projectId });
     this.bucketName = bucket;

@@ -15,7 +15,7 @@ export class CloudTasksService {
 
   constructor(apiConfigService: ApiConfigService) {
     const { projectId, location, queue, targetUrl, invokerServiceAccount } =
-      apiConfigService.cloudTasksConfig;
+      apiConfigService.gcpConfig;
 
     /*
      * No explicit credentials: the client picks up the runtime service account

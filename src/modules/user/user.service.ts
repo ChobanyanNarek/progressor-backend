@@ -7,6 +7,7 @@ import type { PageDto } from '../../common/dto/page.dto.ts';
 import { CreateUserCommand } from './commands/create-user/create-user.command.ts';
 import { UpdateUserCommand } from './commands/update-user/update-user.command.ts';
 import type { CreateUserDto } from './dtos/create-user.dto.ts';
+import { CreateUserResultDto } from './dtos/create-user-result.dto.ts';
 import type { UpdateUserDto } from './dtos/update-user.dto.ts';
 import type { UserDto } from './dtos/user.dto.ts';
 import type { UserListDto } from './dtos/user-list.dto.ts';
@@ -29,7 +30,7 @@ export class UserService {
     return this.userRepository.findOneBy(findData);
   }
 
-  create(createUserDto: CreateUserDto): Promise<Uuid> {
+  create(createUserDto: CreateUserDto): Promise<CreateUserResultDto> {
     return this.commandBus.execute<CreateUserCommand>(
       new CreateUserCommand(createUserDto),
     );

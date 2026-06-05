@@ -23,8 +23,7 @@ export class CloudTasksOidcGuard implements CanActivate {
   private readonly serviceAccountEmail: string;
 
   constructor(apiConfigService: ApiConfigService) {
-    const { targetUrl, invokerServiceAccount } =
-      apiConfigService.cloudTasksConfig;
+    const { targetUrl, invokerServiceAccount } = apiConfigService.gcpConfig;
 
     this.audience = targetUrl;
     this.serviceAccountEmail = invokerServiceAccount;
