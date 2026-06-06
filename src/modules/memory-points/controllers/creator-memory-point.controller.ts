@@ -22,7 +22,8 @@ import {
 } from '../../../decorators/http.decorators.ts';
 import type { UserEntity } from '../../user/user.entity.ts';
 import { CreateMemoryPointDto } from '../dtos/create-memory-point.dto.ts';
-import { MemoryPointDto } from '../dtos/memory-point.dto.ts';
+import { CreatedMemoryPointDto } from '../dtos/created-memory-point.dto.ts';
+import { CreatorMemoryPointDto } from '../dtos/creator-memory-point.dto.ts';
 import { MemoryPointDetailsDto } from '../dtos/memory-point-details.dto.ts';
 import { MyMemoryPointDto } from '../dtos/my-memory-point.dto.ts';
 import { UpsertMemoryPointDetailsDto } from '../dtos/upsert-memory-point-details.dto.ts';
@@ -39,12 +40,11 @@ export class CreatorMemoryPointController {
   @ApiOperation({ summary: 'Create a new memory point' })
   @ApiResponse({
     status: HttpStatus.CREATED,
-    type: MemoryPointDto,
   })
   create(
     @AuthUser() user: UserEntity,
     @Body() createMemoryPointDto: CreateMemoryPointDto,
-  ): Promise<MemoryPointDto> {
+  ): Promise<CreatedMemoryPointDto> {
     return this.memoryPointService.createMemoryPoint(
       user.id,
       createMemoryPointDto,
@@ -59,7 +59,7 @@ export class CreatorMemoryPointController {
       'Upsert memory point details and AI-generation input; the point stays PENDING until an admin picks it up',
   })
   @ApiUUIDParam('id')
-  @ApiResponse({ status: HttpStatus.OK, type: MemoryPointDetailsDto })
+  @ApiResponse({ status: HttpStatus.OK })
   upsertDetails(
     @UUIDParam('id') id: Uuid,
     @AuthUser() user: UserEntity,
@@ -109,11 +109,11 @@ export class CreatorMemoryPointController {
     summary: 'Get a single memory point by ID',
   })
   @ApiUUIDParam('id')
-  @ApiResponse({ status: HttpStatus.OK, type: MemoryPointDto })
+  @ApiResponse({ status: HttpStatus.OK })
   getOne(
     @UUIDParam('id') id: Uuid,
     @AuthUser() user: UserEntity,
-  ): Promise<MemoryPointDto> {
+  ): Promise<CreatorMemoryPointDto> {
     return this.memoryPointService.getMemoryPoint(id, user.id, user.role);
   }
 }

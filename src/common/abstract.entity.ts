@@ -12,6 +12,19 @@ import type {
 } from './dto/abstract.dto.ts';
 
 /**
+ * Constructor shape stored on the prototype by the `@UseDto` decorator.
+ * Typing it removes the `any` the raw prototype lookup would otherwise
+ * introduce, and keeps the `DTO`/`O` type parameters load-bearing. The entity
+ * parameter is the (non-generic) base type so that a concrete
+ * `AbstractEntity<SpecificDto>` stays assignable to `AbstractEntity` — DTO
+ * constructors accept the base entity, mirroring `AbstractDto`'s constructor.
+ */
+type DtoConstructor<DTO extends AbstractDto, O> = new (
+  entity: AbstractEntity,
+  options?: O,
+) => DTO;
+
+/**
  * Abstract Entity
  * @author Narek Hakobyan <narek.hakobyan.07@gmail.com>
  *
@@ -38,16 +51,21 @@ export abstract class AbstractEntity<
 
   translations?: AbstractTranslationEntity[];
 
-  toDto(options?: O): DTO {
-    const dtoClass = Object.getPrototypeOf(this).dtoClass;
+  /**
+   * DTO constructor injected on the prototype by `@UseDto`. Declaring it here
+   * (rather than reading an untyped prototype) keeps both `DTO` and `O` used in
+   * the class signature and gives `toDto` a fully typed construction call.
+   */
+  declare protected readonly dtoClass?: DtoConstructor<DTO, O>;
 
-    if (!dtoClass) {
+  toDto(options?: O): DTO {
+    if (!this.dtoClass) {
       throw new Error(
         `You need to use @UseDto on class (${this.constructor.name}) be able to call toDto function`,
       );
     }
 
-    return new dtoClass(this, options);
+    return new this.dtoClass(this, options);
   }
 }
 

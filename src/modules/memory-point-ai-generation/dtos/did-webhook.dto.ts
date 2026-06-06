@@ -1,6 +1,7 @@
 /** biome-ignore-all lint/style/useNamingConvention: <explanation> */
 import { Allow } from 'class-validator';
 
+import { BaseDto } from '../../../common/dto/base.dto.ts';
 import {
   ClassFieldOptional,
   NumberFieldOptional,
@@ -8,7 +9,7 @@ import {
   StringFieldOptional,
 } from '../../../decorators/field.decorators.ts';
 
-export class DidWebhookErrorDto {
+export class DidWebhookErrorDto extends BaseDto {
   @StringFieldOptional()
   kind?: string;
 
@@ -28,7 +29,7 @@ export class DidWebhookErrorDto {
  *   strict global ValidationPipe (`forbidNonWhitelisted`) keeps them instead of
  *   rejecting the request, without validating fields we never read.
  */
-export class DidWebhookDto {
+export class DidWebhookDto extends BaseDto {
   /** Talk id — the field we act on (enqueue result processing). */
   @StringField()
   id!: string;

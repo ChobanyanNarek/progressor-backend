@@ -14,9 +14,9 @@ import {
   ApiUUIDParam,
   UUIDParam,
 } from '../../../decorators/http.decorators.ts';
-import { MemoryPointDto } from '../dtos/memory-point.dto.ts';
 import { NearbyMemoryPointDto } from '../dtos/nearby-memory-point.dto.ts';
 import { NearbyMemoryPointsPageOptionsDto } from '../dtos/nearby-memory-points-page-options.dto.ts';
+import { PublicMemoryPointDto } from '../dtos/public-memory-point.dto.ts';
 import { MemoryPointService } from '../memory-point.service.ts';
 
 @Controller('memory-points')
@@ -55,8 +55,8 @@ export class MemoryPointController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get a single approved memory point' })
   @ApiUUIDParam('id')
-  @ApiResponse({ status: HttpStatus.OK, type: MemoryPointDto })
-  getOnePublic(@UUIDParam('id') id: Uuid): Promise<MemoryPointDto> {
+  @ApiResponse({ status: HttpStatus.OK })
+  getOnePublic(@UUIDParam('id') id: Uuid): Promise<PublicMemoryPointDto> {
     return this.memoryPointService.getMemoryPoint(id);
   }
 }

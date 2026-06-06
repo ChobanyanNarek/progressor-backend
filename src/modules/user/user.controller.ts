@@ -50,7 +50,6 @@ export class UserController {
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Create user',
-    type: CreateUserResultDto,
   })
   createUser(
     @Body() createUserDto: CreateUserDto,

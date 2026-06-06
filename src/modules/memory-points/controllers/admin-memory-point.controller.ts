@@ -68,7 +68,7 @@ export class AdminMemoryPointController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get a single memory point by ID' })
   @ApiUUIDParam('id')
-  @ApiResponse({ status: HttpStatus.OK, type: MemoryPointDto })
+  @ApiResponse({ status: HttpStatus.OK })
   getOne(
     @UUIDParam('id') id: Uuid,
     @AuthUser() user: UserEntity,
@@ -124,7 +124,7 @@ export class AdminMemoryPointController {
     summary: 'Send a reviewed memory point to D-ID for video generation',
   })
   @ApiUUIDParam('id')
-  @ApiResponse({ status: HttpStatus.OK, type: MemoryPointAiGenerationDto })
+  @ApiResponse({ status: HttpStatus.OK })
   generateVideo(
     @UUIDParam('id') id: Uuid,
   ): Promise<MemoryPointAiGenerationDto> {
@@ -136,7 +136,7 @@ export class AdminMemoryPointController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get AI video generation status' })
   @ApiUUIDParam('id')
-  @ApiResponse({ status: HttpStatus.OK, type: AiGenerationStatusResponseDto })
+  @ApiResponse({ status: HttpStatus.OK })
   getVideoStatus(
     @UUIDParam('id') id: Uuid,
     @AuthUser() user: UserEntity,

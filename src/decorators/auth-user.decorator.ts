@@ -1,16 +1,24 @@
 import type { ExecutionContext } from '@nestjs/common';
 import { createParamDecorator } from '@nestjs/common';
 
-export function AuthUser() {
-  return createParamDecorator((_data: unknown, context: ExecutionContext) => {
-    const request = context.switchToHttp().getRequest();
+import type { UserEntity } from '../modules/user/user.entity.ts';
 
-    const user = request.user;
+type RequestUser = UserEntity & Record<symbol, unknown>;
 
-    if (user?.[Symbol.for('isPublic')]) {
-      return;
-    }
+export function AuthUser(): ParameterDecorator {
+  return createParamDecorator(
+    (_data: unknown, context: ExecutionContext): UserEntity | undefined => {
+      const request = context
+        .switchToHttp()
+        .getRequest<{ user?: RequestUser }>();
 
-    return user;
-  })();
+      const user = request.user;
+
+      if (user?.[Symbol.for('isPublic')]) {
+        return undefined;
+      }
+
+      return user;
+    },
+  )();
 }

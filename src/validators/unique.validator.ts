@@ -13,7 +13,11 @@ import type {
 } from 'typeorm';
 
 /**
- * @deprecated Don't use this validator until it's fixed in NestJS
+ * Async class-validator constraint backing the `@Unique` decorator: asserts that
+ * no matching row exists for the given entity/condition. Registered by the
+ * `Unique` factory below, so the symbol is referenced internally and must not be
+ * marked `@deprecated` (that would flag its own factory as using a deprecated
+ * symbol).
  */
 @ValidatorConstraint({ name: 'unique', async: true })
 export class UniqueValidator implements ValidatorConstraintInterface {

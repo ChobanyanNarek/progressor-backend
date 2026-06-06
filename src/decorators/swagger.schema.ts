@@ -1,5 +1,3 @@
-// eslint-disable-next-line max-len
-/* eslint-disable @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-explicit-any,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-return,@typescript-eslint/no-unsafe-argument */
 import type { Type } from '@nestjs/common';
 import { applyDecorators, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
@@ -15,18 +13,28 @@ import type {
 } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
 import _ from 'lodash';
 
-import type { IApiFile } from '../interfaces/IApiFile.ts';
+import type { IApiFile } from '../interfaces/i-api-file.ts';
 
 const PARAMTYPES_METADATA = 'design:paramtypes';
 
-function reverseObjectKeys(
-  originalObject: Record<string, any>,
-): Record<string, any> {
-  const reversedObject: any = {};
-  const keys = Object.keys(originalObject).reverse();
+interface RouteArgMetadata {
+  index: number;
+  data?: string;
+}
 
-  for (const key of keys) {
-    reversedObject[key] = originalObject[key];
+interface ParameterWithType {
+  type: Type<unknown> | undefined;
+  name: string | undefined;
+  required: boolean;
+}
+
+function reverseObjectKeys<T>(
+  originalObject: Record<string, T>,
+): Record<string, T> {
+  const reversedObject: Record<string, T> = {};
+
+  for (const [key, value] of Object.entries(originalObject).toReversed()) {
+    reversedObject[key] = value;
   }
 
   return reversedObject;
@@ -34,22 +42,24 @@ function reverseObjectKeys(
 
 const ROUTE_ARGS_METADATA = '__routeArguments__';
 
-function explore(instance: object, propertyKey: string | symbol) {
-  const types: Array<Type<unknown>> = Reflect.getMetadata(
-    PARAMTYPES_METADATA,
-    instance,
-    propertyKey,
-  );
+function explore(
+  instance: object,
+  propertyKey: string | symbol,
+): Type<unknown> | undefined {
+  const types =
+    (Reflect.getMetadata(PARAMTYPES_METADATA, instance, propertyKey) as
+      | Array<Type<unknown>>
+      | undefined) ?? [];
   const routeArgsMetadata =
-    Reflect.getMetadata(
+    (Reflect.getMetadata(
       ROUTE_ARGS_METADATA,
       instance.constructor,
       propertyKey,
-    ) || {};
+    ) as Record<string, RouteArgMetadata> | undefined) ?? {};
 
   const parametersWithType = _.mapValues(
     reverseObjectKeys(routeArgsMetadata),
-    (param) => ({
+    (param): ParameterWithType => ({
       type: types[param.index],
       name: param.data,
       required: true,
@@ -64,14 +74,16 @@ function explore(instance: object, propertyKey: string | symbol) {
     }
   }
 
-  return null;
+  return undefined;
 }
 
 function RegisterModels(): MethodDecorator {
   return (target, propertyKey, descriptor: PropertyDescriptor) => {
     const body = explore(target, propertyKey);
 
-    return body && ApiExtraModels(body)(target, propertyKey, descriptor);
+    if (body) {
+      ApiExtraModels(body)(target, propertyKey, descriptor);
+    }
   };
 }
 
