@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { CreateUserCommand } from './commands/create-user/create-user.command.ts';
 import { UpdateUserCommand } from './commands/update-user/update-user.command.ts';
@@ -13,16 +13,14 @@ describe('UserService', () => {
   const userId = 'user-1' as Uuid;
 
   let service: UserService;
-  let findOneBy: jest.Mock;
-  let commandExecute: jest.Mock;
-  let queryExecute: jest.Mock;
+  let findOneBy: jest.Mock<(where: unknown) => Promise<unknown>>;
+  let commandExecute: jest.Mock<(command: unknown) => Promise<unknown>>;
+  let queryExecute: jest.Mock<(query: unknown) => Promise<unknown>>;
 
   beforeEach(() => {
-    findOneBy = jest.fn<() => Promise<unknown>>();
-    commandExecute = jest
-      .fn<() => Promise<unknown>>()
-      .mockResolvedValue(undefined);
-    queryExecute = jest.fn<() => Promise<unknown>>().mockResolvedValue(undefined);
+    findOneBy = jest.fn<(where: unknown) => Promise<unknown>>();
+    commandExecute = jest.fn<(command: unknown) => Promise<unknown>>();
+    queryExecute = jest.fn<(query: unknown) => Promise<unknown>>();
 
     service = new UserService(
       { findOneBy } as never,
@@ -46,7 +44,7 @@ describe('UserService', () => {
     const result = await service.create(dto);
 
     expect(result).toEqual({ id: userId });
-    const cmd = commandExecute.mock.calls[0][0];
+    const cmd = commandExecute.mock.calls[0]![0];
     expect(cmd).toBeInstanceOf(CreateUserCommand);
     expect((cmd as CreateUserCommand).createUserDto).toBe(dto);
   });
@@ -56,7 +54,7 @@ describe('UserService', () => {
 
     await service.update(userId, dto);
 
-    const cmd = commandExecute.mock.calls[0][0];
+    const cmd = commandExecute.mock.calls[0]![0];
     expect(cmd).toBeInstanceOf(UpdateUserCommand);
     expect((cmd as UpdateUserCommand).userId).toBe(userId);
     expect((cmd as UpdateUserCommand).updateUserDto).toBe(dto);
@@ -65,7 +63,7 @@ describe('UserService', () => {
   it('getUser dispatches a GetUserQuery', async () => {
     await service.getUser(userId);
 
-    const query = queryExecute.mock.calls[0][0];
+    const query = queryExecute.mock.calls[0]![0];
     expect(query).toBeInstanceOf(GetUserQuery);
     expect((query as GetUserQuery).userId).toBe(userId);
   });
@@ -75,7 +73,7 @@ describe('UserService', () => {
 
     await service.getUsers(opts);
 
-    const query = queryExecute.mock.calls[0][0];
+    const query = queryExecute.mock.calls[0]![0];
     expect(query).toBeInstanceOf(GetUsersQuery);
     expect((query as GetUsersQuery).pageOptionsDto).toBe(opts);
   });

@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
 import { GetMemoryPointGenerationSourceHandler } from './get-memory-point-generation-source.handler.ts';
@@ -6,7 +6,7 @@ import { GetMemoryPointGenerationSourceQuery } from './get-memory-point-generati
 
 describe('GetMemoryPointGenerationSourceHandler', () => {
   let handler: GetMemoryPointGenerationSourceHandler;
-  let findOneBy: jest.Mock;
+  let findOneBy: jest.Mock<() => Promise<unknown>>;
 
   const memoryPointId = 'point-1' as Uuid;
 

@@ -90,16 +90,16 @@ export class CreatorMemoryPointController {
       pageOptionsDto,
     );
 
-    return new PageDto(
-      page.data.map((memoryPoint) =>
+    return PageDto.create({
+      data: page.data.map((memoryPoint) =>
         MyMemoryPointDto.create({
           id: memoryPoint.id,
           location: memoryPoint.location,
           status: memoryPoint.status,
         }),
       ),
-      page.meta,
-    );
+      meta: page.meta,
+    });
   }
 
   @Get(':id')

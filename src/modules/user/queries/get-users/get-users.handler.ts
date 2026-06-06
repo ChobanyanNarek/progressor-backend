@@ -33,7 +33,6 @@ export class GetUsersHandler
 
     const userListDto = items.map((user) => UserListDto.create(user));
 
-    // eslint-disable-next-line awesome-nest/no-dto-direct-instantiation
-    return new PageDto(userListDto, pageMetaDto);
+    return PageDto.create({ data: userListDto, meta: pageMetaDto });
   }
 }

@@ -29,9 +29,10 @@ export class ProcessDidWebhookHandler
   async execute(command: ProcessDidWebhookCommand): Promise<void> {
     const { talkId } = command;
 
-    const generation = await this.aiGenerationRepository.findOneBy({
-      didTalkId: talkId,
-    });
+    const generation = await this.aiGenerationRepository
+      .createQueryBuilder('aiGeneration')
+      .where('aiGeneration.didTalkId = :didTalkId', { didTalkId: talkId })
+      .getOne();
 
     if (!generation) {
       return;

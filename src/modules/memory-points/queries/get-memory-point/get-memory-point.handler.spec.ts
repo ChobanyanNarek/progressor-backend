@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
 import { RoleType } from '../../../../constants/role-type.ts';
@@ -15,12 +15,13 @@ interface Qb {
 
 function makeQb(getOneResult: unknown): Qb {
   const qb: Partial<Qb> = {};
+
   for (const m of ['leftJoinAndSelect', 'where', 'andWhere'] as const) {
     qb[m] = jest.fn().mockReturnValue(qb);
   }
-  qb.getOne = jest
-    .fn<() => Promise<unknown>>()
-    .mockResolvedValue(getOneResult);
+
+  qb.getOne = jest.fn<() => Promise<unknown>>().mockResolvedValue(getOneResult);
+
   return qb as Qb;
 }
 

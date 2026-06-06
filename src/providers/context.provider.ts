@@ -10,10 +10,10 @@ export class ContextProvider {
 
   private static readonly languageKey = 'language_key';
 
-  private static get<T>(key: string) {
+  private static get(key: string): unknown {
     const store = ClsServiceManager.getClsService();
 
-    return store.get<T>(ContextProvider.getKeyWithNamespace(key));
+    return store.get(ContextProvider.getKeyWithNamespace(key));
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,10 +36,14 @@ export class ContextProvider {
   }
 
   static getLanguage(): LanguageCode | undefined {
-    return ContextProvider.get<LanguageCode>(ContextProvider.languageKey);
+    return ContextProvider.get(ContextProvider.languageKey) as
+      | LanguageCode
+      | undefined;
   }
 
   static getAuthUser(): UserEntity | undefined {
-    return ContextProvider.get<UserEntity>(ContextProvider.authUserKey);
+    return ContextProvider.get(ContextProvider.authUserKey) as
+      | UserEntity
+      | undefined;
   }
 }

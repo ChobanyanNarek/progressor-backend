@@ -2,38 +2,43 @@ import {
   BooleanField,
   NumberField,
 } from '../../decorators/field.decorators.ts';
+import { BaseDto } from './base.dto.ts';
 import type { PageOptionsDto } from './page-options.dto.ts';
 
-interface IPageMetaDtoParameters {
-  pageOptionsDto: PageOptionsDto;
-  itemCount: number;
-}
-
-export class PageMetaDto {
+export class PageMetaDto extends BaseDto {
   @NumberField()
-  readonly page: number;
+  readonly page!: number;
 
   @NumberField()
-  readonly take: number;
+  readonly take!: number;
 
   @NumberField()
-  readonly itemCount: number;
+  readonly itemCount!: number;
 
   @NumberField()
-  readonly pageCount: number;
+  readonly pageCount!: number;
 
   @BooleanField()
-  readonly hasPreviousPage: boolean;
+  readonly hasPreviousPage!: boolean;
 
   @BooleanField()
-  readonly hasNextPage: boolean;
+  readonly hasNextPage!: boolean;
 
-  constructor({ pageOptionsDto, itemCount }: IPageMetaDtoParameters) {
-    this.page = pageOptionsDto.page;
-    this.take = pageOptionsDto.take;
-    this.itemCount = itemCount;
-    this.pageCount = Math.ceil(this.itemCount / this.take);
-    this.hasPreviousPage = this.page > 1;
-    this.hasNextPage = this.page < this.pageCount;
+  static fromPageOptions(
+    pageOptionsDto: PageOptionsDto,
+    itemCount: number,
+  ): PageMetaDto {
+    const page = pageOptionsDto.page;
+    const take = pageOptionsDto.take;
+    const pageCount = Math.ceil(itemCount / take);
+
+    return PageMetaDto.create({
+      page,
+      take,
+      itemCount,
+      pageCount,
+      hasPreviousPage: page > 1,
+      hasNextPage: page < pageCount,
+    });
   }
 }

@@ -34,9 +34,10 @@ export class CreateMemoryPointHandler
 
     const pointId = insertResult.identifiers[0]!.id as Uuid;
 
-    const result = await this.memoryPointRepository.findOneOrFail({
-      where: { id: pointId },
-    });
+    const result = await this.memoryPointRepository
+      .createQueryBuilder('memoryPoint')
+      .where('memoryPoint.id = :id', { id: pointId })
+      .getOneOrFail();
 
     return result.toDto();
   }

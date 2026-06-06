@@ -13,12 +13,14 @@ import { ContextProvider } from '../providers/context.provider.ts';
 export class LanguageInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler) {
     const request = context.switchToHttp().getRequest<Request>();
-    const language: LanguageCode = request.headers[
-      'x-language-code'
-    ] as LanguageCode;
+    const language = request.headers['x-language-code'] as
+      | LanguageCode
+      | undefined;
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (LanguageCode[language]) {
+    if (
+      language !== undefined &&
+      Object.values(LanguageCode).includes(language)
+    ) {
       ContextProvider.setLanguage(language);
     }
 

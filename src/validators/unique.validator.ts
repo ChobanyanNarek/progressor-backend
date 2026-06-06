@@ -5,8 +5,12 @@ import type {
   ValidatorConstraintInterface,
 } from 'class-validator';
 import { registerDecorator, ValidatorConstraint } from 'class-validator';
-import type { EntitySchema, FindOptionsWhere, ObjectType } from 'typeorm';
-import type { DataSource } from 'typeorm';
+import type {
+  DataSource,
+  EntitySchema,
+  FindOptionsWhere,
+  ObjectType,
+} from 'typeorm';
 
 /**
  * @deprecated Don't use this validator until it's fixed in NestJS
@@ -22,9 +26,11 @@ export class UniqueValidator implements ValidatorConstraintInterface {
     const [entityClass, findCondition] = args.constraints;
 
     return (
-      (await this.dataSource.getRepository(entityClass).count({
-        where: findCondition(args),
-      })) <= 0
+      (await this.dataSource
+        .getRepository(entityClass)
+        .createQueryBuilder('entity')
+        .setFindOptions({ where: findCondition(args) })
+        .getCount()) <= 0
     );
   }
 
@@ -32,7 +38,7 @@ export class UniqueValidator implements ValidatorConstraintInterface {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const [entityClass] = args.constraints;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
-    const entity = entityClass.name || 'Entity';
+    const entity = entityClass.name ?? 'Entity';
 
     return `${entity} with the same ${args.property} already exists`;
   }

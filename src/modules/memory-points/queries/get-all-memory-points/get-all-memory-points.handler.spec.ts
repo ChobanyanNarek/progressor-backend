@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { GetAllMemoryPointsHandler } from './get-all-memory-points.handler.ts';
 import { GetAllMemoryPointsQuery } from './get-all-memory-points.query.ts';
@@ -16,6 +16,7 @@ function makeQb(items: unknown, meta: unknown): Qb {
   qb.paginate = jest
     .fn<() => Promise<unknown>>()
     .mockResolvedValue([items, meta]);
+
   return qb as Qb;
 }
 

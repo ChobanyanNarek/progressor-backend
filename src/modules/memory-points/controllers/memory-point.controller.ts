@@ -40,15 +40,15 @@ export class MemoryPointController {
     const page =
       await this.memoryPointService.getNearbyMemoryPoints(pageOptionsDto);
 
-    return new PageDto(
-      page.data.map((memoryPoint) =>
+    return PageDto.create({
+      data: page.data.map((memoryPoint) =>
         NearbyMemoryPointDto.create({
           id: memoryPoint.id,
           location: memoryPoint.location,
         }),
       ),
-      page.meta,
-    );
+      meta: page.meta,
+    });
   }
 
   @Get(':id')

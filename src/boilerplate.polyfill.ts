@@ -13,12 +13,8 @@ import type { KeyOfType } from './types.ts';
 
 declare global {
   export type Uuid = string & { _uuidBrand: undefined };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any,@typescript-eslint/no-redundant-type-constituents
-  export type Todo = any & { _todoBrand: undefined };
-
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   interface Array<T> {
-    toDtos<Dto extends AbstractDto>(this: T[], options?: unknown): Dto[];
+    toDtos<Dto extends AbstractDto>(options?: unknown): Dto[];
 
     getByLanguage(
       this: CreateTranslationDto[],
@@ -28,14 +24,13 @@ declare global {
     toPageDto<Dto extends AbstractDto>(
       this: T[],
       pageMetaDto: PageMetaDto,
-      // FIXME make option type visible from entity
+      // NOTE: the option type is not yet visible from the entity here.
       options?: unknown,
     ): PageDto<Dto>;
   }
 }
 
 declare module 'typeorm' {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   interface SelectQueryBuilder<Entity> {
     searchByString(
       q: string,
@@ -51,9 +46,9 @@ declare module 'typeorm' {
       options?: Partial<{ takeAll: boolean; skipCount: boolean }>,
     ): Promise<[Entity[], PageMetaDto]>;
 
-    leftJoinAndSelect<AliasEntity extends AbstractEntity, A extends string>(
+    leftJoinAndSelect<AliasEntity extends AbstractEntity>(
       this: SelectQueryBuilder<Entity>,
-      property: `${A}.${Exclude<
+      property: `${string}.${Exclude<
         KeyOfType<AliasEntity, AbstractEntity>,
         symbol
       >}`,
@@ -62,9 +57,9 @@ declare module 'typeorm' {
       parameters?: ObjectLiteral,
     ): this;
 
-    leftJoin<AliasEntity extends AbstractEntity, A extends string>(
+    leftJoin<AliasEntity extends AbstractEntity>(
       this: SelectQueryBuilder<Entity>,
-      property: `${A}.${Exclude<
+      property: `${string}.${Exclude<
         KeyOfType<AliasEntity, AbstractEntity>,
         symbol
       >}`,
@@ -73,9 +68,9 @@ declare module 'typeorm' {
       parameters?: ObjectLiteral,
     ): this;
 
-    innerJoinAndSelect<AliasEntity extends AbstractEntity, A extends string>(
+    innerJoinAndSelect<AliasEntity extends AbstractEntity>(
       this: SelectQueryBuilder<Entity>,
-      property: `${A}.${Exclude<
+      property: `${string}.${Exclude<
         KeyOfType<AliasEntity, AbstractEntity>,
         symbol
       >}`,
@@ -84,9 +79,9 @@ declare module 'typeorm' {
       parameters?: ObjectLiteral,
     ): this;
 
-    innerJoin<AliasEntity extends AbstractEntity, A extends string>(
+    innerJoin<AliasEntity extends AbstractEntity>(
       this: SelectQueryBuilder<Entity>,
-      property: `${A}.${Exclude<
+      property: `${string}.${Exclude<
         KeyOfType<AliasEntity, AbstractEntity>,
         symbol
       >}`,
@@ -97,13 +92,13 @@ declare module 'typeorm' {
   }
 }
 
-Array.prototype.toDtos = function <
-  Entity extends AbstractEntity<Dto>,
-  Dto extends AbstractDto,
->(options?: unknown): Dto[] {
+Array.prototype.toDtos = function <Dto extends AbstractDto>(
+  options?: unknown,
+): Dto[] {
   return _.compact(
-    _.map<Entity, Dto>(this as Entity[], (item) =>
-      item.toDto(options as never),
+    _.map<AbstractEntity<Dto>, Dto>(
+      this as Array<AbstractEntity<Dto>>,
+      (item) => item.toDto(options as never),
     ),
   );
 };
@@ -113,11 +108,15 @@ Array.prototype.getByLanguage = function (languageCode: LanguageCode): string {
     .text;
 };
 
-Array.prototype.toPageDto = function (
+Array.prototype.toPageDto = function <Dto extends AbstractDto>(
+  this: AbstractEntity[],
   pageMetaDto: PageMetaDto,
   options?: unknown,
-) {
-  return new PageDto(this.toDtos(options), pageMetaDto);
+): PageDto<Dto> {
+  return PageDto.create({
+    data: this.toDtos<Dto>(options),
+    meta: pageMetaDto,
+  });
 };
 
 SelectQueryBuilder.prototype.searchByString = function (
@@ -165,10 +164,7 @@ SelectQueryBuilder.prototype.paginate = async function (
     itemCount = await this.getCount();
   }
 
-  const pageMetaDto = new PageMetaDto({
-    itemCount,
-    pageOptionsDto,
-  });
+  const pageMetaDto = PageMetaDto.fromPageOptions(pageOptionsDto, itemCount);
 
   return [entities, pageMetaDto];
 };

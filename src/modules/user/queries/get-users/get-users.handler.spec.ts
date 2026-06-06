@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { PageDto } from '../../../../common/dto/page.dto.ts';
 import { AccountStatus } from '../../../../constants/account-status.ts';
@@ -52,7 +52,7 @@ describe('GetUsersHandler', () => {
 
     expect(result).toBeInstanceOf(PageDto);
     expect(result.data[0]).toBeInstanceOf(UserListDto);
-    expect(result.data[0].email).toBe('john@test.com');
+    expect(result.data[0]!.email).toBe('john@test.com');
     expect(result.meta).toBe(meta);
   });
 

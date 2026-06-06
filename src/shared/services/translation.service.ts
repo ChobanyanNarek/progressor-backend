@@ -21,7 +21,7 @@ export class TranslationService {
 
   async translateNecessaryKeys<T extends AbstractDto>(dto: T): Promise<T> {
     await Promise.all(
-      _.map(dto, (value, key) => {
+      _.map(dto, (value, key): Promise<unknown> => {
         if (_.isString(value)) {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           const translateDec: ITranslationDecoratorInterface | undefined =
@@ -33,7 +33,7 @@ export class TranslationService {
             );
           }
 
-          return;
+          return Promise.resolve();
         }
 
         if (value instanceof AbstractDto) {
@@ -42,17 +42,17 @@ export class TranslationService {
 
         if (Array.isArray(value)) {
           return Promise.all(
-            _.map(value, (v) => {
+            _.map(value, (v): Promise<unknown> => {
               if (v instanceof AbstractDto) {
                 return this.translateNecessaryKeys(v);
               }
 
-              return null;
+              return Promise.resolve(null);
             }),
           );
         }
 
-        return null;
+        return Promise.resolve(null);
       }),
     );
 
