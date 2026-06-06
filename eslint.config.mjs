@@ -464,6 +464,7 @@ export default tseslint.config(
             'taze.config.js',
             'ormconfig.ts',
             'test/app.e2e-spec.ts',
+            'src/common/utils.spec.ts',
             'src/modules/auth/auth.controller.spec.ts',
           ],
           defaultProject: 'tsconfig.eslint.json',

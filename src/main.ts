@@ -15,6 +15,7 @@ import morgan from 'morgan';
 import { initializeTransactionalContext } from 'typeorm-transactional';
 
 import { AppModule } from './app.module.ts';
+import { parseCorsOrigins } from './common/utils.ts';
 import { HttpExceptionFilter } from './filters/bad-request.filter.ts';
 import { QueryFailedFilter } from './filters/query-failed.filter.ts';
 import { TranslationInterceptor } from './interceptors/translation-interceptor.service.ts';
@@ -39,9 +40,7 @@ export async function bootstrap(): Promise<NestExpressApplication> {
     new ExpressAdapter(),
     {
       cors: {
-        origin: process.env.CORS_ORIGINS?.split(',') || [
-          'http://localhost:3000',
-        ],
+        origin: parseCorsOrigins(process.env.CORS_ORIGINS),
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
         credentials: true,
       },
