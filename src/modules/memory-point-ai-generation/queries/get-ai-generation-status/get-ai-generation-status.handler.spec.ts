@@ -15,15 +15,20 @@ describe('GetAiGenerationStatusHandler', () => {
 
   let handler: GetAiGenerationStatusHandler;
   let queryBusExecute: jest.Mock<(query: unknown) => Promise<unknown>>;
-  let findOneBy: jest.Mock<() => Promise<FakeGeneration | null>>;
-  let repo: { findOneBy: jest.Mock };
+  let getOne: jest.Mock<() => Promise<FakeGeneration | null>>;
+  let repo: { createQueryBuilder: jest.Mock };
 
   beforeEach(() => {
     queryBusExecute = jest
       .fn<(query: unknown) => Promise<unknown>>()
       .mockResolvedValue({ id: memoryPointId });
-    findOneBy = jest.fn<() => Promise<FakeGeneration | null>>();
-    repo = { findOneBy };
+    getOne = jest.fn<() => Promise<FakeGeneration | null>>();
+    repo = {
+      createQueryBuilder: jest.fn(() => ({
+        where: jest.fn().mockReturnThis(),
+        getOne,
+      })),
+    };
 
     handler = new GetAiGenerationStatusHandler(
       { execute: queryBusExecute } as never,
@@ -32,7 +37,7 @@ describe('GetAiGenerationStatusHandler', () => {
   });
 
   it('calls GetMemoryPointQuery (authorization) first with the right args', async () => {
-    findOneBy.mockResolvedValue(null);
+    getOne.mockResolvedValue(null);
 
     await handler.execute(
       new GetAiGenerationStatusQuery(memoryPointId, userId),
@@ -53,11 +58,11 @@ describe('GetAiGenerationStatusHandler', () => {
       handler.execute(new GetAiGenerationStatusQuery(memoryPointId, userId)),
     ).rejects.toThrow('forbidden');
 
-    expect(findOneBy).not.toHaveBeenCalled();
+    expect(getOne).not.toHaveBeenCalled();
   });
 
   it('returns the generation status', async () => {
-    findOneBy.mockResolvedValue({ status: AiGenerationStatus.COMPLETED });
+    getOne.mockResolvedValue({ status: AiGenerationStatus.COMPLETED });
 
     const result = await handler.execute(
       new GetAiGenerationStatusQuery(memoryPointId, userId),
@@ -67,7 +72,7 @@ describe('GetAiGenerationStatusHandler', () => {
   });
 
   it('returns undefined status when no generation exists', async () => {
-    findOneBy.mockResolvedValue(null);
+    getOne.mockResolvedValue(null);
 
     const result = await handler.execute(
       new GetAiGenerationStatusQuery(memoryPointId, userId),

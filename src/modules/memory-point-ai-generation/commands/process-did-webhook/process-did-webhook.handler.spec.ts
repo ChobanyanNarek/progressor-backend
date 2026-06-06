@@ -32,9 +32,9 @@ describe('ProcessDidWebhookHandler', () => {
   }
 
   let handler: ProcessDidWebhookHandler;
-  let findOneBy: jest.Mock<() => Promise<FakeGeneration | null>>;
+  let getOne: jest.Mock<() => Promise<FakeGeneration | null>>;
   let save: jest.Mock<(e: FakeGeneration) => Promise<FakeGeneration>>;
-  let repo: { findOneBy: typeof findOneBy; save: typeof save };
+  let repo: { createQueryBuilder: jest.Mock; save: typeof save };
   let getTalk: jest.Mock<() => Promise<DidTalk>>;
   let didService: { getTalk: typeof getTalk };
   let uploadStream: jest.Mock<(path: string) => Promise<string>>;
@@ -58,11 +58,17 @@ describe('ProcessDidWebhookHandler', () => {
   });
 
   beforeEach(() => {
-    findOneBy = jest.fn<() => Promise<FakeGeneration | null>>();
+    getOne = jest.fn<() => Promise<FakeGeneration | null>>();
     save = jest
       .fn<(e: FakeGeneration) => Promise<FakeGeneration>>()
       .mockImplementation((e) => Promise.resolve(e));
-    repo = { findOneBy, save };
+    repo = {
+      createQueryBuilder: jest.fn(() => ({
+        where: jest.fn().mockReturnThis(),
+        getOne,
+      })),
+      save,
+    };
 
     getTalk = jest.fn<() => Promise<DidTalk>>();
     didService = { getTalk };
@@ -87,7 +93,7 @@ describe('ProcessDidWebhookHandler', () => {
   });
 
   it('returns early when no generation is found, without calling getTalk', async () => {
-    findOneBy.mockResolvedValue(null);
+    getOne.mockResolvedValue(null);
 
     await expect(
       handler.execute(new ProcessDidWebhookCommand(talkId)),
@@ -99,7 +105,7 @@ describe('ProcessDidWebhookHandler', () => {
   });
 
   it('returns early when generation is already COMPLETED', async () => {
-    findOneBy.mockResolvedValue(
+    getOne.mockResolvedValue(
       makeGeneration({ status: AiGenerationStatus.COMPLETED }),
     );
 
@@ -112,7 +118,7 @@ describe('ProcessDidWebhookHandler', () => {
 
   it('done + resultUrl: streams + uploads to the result path, sets COMPLETED, dispatches ApplyGenerationResultCommand COMPLETED', async () => {
     const generation = makeGeneration();
-    findOneBy.mockResolvedValue(generation);
+    getOne.mockResolvedValue(generation);
     getTalk.mockResolvedValue({
       id: talkId,
       status: 'done',
@@ -151,7 +157,7 @@ describe('ProcessDidWebhookHandler', () => {
 
   it('done without durationSeconds: does not set durationSeconds', async () => {
     const generation = makeGeneration();
-    findOneBy.mockResolvedValue(generation);
+    getOne.mockResolvedValue(generation);
     getTalk.mockResolvedValue({
       id: talkId,
       status: 'done',
@@ -166,7 +172,7 @@ describe('ProcessDidWebhookHandler', () => {
 
   it('error status with error payload: sets FAILED with JSON.stringify(error), dispatches ApplyGenerationResultCommand FAILED', async () => {
     const generation = makeGeneration();
-    findOneBy.mockResolvedValue(generation);
+    getOne.mockResolvedValue(generation);
     getTalk.mockResolvedValue({
       id: talkId,
       status: 'error',
@@ -195,7 +201,7 @@ describe('ProcessDidWebhookHandler', () => {
 
   it('rejected status without error payload: uses default error message', async () => {
     const generation = makeGeneration();
-    findOneBy.mockResolvedValue(generation);
+    getOne.mockResolvedValue(generation);
     getTalk.mockResolvedValue({ id: talkId, status: 'rejected' });
 
     await handler.execute(new ProcessDidWebhookCommand(talkId));
@@ -213,7 +219,7 @@ describe('ProcessDidWebhookHandler', () => {
 
   it('still processing (started): no state change, no save, no command dispatched', async () => {
     const generation = makeGeneration();
-    findOneBy.mockResolvedValue(generation);
+    getOne.mockResolvedValue(generation);
     getTalk.mockResolvedValue({ id: talkId, status: 'started' });
 
     await handler.execute(new ProcessDidWebhookCommand(talkId));
@@ -226,7 +232,7 @@ describe('ProcessDidWebhookHandler', () => {
 
   it('still processing (created): no state change, no save, no command dispatched', async () => {
     const generation = makeGeneration();
-    findOneBy.mockResolvedValue(generation);
+    getOne.mockResolvedValue(generation);
     getTalk.mockResolvedValue({ id: talkId, status: 'created' });
 
     await handler.execute(new ProcessDidWebhookCommand(talkId));

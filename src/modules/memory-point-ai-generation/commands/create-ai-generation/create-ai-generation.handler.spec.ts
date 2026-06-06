@@ -29,11 +29,11 @@ describe('CreateAiGenerationHandler', () => {
   const signedAudioUrl = 'https://signed/audio';
 
   let handler: CreateAiGenerationHandler;
-  let findOneBy: jest.Mock<() => Promise<FakeGeneration | null>>;
+  let getOne: jest.Mock<() => Promise<FakeGeneration | null>>;
   let create: jest.Mock;
   let save: jest.Mock<(e: FakeGeneration) => Promise<FakeGeneration>>;
   let repo: {
-    findOneBy: typeof findOneBy;
+    createQueryBuilder: jest.Mock;
     create: jest.Mock;
     save: typeof save;
   };
@@ -60,12 +60,19 @@ describe('CreateAiGenerationHandler', () => {
   };
 
   beforeEach(() => {
-    findOneBy = jest.fn<() => Promise<FakeGeneration | null>>();
+    getOne = jest.fn<() => Promise<FakeGeneration | null>>();
     create = jest.fn();
     save = jest
       .fn<(e: FakeGeneration) => Promise<FakeGeneration>>()
       .mockImplementation((e) => Promise.resolve(e));
-    repo = { findOneBy, create, save };
+    repo = {
+      createQueryBuilder: jest.fn(() => ({
+        where: jest.fn().mockReturnThis(),
+        getOne,
+      })),
+      create,
+      save,
+    };
 
     createTalk = jest
       .fn<() => Promise<{ id: string; status: string }>>()
@@ -95,7 +102,7 @@ describe('CreateAiGenerationHandler', () => {
 
   it('queries the memory point generation source first', async () => {
     const created = makeGeneration();
-    findOneBy.mockResolvedValue(null);
+    getOne.mockResolvedValue(null);
     create.mockReturnValue(created);
 
     await handler.execute(new CreateAiGenerationCommand(memoryPointId));
@@ -110,7 +117,7 @@ describe('CreateAiGenerationHandler', () => {
 
   it('creates a new PENDING generation with attemptNumber 1 when none exists', async () => {
     const created = makeGeneration();
-    findOneBy.mockResolvedValue(null);
+    getOne.mockResolvedValue(null);
     create.mockReturnValue(created);
 
     await handler.execute(new CreateAiGenerationCommand(memoryPointId));
@@ -132,7 +139,7 @@ describe('CreateAiGenerationHandler', () => {
       resultVideoUrl: 'old-video',
       errorMessage: 'old error',
     });
-    findOneBy.mockResolvedValue(existing);
+    getOne.mockResolvedValue(existing);
 
     await handler.execute(new CreateAiGenerationCommand(memoryPointId));
 
@@ -152,7 +159,7 @@ describe('CreateAiGenerationHandler', () => {
       status: AiGenerationStatus.PENDING,
       attemptNumber: 1,
     });
-    findOneBy.mockResolvedValue(existing);
+    getOne.mockResolvedValue(existing);
 
     await handler.execute(new CreateAiGenerationCommand(memoryPointId));
 
@@ -162,7 +169,7 @@ describe('CreateAiGenerationHandler', () => {
 
   it('happy path: signs both urls, creates talk, sets PROCESSING, dispatches MarkGenerationStarted, returns dto', async () => {
     const created = makeGeneration();
-    findOneBy.mockResolvedValue(null);
+    getOne.mockResolvedValue(null);
     create.mockReturnValue(created);
 
     const result = await handler.execute(
@@ -196,7 +203,7 @@ describe('CreateAiGenerationHandler', () => {
 
   it('failure path: createTalk throws -> sets FAILED + errorMessage, dispatches ApplyGenerationResultCommand FAILED, re-throws', async () => {
     const created = makeGeneration();
-    findOneBy.mockResolvedValue(null);
+    getOne.mockResolvedValue(null);
     create.mockReturnValue(created);
 
     const boom = new Error('did exploded');
@@ -229,7 +236,7 @@ describe('CreateAiGenerationHandler', () => {
 
   it('failure path: a gcs signing error is also handled and re-thrown', async () => {
     const created = makeGeneration();
-    findOneBy.mockResolvedValue(null);
+    getOne.mockResolvedValue(null);
     create.mockReturnValue(created);
 
     getSignedReadUrl.mockRejectedValue(new Error('gcs down'));
