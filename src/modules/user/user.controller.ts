@@ -50,6 +50,8 @@ export class UserController {
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Create user',
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
+    type: CreateUserResultDto,
   })
   createUser(
     @Body() createUserDto: CreateUserDto,

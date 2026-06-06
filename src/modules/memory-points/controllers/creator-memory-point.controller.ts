@@ -40,6 +40,8 @@ export class CreatorMemoryPointController {
   @ApiOperation({ summary: 'Create a new memory point' })
   @ApiResponse({
     status: HttpStatus.CREATED,
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
+    type: CreatedMemoryPointDto,
   })
   create(
     @AuthUser() user: UserEntity,
@@ -59,7 +61,11 @@ export class CreatorMemoryPointController {
       'Upsert memory point details and AI-generation input; the point stays PENDING until an admin picks it up',
   })
   @ApiUUIDParam('id')
-  @ApiResponse({ status: HttpStatus.OK })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
+    type: MemoryPointDetailsDto,
+  })
   upsertDetails(
     @UUIDParam('id') id: Uuid,
     @AuthUser() user: UserEntity,
@@ -109,7 +115,11 @@ export class CreatorMemoryPointController {
     summary: 'Get a single memory point by ID',
   })
   @ApiUUIDParam('id')
-  @ApiResponse({ status: HttpStatus.OK })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
+    type: CreatorMemoryPointDto,
+  })
   getOne(
     @UUIDParam('id') id: Uuid,
     @AuthUser() user: UserEntity,

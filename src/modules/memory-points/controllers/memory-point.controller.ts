@@ -55,7 +55,11 @@ export class MemoryPointController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get a single approved memory point' })
   @ApiUUIDParam('id')
-  @ApiResponse({ status: HttpStatus.OK })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
+    type: PublicMemoryPointDto,
+  })
   getOnePublic(@UUIDParam('id') id: Uuid): Promise<PublicMemoryPointDto> {
     return this.memoryPointService.getMemoryPoint(id);
   }
