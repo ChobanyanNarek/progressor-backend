@@ -465,6 +465,7 @@ export default tseslint.config(
             'ormconfig.ts',
             'test/app.e2e-spec.ts',
             'src/modules/auth/auth.controller.spec.ts',
+            'src/modules/user/queries/get-users/get-users.handler.spec.ts',
           ],
           defaultProject: 'tsconfig.eslint.json',
         },
