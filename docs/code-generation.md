@@ -28,14 +28,15 @@ $ nest g -c awesome-nestjs-schematics <schematic>
 OR
 
 ```bash
-$ pnpm generate<schematic> <name>
+$ pnpm generate <schematic> <name>
 ```
 
+> `pnpm g` is a shorthand alias for `pnpm generate`.
 
 For example, to generate a new controller:
 
 ```bash
-$ pnpm generatecontroller
+$ pnpm generate controller user
 ```
 
 ## Generators and Their Commands
@@ -44,67 +45,67 @@ $ pnpm generatecontroller
 
 Generate a new Nest resource, including a controller, service, and module.
   ```bash
-  $ pnpm generateresource
+  $ pnpm generate resource <name>
   ```
 
 - **DTO**: Generate a new Data Transfer Object.
   ```bash
-  $ pnpm generatedto
+  $ pnpm generate dto <name>
   ```
 
 - **Controller**: Generate a new Nest controller.
   ```bash
-  $ pnpm generatecontroller
+  $ pnpm generate controller <name>
   ```
 
 - **Decorator**: Generate a new Nest decorator.
   ```bash
-  $ pnpm generatedecorator
+  $ pnpm generate decorator <name>
   ```
 
 - **Filter**: Generate a new Nest filter.
   ```bash
-  $ pnpm generatefilter
+  $ pnpm generate filter <name>
   ```
 
 - **Guard**: Generate a new Nest guard.
   ```bash
-  $ pnpm generateguard
+  $ pnpm generate guard <name>
   ```
 
 - **Interceptor**: Generate a new Nest interceptor.
   ```bash
-  $ pnpm generateinterceptor
+  $ pnpm generate interceptor <name>
   ```
 
 - **Interface**: Generate a new Nest interface.
   ```bash
-  $ pnpm generateinterface
+  $ pnpm generate interface <name>
   ```
 
 - **Middleware**: Generate a new Nest middleware.
   ```bash
-  $ pnpm generatemiddleware
+  $ pnpm generate middleware <name>
   ```
 
 - **Module**: Generate a new Nest module.
   ```bash
-  $ pnpm generatemodule
+  $ pnpm generate module <name>
   ```
 
 - **Pipe**: Generate a new Nest pipe.
   ```bash
-  $ pnpm generatepipe
+  $ pnpm generate pipe <name>
   ```
 
 - **Provider**: Generate a new Nest provider.
   ```bash
-  $ pnpm generateprovider
+  $ pnpm generate provider <name>
   ```
 
 - **Service**: Generate a new Nest service.
   ```bash
-  $ pnpm generateservice
+  $ pnpm generate service <name>
   ```
 
 ## Stay in touch

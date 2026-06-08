@@ -10,6 +10,7 @@ This guide covers the linting, formatting, and code quality tools used in the Aw
   - [ESLint (Supplementary)](#eslint-supplementary)
     - [Installed Plugins](#installed-plugins)
     - [Configuration File](#configuration-file)
+    - [Custom rules: @m-one-dev/awesome-nest-eslint](#custom-rules-m-one-devawesome-nest-eslint)
     - [Prettier via ESLint](#prettier-via-eslint)
   - [TypeScript Configuration](#typescript-configuration)
     - [Compiler Options](#compiler-options)
@@ -128,6 +129,76 @@ ESLint runs after Biome for rules that Biome does not cover (import ordering, se
 - `promise/catch-or-return`: ensures promises are handled
 
 TypeScript rules that overlap with Biome or the TS compiler are disabled to avoid duplicate errors.
+
+### Custom rules: @m-one-dev/awesome-nest-eslint
+
+`@m-one-dev/awesome-nest-eslint` is a **custom company ESLint plugin** (imported
+as `awesomeNest` in `eslint.config.mjs`, enabled via
+`awesomeNest.configs.recommended`). Its rules encode the project's architectural
+conventions so they are enforced in CI and pre-commit rather than relying on
+review and docs alone. The decision and full rationale live in
+[ADR-0014](adr/0014-awesome-nest-custom-lint-rules.md).
+
+> `eslint-disable` of these rules is **discouraged** — the right fix is almost
+> always to comply (use the `.create()` factory, the query builder, or `@UseDto`),
+> not to suppress. Framework value objects (e.g. `PageDto` / `PageMetaDto`) adopt
+> the `.create()` factory pattern to comply.
+
+| Rule | Level | Enforces |
+|------|-------|----------|
+| `no-dto-direct-instantiation` | error (excl. tests) | Build DTOs via `SomeDto.create({...})` (input) or `entity.toDto()` / `entity.toDtos()` (entity-backed); bans `new SomeDto(...)` and `plainToInstance(SomeDto, ...)`. Auto-fixable. |
+| `dto-must-extend-abstract-or-base` | error (DTO files) | Any `*Dto` class must transitively extend `AbstractDto` or `BaseDto`. |
+| `require-use-dto-decorator` | error (entity files) | Concrete `AbstractEntity` subclasses must carry `@UseDto(...)` so `toDto()` resolves at runtime. Auto-fixable. |
+| `unique-endpoint-dtos` | error | Each DTO class may appear in at most one endpoint slot (body / query / response) project-wide. |
+| `no-typeorm-finder-methods` | error | Bans TypeORM finder methods (`find`, `findOneBy`, `count`, `exist`, `sum`, …) — use `createQueryBuilder(...)`. |
+| `uuid-field-naming` | error | `Uuid`-typed fields must end with `Id`; `Uuid[]` fields must end with `Ids`. |
+| `payload-type-suffix` | error | `@Payload()` params and `send`/`emit` data args must use a type ending in an allowed payload suffix (`PayloadDto`, `PageOptionsDto`, `CursorPageOptionsDto`). |
+| `no-unused-injectable` | error | `@Injectable()` classes must be injected somewhere, not only module-registered. |
+| `prefer-promise-all` | warn | Independent sequential `await`s should be combined with `Promise.all`. |
+
+**Examples**
+
+`no-dto-direct-instantiation` — DTOs must run through the factory / mapper:
+
+```typescript
+// ❌ Violation — bypasses validation and the @UseDto contract
+const dto = new UserDto({ id, email });
+const dto2 = plainToInstance(UserDto, raw);
+return new PostDto(postEntity);
+
+// ✅ Compliant
+const dto = UserDto.create({ id, email });   // input DTOs
+return postEntity.toDto();                    // entity-backed DTOs
+return postEntities.toDtos();                 // collections
+```
+
+`dto-must-extend-abstract-or-base` — every DTO class extends a base:
+
+```typescript
+// ❌ Violation — UserDto does not extend AbstractDto / BaseDto
+export class UserDto {
+  email!: string;
+}
+
+// ✅ Compliant
+export class UserDto extends AbstractDto {
+  email!: string;
+}
+```
+
+`no-typeorm-finder-methods` — use the query builder, not finders:
+
+```typescript
+// ❌ Violation
+const user = await this.userRepository.findOneBy({ id });
+const count = await this.userRepository.count();
+
+// ✅ Compliant
+const user = await this.userRepository
+  .createQueryBuilder('user')
+  .where('user.id = :id', { id })
+  .getOne();
+```
 
 ### Prettier via ESLint
 
