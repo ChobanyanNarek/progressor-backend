@@ -24,7 +24,8 @@ export class GetAllMemoryPointsHandler
 
     const queryBuilder = this.memoryPointRepository
       .createQueryBuilder('mp')
-      .leftJoinAndSelect('mp.memoryPointDetails', 'details');
+      .leftJoinAndSelect('mp.memoryPointDetails', 'details')
+      .orderBy('mp.createdAt', pageOptionsDto.order);
 
     if (pageOptionsDto.q) {
       queryBuilder.andWhere('details.title ILIKE :name', {

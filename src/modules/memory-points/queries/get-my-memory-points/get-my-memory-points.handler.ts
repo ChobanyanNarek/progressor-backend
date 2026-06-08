@@ -35,7 +35,8 @@ export class GetMyMemoryPointsHandler
        */
       .andWhere('(mp.status != :draftStatus OR details.id IS NOT NULL)', {
         draftStatus: MemoryPointStatus.PENDING,
-      });
+      })
+      .orderBy('mp.createdAt', pageOptionsDto.order);
 
     const [items, pageMetaDto] = await queryBuilder.paginate(pageOptionsDto);
 

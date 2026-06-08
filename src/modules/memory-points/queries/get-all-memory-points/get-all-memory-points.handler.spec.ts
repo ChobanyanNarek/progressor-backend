@@ -5,9 +5,10 @@ import { AdminMemoryPointListItemDto } from '../../dtos/admin-memory-point-list-
 import { GetAllMemoryPointsHandler } from './get-all-memory-points.handler.ts';
 import { GetAllMemoryPointsQuery } from './get-all-memory-points.query.ts';
 
-interface Qb {
+interface IQb {
   leftJoinAndSelect: jest.Mock;
   andWhere: jest.Mock;
+  orderBy: jest.Mock;
   paginate: jest.Mock;
 }
 
@@ -19,20 +20,21 @@ const location = {
 const createdAt = new Date('2024-01-01T00:00:00.000Z');
 const updatedAt = new Date('2024-01-02T00:00:00.000Z');
 
-function makeQb(items: unknown, meta: unknown): Qb {
-  const qb: Partial<Qb> = {};
+function makeQb(items: unknown, meta: unknown): IQb {
+  const qb: Partial<IQb> = {};
   qb.leftJoinAndSelect = jest.fn().mockReturnValue(qb);
   qb.andWhere = jest.fn().mockReturnValue(qb);
+  qb.orderBy = jest.fn().mockReturnValue(qb);
   qb.paginate = jest
     .fn<() => Promise<unknown>>()
     .mockResolvedValue([items, meta]);
 
-  return qb as Qb;
+  return qb as IQb;
 }
 
 describe('GetAllMemoryPointsHandler', () => {
   let handler: GetAllMemoryPointsHandler;
-  let qb: Qb;
+  let qb: IQb;
   let createQueryBuilder: jest.Mock;
 
   const meta = { meta: true };
@@ -82,6 +84,14 @@ describe('GetAllMemoryPointsHandler', () => {
       createdAt,
       updatedAt,
     });
+  });
+
+  it('orders by createdAt using the requested page order', async () => {
+    await handler.execute(
+      new GetAllMemoryPointsQuery({ order: 'DESC' } as never),
+    );
+
+    expect(qb.orderBy).toHaveBeenCalledWith('mp.createdAt', 'DESC');
   });
 
   it('does NOT apply the title filter when q is not set', async () => {

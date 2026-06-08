@@ -115,28 +115,28 @@ describe('GetNearbyMemoryPointsHandler', () => {
     });
   });
 
-  it('does NOT apply the title filter when name is not provided', async () => {
+  it('does NOT apply the title filter when q is not provided', async () => {
     await handler.execute(
       new GetNearbyMemoryPointsQuery({ ...baseOptions } as never),
     );
 
     // Only the ST_DWithin andWhere should have run, not a title filter.
     const titleCall = qb.andWhere.mock.calls.find(
-      (c) => c[0] === 'details.title ILIKE :name',
+      (c) => c[0] === 'details.title ILIKE :q',
     );
     expect(titleCall).toBeUndefined();
   });
 
-  it('applies the details.title ILIKE filter when name is provided', async () => {
+  it('applies the details.title ILIKE filter when q is provided', async () => {
     await handler.execute(
       new GetNearbyMemoryPointsQuery({
         ...baseOptions,
-        name: 'bar',
+        q: 'bar',
       } as never),
     );
 
-    expect(qb.andWhere).toHaveBeenCalledWith('details.title ILIKE :name', {
-      name: '%bar%',
+    expect(qb.andWhere).toHaveBeenCalledWith('details.title ILIKE :q', {
+      q: '%bar%',
     });
   });
 });

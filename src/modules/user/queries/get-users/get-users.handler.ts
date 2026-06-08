@@ -23,7 +23,8 @@ export class GetUsersHandler
 
     const queryBuilder = this.userRepository
       .createQueryBuilder('user')
-      .where('role = :role', { role });
+      .where('role = :role', { role })
+      .orderBy('user.createdAt', pageOptionsDto.order);
 
     if (pageOptionsDto.status) {
       queryBuilder.andWhere('user.status = :status', {
