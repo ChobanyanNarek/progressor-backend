@@ -11,6 +11,7 @@ import { ApiExcludeEndpoint } from '@nestjs/swagger';
 
 import { ApiConfigService } from '../../../shared/services/api-config.service.ts';
 import { DidWebhookDto } from '../dtos/did-webhook.dto.ts';
+import { DidWebhookAckDto } from '../dtos/did-webhook-ack.dto.ts';
 import { MemoryPointAiGenerationService } from '../services/memory-point-ai-generation.service.ts';
 
 @Controller('webhooks/did')
@@ -30,7 +31,7 @@ export class DidWebhookController {
   async handle(
     @Param('secret') secret: string,
     @Body() body: DidWebhookDto,
-  ): Promise<{ received: boolean }> {
+  ): Promise<DidWebhookAckDto> {
     if (secret !== this.webhookSecret) {
       throw new UnauthorizedException();
     }
@@ -39,6 +40,6 @@ export class DidWebhookController {
       await this.aiGenerationService.enqueueProcessing(body.id);
     }
 
-    return { received: true };
+    return DidWebhookAckDto.create({ received: true });
   }
 }

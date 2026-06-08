@@ -12,7 +12,7 @@ import { RoleType } from '../../constants/role-type.ts';
 import { Auth } from '../../decorators/http.decorators.ts';
 import { AdminDashboardService } from './admin-dashboard.service.ts';
 import { DashboardStatsDto } from './dtos/dashboard-stats.dto.ts';
-import { RecentMemoryPointDto } from './dtos/recent-memory-point.dto.ts';
+import { RecentMemoryPointsDto } from './dtos/recent-memory-points.dto.ts';
 import { RecentPointsOptionsDto } from './dtos/recent-points-options.dto.ts';
 
 @Controller('admin/dashboard')
@@ -38,13 +38,12 @@ export class AdminDashboardController {
   @ApiOperation({ summary: 'Get the most recently created memory points' })
   @ApiOkResponse({
     // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
-    type: RecentMemoryPointDto,
-    isArray: true,
+    type: RecentMemoryPointsDto,
   })
   getRecentPoints(
     @Query(new ValidationPipe({ transform: true }))
     options: RecentPointsOptionsDto,
-  ): Promise<RecentMemoryPointDto[]> {
+  ): Promise<RecentMemoryPointsDto> {
     return this.dashboardService.getRecentMemoryPoints(options.limit);
   }
 }

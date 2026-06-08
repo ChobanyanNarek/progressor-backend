@@ -9,6 +9,7 @@ import {
 import { ApiExcludeEndpoint } from '@nestjs/swagger';
 
 import { CloudTasksOidcGuard } from '../../../guards/cloud-tasks-oidc.guard.ts';
+import { ProcessGenerationResultDto } from '../dtos/process-generation-result.dto.ts';
 import { ProcessGenerationTaskDto } from '../dtos/process-generation-task.dto.ts';
 import { MemoryPointAiGenerationService } from '../services/memory-point-ai-generation.service.ts';
 
@@ -24,9 +25,9 @@ export class InternalAiGenerationController {
   @ApiExcludeEndpoint()
   async process(
     @Body() body: ProcessGenerationTaskDto,
-  ): Promise<{ processed: boolean }> {
+  ): Promise<ProcessGenerationResultDto> {
     await this.aiGenerationService.processWebhook(body.talkId);
 
-    return { processed: true };
+    return ProcessGenerationResultDto.create({ processed: true });
   }
 }

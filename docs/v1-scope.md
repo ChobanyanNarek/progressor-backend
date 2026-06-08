@@ -21,7 +21,7 @@ the backend returns `404` for them.
 
 ### Dashboard
 - `GET /admin/dashboard/stats`
-- `GET /admin/dashboard/recent-points?limit=`
+- `GET /admin/dashboard/recent-points?limit=` (returns `{ items: [...] }`, not a bare array — ADR-0016)
 
 ### Memory points (admin)
 - `GET /admin/memory-points`

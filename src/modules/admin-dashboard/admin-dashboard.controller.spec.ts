@@ -6,6 +6,7 @@ import type { AdminDashboardService } from './admin-dashboard.service.ts';
 import { DashboardStatsDto } from './dtos/dashboard-stats.dto.ts';
 import { MemoryPointStatusBreakdownDto } from './dtos/memory-point-status-breakdown.dto.ts';
 import { RecentMemoryPointDto } from './dtos/recent-memory-point.dto.ts';
+import { RecentMemoryPointsDto } from './dtos/recent-memory-points.dto.ts';
 import type { RecentPointsOptionsDto } from './dtos/recent-points-options.dto.ts';
 
 describe('AdminDashboardController', () => {
@@ -29,16 +30,18 @@ describe('AdminDashboardController', () => {
       }),
     });
     getStats = jest.fn<() => Promise<unknown>>().mockResolvedValue(stats);
-    getRecentMemoryPoints = jest
-      .fn<() => Promise<unknown>>()
-      .mockResolvedValue([
-        RecentMemoryPointDto.create({
-          id: '11111111-1111-4111-8111-111111111111' as Uuid,
-          title: 'Grandpa',
-          status: MemoryPointStatus.PENDING,
-          createdAt: new Date('2026-01-05T00:00:00.000Z'),
-        }),
-      ]);
+    getRecentMemoryPoints = jest.fn<() => Promise<unknown>>().mockResolvedValue(
+      RecentMemoryPointsDto.create({
+        items: [
+          RecentMemoryPointDto.create({
+            id: '11111111-1111-4111-8111-111111111111' as Uuid,
+            title: 'Grandpa',
+            status: MemoryPointStatus.PENDING,
+            createdAt: new Date('2026-01-05T00:00:00.000Z'),
+          }),
+        ],
+      }),
+    );
 
     controller = new AdminDashboardController({
       getStats,
@@ -60,6 +63,6 @@ describe('AdminDashboardController', () => {
     } as RecentPointsOptionsDto);
 
     expect(getRecentMemoryPoints).toHaveBeenCalledWith(5);
-    expect(result[0]!.title).toBe('Grandpa');
+    expect(result.items[0]!.title).toBe('Grandpa');
   });
 });
