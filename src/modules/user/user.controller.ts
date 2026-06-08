@@ -92,6 +92,7 @@ export class UserController {
   editUser(
     @UUIDParam('id') userId: Uuid,
     @Body() editUserDto: EditUserDto,
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
   ): Promise<UserDto> {
     return this.userService.editUser(userId, editUserDto);
   }
@@ -119,6 +120,7 @@ export class UserController {
   updateUserStatus(
     @UUIDParam('id') userId: Uuid,
     @Body() updateUserStatusDto: UpdateUserStatusDto,
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
   ): Promise<UserDto> {
     return this.userService.updateUserStatus(
       userId,
@@ -140,6 +142,7 @@ export class UserController {
   updateUserRole(
     @UUIDParam('id') userId: Uuid,
     @Body() updateUserRoleDto: UpdateUserRoleDto,
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
   ): Promise<UserDto> {
     return this.userService.updateUserRole(userId, updateUserRoleDto.role);
   }
