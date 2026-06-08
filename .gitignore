@@ -98,3 +98,6 @@ src/database/data/validations.json
 
 
 .agents
+
+# k6 load-test run artifacts (large)
+scripts/perf/results/

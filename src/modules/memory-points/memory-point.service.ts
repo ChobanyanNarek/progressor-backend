@@ -26,9 +26,21 @@ import type { RequestUploadUrlDto } from './dtos/request-upload-url.dto.ts';
 import type { UpdateMemoryPointDetailsDto } from './dtos/update-memory-point-details.dto.ts';
 import type { UpsertMemoryPointDetailsDto } from './dtos/upsert-memory-point-details.dto.ts';
 import { GetAllMemoryPointsQuery } from './queries/get-all-memory-points/get-all-memory-points.query.ts';
+import {
+  GetMediaQuery,
+  type IMediaItem,
+} from './queries/get-media/get-media.query.ts';
 import { GetMemoryPointQuery } from './queries/get-memory-point/get-memory-point.query.ts';
+import {
+  GetMemoryPointStatsQuery,
+  type IMemoryPointStats,
+} from './queries/get-memory-point-stats/get-memory-point-stats.query.ts';
 import { GetMyMemoryPointsQuery } from './queries/get-my-memory-points/get-my-memory-points.query.ts';
 import { GetNearbyMemoryPointsQuery } from './queries/get-nearby-memory-points/get-nearby-memory-points.query.ts';
+import {
+  GetRecentMemoryPointsQuery,
+  type IRecentMemoryPoint,
+} from './queries/get-recent-memory-points/get-recent-memory-points.query.ts';
 
 @Injectable()
 export class MemoryPointService {
@@ -65,6 +77,25 @@ export class MemoryPointService {
       GetMyMemoryPointsQuery,
       PageDto<MyMemoryPointDto>
     >(new GetMyMemoryPointsQuery(userId, pageOptionsDto));
+  }
+
+  getStats(): Promise<IMemoryPointStats> {
+    return this.queryBus.execute<GetMemoryPointStatsQuery, IMemoryPointStats>(
+      new GetMemoryPointStatsQuery(),
+    );
+  }
+
+  getRecent(limit: number): Promise<IRecentMemoryPoint[]> {
+    return this.queryBus.execute<
+      GetRecentMemoryPointsQuery,
+      IRecentMemoryPoint[]
+    >(new GetRecentMemoryPointsQuery(limit));
+  }
+
+  getMedia(pageOptionsDto: PageOptionsDto): Promise<PageDto<IMediaItem>> {
+    return this.queryBus.execute<GetMediaQuery, PageDto<IMediaItem>>(
+      new GetMediaQuery(pageOptionsDto),
+    );
   }
 
   getAllMemoryPoints(

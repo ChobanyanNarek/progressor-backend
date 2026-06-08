@@ -20,6 +20,10 @@ import type { UserDto } from './dtos/user.dto.ts';
 import type { UserListDto } from './dtos/user-list.dto.ts';
 import type { UsersPageOptionsDto } from './dtos/users-page-options.dto.ts';
 import { GetUserQuery } from './queries/get-user/get-user.query.ts';
+import {
+  GetUserStatsQuery,
+  type IUserStats,
+} from './queries/get-user-stats/get-user-stats.query.ts';
 import { GetUsersQuery } from './queries/get-users/get-users.query.ts';
 import { UserEntity } from './user.entity.ts';
 
@@ -52,6 +56,12 @@ export class UserService {
   getUser(userId: Uuid): Promise<UserDto> {
     return this.queryBus.execute<GetUserQuery, UserDto>(
       new GetUserQuery(userId),
+    );
+  }
+
+  getStats(): Promise<IUserStats> {
+    return this.queryBus.execute<GetUserStatsQuery, IUserStats>(
+      new GetUserStatsQuery(),
     );
   }
 

@@ -9,6 +9,7 @@ import { UpdateUserHandler } from './commands/update-user/update-user.handler.ts
 import { UpdateUserRoleHandler } from './commands/update-user-role/update-user-role.handler.ts';
 import { UpdateUserStatusHandler } from './commands/update-user-status/update-user-status.handler.ts';
 import { GetUserHandler } from './queries/get-user/get-user.handler.ts';
+import { GetUserStatsHandler } from './queries/get-user-stats/get-user-stats.handler.ts';
 import { GetUsersHandler } from './queries/get-users/get-users.handler.ts';
 import { UserController } from './user.controller.ts';
 import { UserEntity } from './user.entity.ts';
@@ -22,7 +23,7 @@ const commandHandlers = [
   UpdateUserStatusHandler,
   UpdateUserRoleHandler,
 ];
-const queryHandlers = [GetUserHandler, GetUsersHandler];
+const queryHandlers = [GetUserHandler, GetUsersHandler, GetUserStatsHandler];
 
 @Module({
   imports: [CqrsModule, TypeOrmModule.forFeature([UserEntity])],

@@ -24,6 +24,8 @@ export default tseslint.config(
       '.yarn/**',
       'docs/.vitepress/**',
       '**/*.d.ts',
+      // Standalone tooling scripts (k6, SQL seeds) outside the TS project.
+      'scripts/**',
     ],
   },
   eslint.configs.recommended,

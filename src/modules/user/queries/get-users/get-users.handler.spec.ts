@@ -27,17 +27,20 @@ describe('GetUsersHandler', () => {
 
   let handler: GetUsersHandler;
   let where: jest.Mock;
+  let andWhere: jest.Mock;
   let searchByString: jest.Mock;
   let paginate: jest.Mock;
 
   beforeEach(() => {
     const qb: Record<string, unknown> = {};
     where = jest.fn().mockReturnValue(qb);
+    andWhere = jest.fn().mockReturnValue(qb);
     searchByString = jest.fn().mockReturnValue(qb);
     paginate = jest
       .fn<() => Promise<unknown>>()
       .mockResolvedValue([[userRow], meta]);
     qb.where = where;
+    qb.andWhere = andWhere;
     qb.searchByString = searchByString;
     qb.paginate = paginate;
 
@@ -55,6 +58,7 @@ describe('GetUsersHandler', () => {
       role: RoleType.CREATOR,
     });
     expect(searchByString).not.toHaveBeenCalled();
+    expect(andWhere).not.toHaveBeenCalled();
     expect(paginate).toHaveBeenCalledTimes(1);
 
     expect(result).toBeInstanceOf(PageDto);
@@ -90,6 +94,25 @@ describe('GetUsersHandler', () => {
     expect(where).toHaveBeenCalledWith('role = :role', {
       role: RoleType.ADMIN,
     });
-    expect(searchByString).toHaveBeenCalledWith('jo', ['firstName', 'email']);
+    /*
+     * Columns must be alias-qualified so TypeORM maps them to snake_case
+     * columns; bare names (`firstName`) 500 against Postgres. Regression guard.
+     */
+    expect(searchByString).toHaveBeenCalledWith('jo', [
+      'user.firstName',
+      'user.email',
+    ]);
+  });
+
+  it('filters by account status when status is present', async () => {
+    await handler.execute(
+      new GetUsersQuery({
+        status: AccountStatus.DISABLED,
+      } as UsersPageOptionsDto),
+    );
+
+    expect(andWhere).toHaveBeenCalledWith('user.status = :status', {
+      status: AccountStatus.DISABLED,
+    });
   });
 });

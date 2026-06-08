@@ -13,7 +13,7 @@ const location = {
 const createdAt = new Date('2024-01-01T00:00:00.000Z');
 const updatedAt = new Date('2024-01-02T00:00:00.000Z');
 
-interface Qb {
+interface IQb {
   leftJoinAndSelect: jest.Mock;
   addSelect: jest.Mock;
   where: jest.Mock;
@@ -23,8 +23,8 @@ interface Qb {
   paginate: jest.Mock;
 }
 
-function makeQb(items: unknown, meta: unknown): Qb {
-  const qb: Partial<Qb> = {};
+function makeQb(items: unknown, meta: unknown): IQb {
+  const qb: Partial<IQb> = {};
 
   for (const m of [
     'leftJoinAndSelect',
@@ -41,12 +41,12 @@ function makeQb(items: unknown, meta: unknown): Qb {
     .fn<() => Promise<unknown>>()
     .mockResolvedValue([items, meta]);
 
-  return qb as Qb;
+  return qb as IQb;
 }
 
 describe('GetNearbyMemoryPointsHandler', () => {
   let handler: GetNearbyMemoryPointsHandler;
-  let qb: Qb;
+  let qb: IQb;
   let createQueryBuilder: jest.Mock;
 
   const meta = { meta: true };
@@ -107,6 +107,11 @@ describe('GetNearbyMemoryPointsHandler', () => {
     expect(result.data[0]).toEqual({
       id: VALID_UUID,
       location,
+      status: MemoryPointStatus.APPROVED,
+      title: 'Nearby title',
+      description: 'Nearby description',
+      createdAt,
+      updatedAt,
     });
   });
 

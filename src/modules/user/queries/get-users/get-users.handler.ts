@@ -25,8 +25,23 @@ export class GetUsersHandler
       .createQueryBuilder('user')
       .where('role = :role', { role });
 
+    if (pageOptionsDto.status) {
+      queryBuilder.andWhere('user.status = :status', {
+        status: pageOptionsDto.status,
+      });
+    }
+
     if (pageOptionsDto.q) {
-      queryBuilder.searchByString(pageOptionsDto.q, ['firstName', 'email']);
+      /*
+       * Columns MUST be alias-qualified (`user.firstName`) so TypeORM rewrites
+       * the property name to its snake_case column (`user.first_name`). Passing
+       * bare `firstName` leaks raw into the SQL, Postgres lower-cases it to
+       * `firstname`, the column does not exist and the query 500s.
+       */
+      queryBuilder.searchByString(pageOptionsDto.q, [
+        'user.firstName',
+        'user.email',
+      ]);
     }
 
     const [items, pageMetaDto] = await queryBuilder.paginate(pageOptionsDto);

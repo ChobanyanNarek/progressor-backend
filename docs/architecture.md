@@ -316,7 +316,8 @@ async getUser(@UUIDParam('id') userId: Uuid): Promise<UserDto> {
 
 #### Global Exception Filters
 ```typescript
-// HTTP exception handling with i18n support
+// Formats exceptions consistently. The `message` is a stable error CODE,
+// never a localized sentence — the frontend localizes (see ADR-0015).
 @Catch(HttpException)
 export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: HttpException, host: ArgumentsHost) {
@@ -326,10 +327,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
 ```
 
 #### Custom Exceptions
+
+Exceptions carry a stable `error.*` **code** (camelCase after the prefix), not a
+translated message — see [ADR-0015](adr/0015-api-errors-return-codes-not-translations.md)
+and [`error-codes.md`](error-codes.md).
+
 ```typescript
 export class UserNotFoundException extends NotFoundException {
   constructor(error?: string) {
-    super('error.user_not_found', error);
+    super('error.userNotFound', error); // a code, resolved to copy on the client
   }
 }
 ```
@@ -359,16 +365,22 @@ export class CreateUserDto {
 
 ### Internationalization (i18n)
 
-#### Multi-language Support
-- Nested translation files
+`nestjs-i18n` is used **only for translatable content** (DTO fields marked with
+the `@Translate` / `@DynamicTranslate` decorators) — **not** for error messages.
+Error responses carry stable codes that the frontend localizes
+(see [ADR-0015](adr/0015-api-errors-return-codes-not-translations.md)); the
+`src/i18n/**/error.json` files are intentionally empty.
+
+#### Multi-language Support (content only)
+- Nested translation files for content
 - Dynamic language switching via headers/query parameters
 - Translation interpolation and formatting
 
 ```typescript
-// Translation usage in exceptions
-throw new UserNotFoundException('error.user_not_found');
+// Errors are CODES, not translated server-side:
+throw new UserNotFoundException(); // -> { message: "error.userNotFound", ... }
 
-// Translation in DTOs and responses
+// i18n applies to translatable CONTENT fields, via the decorator:
 @DynamicTranslate()
 title?: string;
 ```
