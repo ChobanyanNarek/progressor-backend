@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { validateHash } from '../../common/utils.ts';
 import type { RoleType } from '../../constants/role-type.ts';
 import { TokenType } from '../../constants/token-type.ts';
+import { InvalidCredentialsException } from '../../exceptions/invalid-credentials.exception.ts';
 import { UserNotFoundException } from '../../exceptions/user-not-found.exception.ts';
 import { ApiConfigService } from '../../shared/services/api-config.service.ts';
 import type { UserEntity } from '../user/user.entity.ts';
@@ -25,11 +26,15 @@ export class AuthService {
   }): Promise<TokenPayloadDto> {
     return TokenPayloadDto.create({
       expiresIn: this.configService.authConfig.jwtExpirationTime,
-      token: await this.jwtService.signAsync({
-        userId: data.userId,
-        type: TokenType.ACCESS_TOKEN,
-        role: data.role,
-      }),
+      token: await this.jwtService.signAsync(
+        {
+          userId: data.userId,
+          type: TokenType.ACCESS_TOKEN,
+          role: data.role,
+        },
+        // Embed a standard `exp` claim so clients can pre-empt expiry.
+        { expiresIn: this.configService.authConfig.jwtExpirationTime },
+      ),
     });
   }
 
@@ -38,13 +43,19 @@ export class AuthService {
       email: userLoginDto.email,
     });
 
+    // Unknown account → 404; wrong password for a real account → 401. Keeping
+    // these distinct lets the client show an accurate message.
+    if (!user) {
+      throw new UserNotFoundException();
+    }
+
     const isPasswordValid = await validateHash(
       userLoginDto.password,
-      user?.password,
+      user.password,
     );
 
-    if (!user || !isPasswordValid) {
-      throw new UserNotFoundException();
+    if (!isPasswordValid) {
+      throw new InvalidCredentialsException();
     }
 
     await this.userService.update(user.id, { lastLogin: new Date() });

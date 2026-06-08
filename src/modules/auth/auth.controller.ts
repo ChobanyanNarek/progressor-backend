@@ -51,9 +51,10 @@ export class AuthController {
     type: GetMeDto,
   })
   getCurrentUser(@AuthUser() user: UserEntity): GetMeDto {
-    const { firstName, lastName, email, role, avatar } = user;
+    const { id, firstName, lastName, email, role, avatar } = user;
 
     return GetMeDto.create({
+      id,
       firstName,
       lastName,
       email,

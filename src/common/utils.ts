@@ -26,6 +26,25 @@ export function validateHash(
   return bcrypt.compare(password, hash);
 }
 
+/**
+ * Parse a comma-separated CORS allowlist env value into a clean origin array.
+ *
+ * Trims whitespace around each entry and drops empties, so values like
+ * `"http://localhost:3000, http://127.0.0.1:3000"` resolve correctly. Returns an
+ * empty array when unset — origins are configured explicitly via `CORS_ORIGINS`
+ * (ADR-0002), with no code-side default.
+ */
+export function parseCorsOrigins(raw: string | undefined): string[] {
+  if (!raw) {
+    return [];
+  }
+
+  return raw
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+}
+
 export function getVariableName(getVar: () => unknown): string {
   const m = /\(\)=>(.*)/.exec(
     getVar.toString().replaceAll(/(\r\n|\n|\r|\s)/gm, ''),
