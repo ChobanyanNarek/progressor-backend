@@ -15,7 +15,7 @@ export class QueryFailedFilter implements ExceptionFilter<QueryFailedError> {
   catch(
     exception: QueryFailedError & { constraint?: string },
     host: ArgumentsHost,
-  ) {
+  ): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
 

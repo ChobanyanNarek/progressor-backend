@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { of } from 'rxjs';
 
 import { AiGenerationStatus } from '../../../../constants/ai-generation-status.ts';
@@ -23,15 +23,23 @@ describe('ProcessDidWebhookHandler', () => {
   const memoryPointId = 'point-1' as Uuid;
   const generationId = 'gen-1' as Uuid;
 
+  interface DidTalk {
+    id: string;
+    status: string;
+    resultUrl?: string;
+    error?: unknown;
+    durationSeconds?: number;
+  }
+
   let handler: ProcessDidWebhookHandler;
-  let findOneBy: jest.Mock;
-  let save: jest.Mock;
-  let repo: { findOneBy: jest.Mock; save: jest.Mock };
-  let getTalk: jest.Mock;
-  let didService: { getTalk: jest.Mock };
-  let uploadStream: jest.Mock;
-  let gcsService: { uploadStream: jest.Mock };
-  let commandBusExecute: jest.Mock;
+  let getOne: jest.Mock<() => Promise<FakeGeneration | null>>;
+  let save: jest.Mock<(e: FakeGeneration) => Promise<FakeGeneration>>;
+  let repo: { createQueryBuilder: jest.Mock; save: typeof save };
+  let getTalk: jest.Mock<() => Promise<DidTalk>>;
+  let didService: { getTalk: typeof getTalk };
+  let uploadStream: jest.Mock<(path: string) => Promise<string>>;
+  let gcsService: { uploadStream: typeof uploadStream };
+  let commandBusExecute: jest.Mock<(command: unknown) => Promise<unknown>>;
   let httpGet: jest.Mock;
   let httpService: { get: jest.Mock };
 
@@ -50,32 +58,27 @@ describe('ProcessDidWebhookHandler', () => {
   });
 
   beforeEach(() => {
-    findOneBy = jest.fn<() => Promise<FakeGeneration | null>>();
+    getOne = jest.fn<() => Promise<FakeGeneration | null>>();
     save = jest
       .fn<(e: FakeGeneration) => Promise<FakeGeneration>>()
-      .mockImplementation(async (e) => e);
-    repo = { findOneBy, save };
+      .mockImplementation((e) => Promise.resolve(e));
+    repo = {
+      createQueryBuilder: jest.fn(() => ({
+        where: jest.fn().mockReturnThis(),
+        getOne,
+      })),
+      save,
+    };
 
-    getTalk =
-      jest.fn<
-        () => Promise<{
-          id: string;
-          status: string;
-          resultUrl?: string;
-          error?: unknown;
-          durationSeconds?: number;
-        }>
-      >();
+    getTalk = jest.fn<() => Promise<DidTalk>>();
     didService = { getTalk };
 
     uploadStream = jest
-      .fn<() => Promise<string>>()
-      .mockImplementation(async (path: string) => path);
+      .fn<(path: string) => Promise<string>>()
+      .mockImplementation((path) => Promise.resolve(path));
     gcsService = { uploadStream };
 
-    commandBusExecute = jest
-      .fn<() => Promise<unknown>>()
-      .mockResolvedValue(undefined);
+    commandBusExecute = jest.fn<(command: unknown) => Promise<unknown>>();
 
     httpGet = jest.fn().mockReturnValue(of({ data: readableLike }));
     httpService = { get: httpGet };
@@ -90,7 +93,7 @@ describe('ProcessDidWebhookHandler', () => {
   });
 
   it('returns early when no generation is found, without calling getTalk', async () => {
-    findOneBy.mockResolvedValue(null);
+    getOne.mockResolvedValue(null);
 
     await expect(
       handler.execute(new ProcessDidWebhookCommand(talkId)),
@@ -102,7 +105,7 @@ describe('ProcessDidWebhookHandler', () => {
   });
 
   it('returns early when generation is already COMPLETED', async () => {
-    findOneBy.mockResolvedValue(
+    getOne.mockResolvedValue(
       makeGeneration({ status: AiGenerationStatus.COMPLETED }),
     );
 
@@ -115,7 +118,7 @@ describe('ProcessDidWebhookHandler', () => {
 
   it('done + resultUrl: streams + uploads to the result path, sets COMPLETED, dispatches ApplyGenerationResultCommand COMPLETED', async () => {
     const generation = makeGeneration();
-    findOneBy.mockResolvedValue(generation);
+    getOne.mockResolvedValue(generation);
     getTalk.mockResolvedValue({
       id: talkId,
       status: 'done',
@@ -143,7 +146,7 @@ describe('ProcessDidWebhookHandler', () => {
     expect(save).toHaveBeenCalledTimes(1);
 
     const cmd = commandBusExecute.mock
-      .calls[0][0] as ApplyGenerationResultCommand;
+      .calls[0]![0] as ApplyGenerationResultCommand;
     expect(cmd).toBeInstanceOf(ApplyGenerationResultCommand);
     expect(cmd.memoryPointId).toBe(memoryPointId);
     expect(cmd.payload).toEqual({
@@ -154,7 +157,7 @@ describe('ProcessDidWebhookHandler', () => {
 
   it('done without durationSeconds: does not set durationSeconds', async () => {
     const generation = makeGeneration();
-    findOneBy.mockResolvedValue(generation);
+    getOne.mockResolvedValue(generation);
     getTalk.mockResolvedValue({
       id: talkId,
       status: 'done',
@@ -169,7 +172,7 @@ describe('ProcessDidWebhookHandler', () => {
 
   it('error status with error payload: sets FAILED with JSON.stringify(error), dispatches ApplyGenerationResultCommand FAILED', async () => {
     const generation = makeGeneration();
-    findOneBy.mockResolvedValue(generation);
+    getOne.mockResolvedValue(generation);
     getTalk.mockResolvedValue({
       id: talkId,
       status: 'error',
@@ -188,7 +191,7 @@ describe('ProcessDidWebhookHandler', () => {
     expect(uploadStream).not.toHaveBeenCalled();
 
     const cmd = commandBusExecute.mock
-      .calls[0][0] as ApplyGenerationResultCommand;
+      .calls[0]![0] as ApplyGenerationResultCommand;
     expect(cmd).toBeInstanceOf(ApplyGenerationResultCommand);
     expect(cmd.payload).toEqual({
       status: AiGenerationStatus.FAILED,
@@ -198,7 +201,7 @@ describe('ProcessDidWebhookHandler', () => {
 
   it('rejected status without error payload: uses default error message', async () => {
     const generation = makeGeneration();
-    findOneBy.mockResolvedValue(generation);
+    getOne.mockResolvedValue(generation);
     getTalk.mockResolvedValue({ id: talkId, status: 'rejected' });
 
     await handler.execute(new ProcessDidWebhookCommand(talkId));
@@ -207,7 +210,7 @@ describe('ProcessDidWebhookHandler', () => {
     expect(generation.errorMessage).toBe('D-ID generation failed');
 
     const cmd = commandBusExecute.mock
-      .calls[0][0] as ApplyGenerationResultCommand;
+      .calls[0]![0] as ApplyGenerationResultCommand;
     expect(cmd.payload).toEqual({
       status: AiGenerationStatus.FAILED,
       errorMessage: 'D-ID generation failed',
@@ -216,7 +219,7 @@ describe('ProcessDidWebhookHandler', () => {
 
   it('still processing (started): no state change, no save, no command dispatched', async () => {
     const generation = makeGeneration();
-    findOneBy.mockResolvedValue(generation);
+    getOne.mockResolvedValue(generation);
     getTalk.mockResolvedValue({ id: talkId, status: 'started' });
 
     await handler.execute(new ProcessDidWebhookCommand(talkId));
@@ -229,7 +232,7 @@ describe('ProcessDidWebhookHandler', () => {
 
   it('still processing (created): no state change, no save, no command dispatched', async () => {
     const generation = makeGeneration();
-    findOneBy.mockResolvedValue(generation);
+    getOne.mockResolvedValue(generation);
     getTalk.mockResolvedValue({ id: talkId, status: 'created' });
 
     await handler.execute(new ProcessDidWebhookCommand(talkId));

@@ -5,8 +5,8 @@ import { ApiExtraModels, ApiOkResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { PageDto } from '../common/dto/page.dto.ts';
 
-export function ApiPageResponse<T extends Type>(options: {
-  type: T;
+export function ApiPageResponse(options: {
+  type: Type;
   description?: string;
 }): MethodDecorator {
   return applyDecorators(

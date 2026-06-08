@@ -1,6 +1,7 @@
+import { BaseDto } from '../../../common/dto/base.dto.ts';
 import { NumberField } from '../../../decorators/field.decorators.ts';
 
-export class CreateMemoryPointDto {
+export class CreateMemoryPointDto extends BaseDto {
   @NumberField({ min: -90, max: 90, example: 40.1872 })
   latitude!: number;
 

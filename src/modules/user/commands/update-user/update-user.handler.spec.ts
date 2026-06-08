@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import type { UpdateUserDto } from '../../dtos/update-user.dto.ts';
 import { UpdateUserCommand } from './update-user.command.ts';
@@ -20,7 +20,7 @@ describe('UpdateUserHandler', () => {
     update = jest.fn().mockReturnValue(qb);
     set = jest.fn().mockReturnValue(qb);
     where = jest.fn().mockReturnValue(qb);
-    execute = jest.fn<() => Promise<unknown>>().mockResolvedValue(undefined);
+    execute = jest.fn<() => Promise<void>>().mockResolvedValue();
     qb.update = update;
     qb.set = set;
     qb.where = where;

@@ -8,8 +8,8 @@ import { UpdateUserRoleHandler } from './update-user-role.handler.ts';
 describe('UpdateUserRoleHandler', () => {
   const userId = '11111111-1111-4111-8111-111111111111' as Uuid;
 
-  let getOne: jest.Mock;
-  let save: jest.Mock;
+  let getOne: jest.Mock<() => Promise<unknown>>;
+  let save: jest.Mock<() => Promise<void>>;
   let handler: UpdateUserRoleHandler;
 
   beforeEach(() => {
@@ -17,7 +17,7 @@ describe('UpdateUserRoleHandler', () => {
     const qb: Record<string, unknown> = {};
     qb.where = jest.fn().mockReturnValue(qb);
     qb.getOne = getOne;
-    save = jest.fn<() => Promise<unknown>>().mockResolvedValue(undefined);
+    save = jest.fn<() => Promise<void>>().mockResolvedValue();
 
     handler = new UpdateUserRoleHandler({
       createQueryBuilder: jest.fn().mockReturnValue(qb),

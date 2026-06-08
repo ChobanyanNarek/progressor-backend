@@ -50,7 +50,6 @@ export class GetUsersHandler
       }),
     );
 
-    // eslint-disable-next-line awesome-nest/no-dto-direct-instantiation
-    return new PageDto(userListDto, pageMetaDto);
+    return PageDto.create({ data: userListDto, meta: pageMetaDto });
   }
 }

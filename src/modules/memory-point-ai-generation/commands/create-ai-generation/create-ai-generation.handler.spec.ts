@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { AiGenerationStatus } from '../../../../constants/ai-generation-status.ts';
 import { ApplyGenerationResultCommand } from '../../../memory-points/commands/apply-generation-result/apply-generation-result.command.ts';
@@ -29,16 +29,20 @@ describe('CreateAiGenerationHandler', () => {
   const signedAudioUrl = 'https://signed/audio';
 
   let handler: CreateAiGenerationHandler;
-  let findOneBy: jest.Mock;
+  let getOne: jest.Mock<() => Promise<FakeGeneration | null>>;
   let create: jest.Mock;
-  let save: jest.Mock;
-  let repo: { findOneBy: jest.Mock; create: jest.Mock; save: jest.Mock };
-  let createTalk: jest.Mock;
-  let didService: { createTalk: jest.Mock };
-  let getSignedReadUrl: jest.Mock;
-  let gcsService: { getSignedReadUrl: jest.Mock };
-  let commandBusExecute: jest.Mock;
-  let queryBusExecute: jest.Mock;
+  let save: jest.Mock<(e: FakeGeneration) => Promise<FakeGeneration>>;
+  let repo: {
+    createQueryBuilder: jest.Mock;
+    create: jest.Mock;
+    save: typeof save;
+  };
+  let createTalk: jest.Mock<() => Promise<{ id: string; status: string }>>;
+  let didService: { createTalk: typeof createTalk };
+  let getSignedReadUrl: jest.Mock<(p: string) => Promise<string>>;
+  let gcsService: { getSignedReadUrl: typeof getSignedReadUrl };
+  let commandBusExecute: jest.Mock<(command: unknown) => Promise<unknown>>;
+  let queryBusExecute: jest.Mock<(query: unknown) => Promise<unknown>>;
 
   const makeGeneration = (
     overrides: Partial<FakeGeneration> = {},
@@ -56,12 +60,19 @@ describe('CreateAiGenerationHandler', () => {
   };
 
   beforeEach(() => {
-    findOneBy = jest.fn<() => Promise<FakeGeneration | null>>();
+    getOne = jest.fn<() => Promise<FakeGeneration | null>>();
     create = jest.fn();
     save = jest
       .fn<(e: FakeGeneration) => Promise<FakeGeneration>>()
-      .mockImplementation(async (e) => e);
-    repo = { findOneBy, create, save };
+      .mockImplementation((e) => Promise.resolve(e));
+    repo = {
+      createQueryBuilder: jest.fn(() => ({
+        where: jest.fn().mockReturnThis(),
+        getOne,
+      })),
+      create,
+      save,
+    };
 
     createTalk = jest
       .fn<() => Promise<{ id: string; status: string }>>()
@@ -70,16 +81,14 @@ describe('CreateAiGenerationHandler', () => {
 
     getSignedReadUrl = jest
       .fn<(p: string) => Promise<string>>()
-      .mockImplementation(async (p) =>
-        p === sourcePhotoUrl ? signedPhotoUrl : signedAudioUrl,
+      .mockImplementation((p) =>
+        Promise.resolve(p === sourcePhotoUrl ? signedPhotoUrl : signedAudioUrl),
       );
     gcsService = { getSignedReadUrl };
 
-    commandBusExecute = jest
-      .fn<() => Promise<unknown>>()
-      .mockResolvedValue(undefined);
+    commandBusExecute = jest.fn<(command: unknown) => Promise<unknown>>();
     queryBusExecute = jest
-      .fn<() => Promise<unknown>>()
+      .fn<(query: unknown) => Promise<unknown>>()
       .mockResolvedValue({ sourcePhotoUrl, sourceAudioUrl });
 
     handler = new CreateAiGenerationHandler(
@@ -93,13 +102,13 @@ describe('CreateAiGenerationHandler', () => {
 
   it('queries the memory point generation source first', async () => {
     const created = makeGeneration();
-    findOneBy.mockResolvedValue(null);
+    getOne.mockResolvedValue(null);
     create.mockReturnValue(created);
 
     await handler.execute(new CreateAiGenerationCommand(memoryPointId));
 
     expect(queryBusExecute).toHaveBeenCalledTimes(1);
-    const query = queryBusExecute.mock.calls[0][0];
+    const query = queryBusExecute.mock.calls[0]![0];
     expect(query).toBeInstanceOf(GetMemoryPointGenerationSourceQuery);
     expect((query as GetMemoryPointGenerationSourceQuery).memoryPointId).toBe(
       memoryPointId,
@@ -108,7 +117,7 @@ describe('CreateAiGenerationHandler', () => {
 
   it('creates a new PENDING generation with attemptNumber 1 when none exists', async () => {
     const created = makeGeneration();
-    findOneBy.mockResolvedValue(null);
+    getOne.mockResolvedValue(null);
     create.mockReturnValue(created);
 
     await handler.execute(new CreateAiGenerationCommand(memoryPointId));
@@ -130,14 +139,16 @@ describe('CreateAiGenerationHandler', () => {
       resultVideoUrl: 'old-video',
       errorMessage: 'old error',
     });
-    findOneBy.mockResolvedValue(existing);
+    getOne.mockResolvedValue(existing);
 
     await handler.execute(new CreateAiGenerationCommand(memoryPointId));
 
     expect(create).not.toHaveBeenCalled();
     expect(existing.attemptNumber).toBe(3);
-    // status ends PROCESSING after success, but was reset to PENDING first;
-    // the reset side effects on the cleared fields persist:
+    /*
+     * status ends PROCESSING after success, but was reset to PENDING first;
+     * the reset side effects on the cleared fields persist:
+     */
     expect(existing.didTalkId).toBe('talk-123'); // set by createTalk success
     expect(existing.resultVideoUrl).toBeUndefined();
     expect(existing.errorMessage).toBeUndefined();
@@ -148,7 +159,7 @@ describe('CreateAiGenerationHandler', () => {
       status: AiGenerationStatus.PENDING,
       attemptNumber: 1,
     });
-    findOneBy.mockResolvedValue(existing);
+    getOne.mockResolvedValue(existing);
 
     await handler.execute(new CreateAiGenerationCommand(memoryPointId));
 
@@ -158,7 +169,7 @@ describe('CreateAiGenerationHandler', () => {
 
   it('happy path: signs both urls, creates talk, sets PROCESSING, dispatches MarkGenerationStarted, returns dto', async () => {
     const created = makeGeneration();
-    findOneBy.mockResolvedValue(null);
+    getOne.mockResolvedValue(null);
     create.mockReturnValue(created);
 
     const result = await handler.execute(
@@ -181,7 +192,7 @@ describe('CreateAiGenerationHandler', () => {
     // saved twice: once PENDING, once PROCESSING
     expect(save).toHaveBeenCalledTimes(2);
 
-    const startedCmd = commandBusExecute.mock.calls[0][0];
+    const startedCmd = commandBusExecute.mock.calls[0]![0];
     expect(startedCmd).toBeInstanceOf(MarkGenerationStartedCommand);
     expect((startedCmd as MarkGenerationStartedCommand).memoryPointId).toBe(
       memoryPointId,
@@ -192,7 +203,7 @@ describe('CreateAiGenerationHandler', () => {
 
   it('failure path: createTalk throws -> sets FAILED + errorMessage, dispatches ApplyGenerationResultCommand FAILED, re-throws', async () => {
     const created = makeGeneration();
-    findOneBy.mockResolvedValue(null);
+    getOne.mockResolvedValue(null);
     create.mockReturnValue(created);
 
     const boom = new Error('did exploded');
@@ -225,7 +236,7 @@ describe('CreateAiGenerationHandler', () => {
 
   it('failure path: a gcs signing error is also handled and re-thrown', async () => {
     const created = makeGeneration();
-    findOneBy.mockResolvedValue(null);
+    getOne.mockResolvedValue(null);
     create.mockReturnValue(created);
 
     getSignedReadUrl.mockRejectedValue(new Error('gcs down'));

@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { UserNotFoundException } from '../../../../exceptions/user-not-found.exception.ts';
 import { GetUserHandler } from './get-user.handler.ts';
@@ -10,7 +10,7 @@ describe('GetUserHandler', () => {
 
   let handler: GetUserHandler;
   let where: jest.Mock;
-  let getOne: jest.Mock;
+  let getOne: jest.Mock<() => Promise<unknown>>;
 
   beforeEach(() => {
     getOne = jest.fn<() => Promise<unknown>>();

@@ -79,9 +79,10 @@ export class UpsertMemoryPointDetailsHandler
       ['memoryPointId'],
     );
 
-    const details = await this.memoryPointDetailsRepository.findOneByOrFail({
-      memoryPointId,
-    });
+    const details = await this.memoryPointDetailsRepository
+      .createQueryBuilder('details')
+      .where('details.memoryPointId = :memoryPointId', { memoryPointId })
+      .getOneOrFail();
 
     return details.toDto();
   }

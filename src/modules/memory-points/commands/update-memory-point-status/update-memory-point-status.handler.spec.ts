@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
@@ -7,7 +7,7 @@ import { UpdateMemoryPointStatusHandler } from './update-memory-point-status.han
 
 describe('UpdateMemoryPointStatusHandler', () => {
   let handler: UpdateMemoryPointStatusHandler;
-  let execute: jest.Mock;
+  let execute: jest.Mock<() => Promise<unknown>>;
   let where: jest.Mock;
   let set: jest.Mock;
   let update: jest.Mock;
@@ -29,10 +29,7 @@ describe('UpdateMemoryPointStatusHandler', () => {
   it('updates the memory point status via the query builder', async () => {
     await expect(
       handler.execute(
-        new UpdateMemoryPointStatusCommand(
-          pointId,
-          MemoryPointStatus.APPROVED,
-        ),
+        new UpdateMemoryPointStatusCommand(pointId, MemoryPointStatus.APPROVED),
       ),
     ).resolves.toBeUndefined();
 
@@ -46,10 +43,7 @@ describe('UpdateMemoryPointStatusHandler', () => {
 
     await expect(
       handler.execute(
-        new UpdateMemoryPointStatusCommand(
-          pointId,
-          MemoryPointStatus.APPROVED,
-        ),
+        new UpdateMemoryPointStatusCommand(pointId, MemoryPointStatus.APPROVED),
       ),
     ).rejects.toBeInstanceOf(MemoryPointNotFoundException);
   });
