@@ -387,6 +387,16 @@ export class UserDto extends AbstractDto {
 6. **Use options type for additional DTO construction parameters**
 7. **Use definite assignment assertion (`!`) for required fields**
 
+> **Enforced convention:** every `*Dto` class must extend `AbstractDto` /
+> `BaseDto`, and DTOs must be **constructed via `SomeDto.create({...})`** (input
+> DTOs) or **`entity.toDto()` / `entity.toDtos()`** (entity-backed) — never
+> `new SomeDto(...)` or `plainToInstance(SomeDto, ...)`, which bypass validation
+> and the `@UseDto` contract. These are enforced by the
+> `@m-one-dev/awesome-nest-eslint` rules `no-dto-direct-instantiation` and
+> `dto-must-extend-abstract-or-base`. See
+> [ADR-0014](adr/0014-awesome-nest-custom-lint-rules.md) and
+> [ADR-0008](adr/0008-abstract-entity-usedto-mapping.md).
+
 ## DTO Validation
 
 ### Field Decorators
@@ -424,9 +434,9 @@ export class UserDto extends AbstractDto {
 @EnumField(() => RoleType)              // Required enum
 @EnumFieldOptional(() => RoleType)      // Optional enum
 
-// UUID v7 fields — IDs embed a millisecond timestamp for natural ordering
-@UUIDField()                           // Required UUID v7
-@UUIDFieldOptional()                   // Optional UUID v7
+// UUID fields — primary keys are UUID v4 (ADR-0010)
+@UUIDField()                           // Required UUID
+@UUIDFieldOptional()                   // Optional UUID
 
 // Date fields
 @DateField()                           // Required date
@@ -727,7 +737,7 @@ async getDataWithOptionalAuth(@AuthUser() user?: UserEntity) {
 ### Parameter Validation
 
 ```typescript
-// UUID v7 parameter validation (@UUIDParam enforces v7 format via ParseUUIDPipe)
+// UUID parameter validation (@UUIDParam validates the UUID via ParseUUIDPipe)
 @Get(':id')
 async getUser(@UUIDParam('id') userId: Uuid) {
   return this.service.getUser(userId);
@@ -744,17 +754,13 @@ async updateUserPost(
 }
 ```
 
-> **UUID v7 ordering tip:** Because UUID v7 embeds a millisecond timestamp, you can sort or paginate records chronologically by `id` alone — no secondary timestamp index is required:
+> **Ordering tip:** Primary keys are UUID v4 (random — see [ADR-0010](adr/0010-uuid-v4-primary-keys.md)),
+> so they do **not** encode time. Sort or paginate chronologically by the
+> dedicated `createdAt` column, not by `id`:
 >
 > ```typescript
-> // Chronological listing without a separate sort column
-> await repository.find({ order: { id: 'ASC' } });
->
-> // Extract creation time directly from an ID
-> function createdAtFromId(id: Uuid): Date {
->   const ms = Number(BigInt(`0x${id.replace(/-/g, '').slice(0, 12)}`));
->   return new Date(ms);
-> }
+> // Chronological listing via the createdAt timestamp column
+> await repository.find({ order: { createdAt: 'ASC' } });
 > ```
 
 ## API Documentation
