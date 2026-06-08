@@ -58,7 +58,15 @@ export class GcsStorageService {
     return objectPath;
   }
 
-  /** Generate a short-lived signed read URL for a private object. */
+  /**
+   * Generate a short-lived signed read URL for a private object.
+   *
+   * Uses V4 signing. V4 is the maintained signing scheme and is the only one
+   * that signs reliably when the runtime has no local private key and must sign
+   * through the IAM `signBlob` API (Workload Identity on Cloud Run). The legacy
+   * V2 default produced signatures GCS rejected with `SignatureDoesNotMatch` in
+   * that setup.
+   */
   async getSignedReadUrl(
     objectPath: string,
     ttlMs: number = FIFTEEN_MINUTES_MS,
@@ -67,6 +75,7 @@ export class GcsStorageService {
       .bucket(this.bucketName)
       .file(objectPath)
       .getSignedUrl({
+        version: 'v4',
         action: 'read',
         expires: Date.now() + ttlMs,
       });
@@ -90,6 +99,7 @@ export class GcsStorageService {
       .bucket(this.bucketName)
       .file(objectPath)
       .getSignedUrl({
+        version: 'v4',
         action: 'write',
         contentType,
         extensionHeaders: {
