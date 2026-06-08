@@ -108,7 +108,11 @@
             "location": {
               "type": "'Point'",
               "coordinates": "[number, number]"
-            }
+            },
+            "title?": "string",
+            "description?": "string",
+            "createdAt": "Date",
+            "updatedAt": "Date"
           }
         ],
         "meta": {
@@ -243,7 +247,11 @@
               "type": "'Point'",
               "coordinates": "[number, number]"
             },
-            "status": "MemoryPointStatus"
+            "status": "MemoryPointStatus",
+            "title?": "string",
+            "description?": "string",
+            "createdAt": "Date",
+            "updatedAt": "Date"
           }
         ],
         "meta": {
@@ -296,7 +304,11 @@
               "type": "'Point'",
               "coordinates": "[number, number]"
             },
-            "status": "MemoryPointStatus"
+            "status": "MemoryPointStatus",
+            "title?": "string",
+            "description?": "string",
+            "createdAt": "Date",
+            "updatedAt": "Date"
           }
         ],
         "meta": {
