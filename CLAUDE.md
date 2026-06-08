@@ -23,6 +23,7 @@ significant decision, add or supersede an ADR in the same PR.** Current ADRs:
 - [ADR-0012](docs/adr/0012-custom-field-decorator-dto-validation.md) — DTO validation uses the custom **field decorators** (`@StringField`, `@EmailField`, …), not raw `class-validator`.
 - [ADR-0013](docs/adr/0013-enum-and-constant-value-casing.md) — Enum **values** follow the project's casing convention (consistent string casing across enums).
 - [ADR-0014](docs/adr/0014-awesome-nest-custom-lint-rules.md) — Statically-checkable conventions are enforced as custom **`@m-one-dev/awesome-nest-eslint`** rules in CI (DTOs via `.create()`/`.toDto()`, `@UseDto` required, no TypeORM finder methods, `Uuid`-typed fields end in `Id`, …), not docs alone.
+- [ADR-0015](docs/adr/0015-api-errors-return-codes-not-translations.md) — API errors return a **stable code** (e.g. `error.invalidCredentials`), never a server-localized message; the frontend owns localization. Don't add backend error translations — `src/i18n/**/error.json` stays empty. Document every code in [`docs/error-codes.md`](docs/error-codes.md).
 
 ## Project Overview
 

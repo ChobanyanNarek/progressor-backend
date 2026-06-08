@@ -27,6 +27,7 @@ Format: [MADR 3.0](https://adr.github.io/madr/). New ADRs copy
 | [0012](./0012-custom-field-decorator-dto-validation.md) | Custom field-decorator DTO validation | Accepted |
 | [0013](./0013-enum-and-constant-value-casing.md) | Enum & constant value casing | Accepted |
 | [0014](./0014-awesome-nest-custom-lint-rules.md) | Architectural conventions enforced as `@m-one-dev/awesome-nest-eslint` rules | Accepted |
+| [0015](./0015-api-errors-return-codes-not-translations.md) | API errors return stable codes, not server-side translations | Accepted |
 
 ## How to add an ADR
 
