@@ -15,7 +15,7 @@ export class MemoryPointCleanupService {
 
   constructor(private readonly commandBus: CommandBus) {}
 
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async cleanupStaleDrafts(): Promise<void> {
     try {
       await this.commandBus.execute<CleanupStaleDraftsCommand, number>(
