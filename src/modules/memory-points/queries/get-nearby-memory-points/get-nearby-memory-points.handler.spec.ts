@@ -107,10 +107,6 @@ describe('GetNearbyMemoryPointsHandler', () => {
     expect(result.data[0]).toEqual({
       id: VALID_UUID,
       location,
-      title: 'Nearby title',
-      description: 'Nearby description',
-      createdAt,
-      updatedAt,
     });
   });
 

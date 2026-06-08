@@ -57,10 +57,6 @@ export class GetNearbyMemoryPointsHandler
         NearbyMemoryPointDto.create({
           id: item.id,
           location: item.location,
-          title: item.memoryPointDetails?.title,
-          description: item.memoryPointDetails?.description,
-          createdAt: item.createdAt,
-          updatedAt: item.updatedAt,
         }),
       ),
       meta: pageMetaDto,
