@@ -24,7 +24,7 @@
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
-- [Node.js](https://nodejs.org/en/) (v24+ required)
+- [Node.js](https://nodejs.org/en/) (v25+ required — see `engines` in `package.json`)
 - [pnpm](https://pnpm.io/installation) (v10.26+)
 - [Git](https://git-scm.com/)
 - A PostgreSQL database (v14+ recommended)
@@ -49,7 +49,7 @@ pnpm install
 # DB_PORT=5432
 # DB_USERNAME=postgres
 # DB_PASSWORD=postgres
-# DB_DATABASE=nest_boilerplate
+# DB_DATABASE=awesome_nest_db
 
 # Start the development server
 pnpm start:dev
@@ -67,8 +67,8 @@ pnpm start:dev
 # Start with NestJS CLI (alternative)
 pnpm nest:start:dev
 
-# Start with file watching
-pnpm watch:dev
+# Start with file watching (NestJS CLI watch mode)
+pnpm nest:watch
 
 # Start with debugger
 pnpm nest:start:debug
@@ -103,8 +103,8 @@ pnpm test:debug
 
 ### Database Operations
 ```bash
-# Generate new migration
-pnpm migration:generate -- --name=[migration-name]
+# Generate new migration from entity diff (positional path — see ADR-0001)
+pnpm migration:generate src/database/migrations/<Name>
 
 # Create empty migration
 pnpm migration:create src/database/migrations/[migration-name]
@@ -130,8 +130,8 @@ pnpm lint
 # Fix ESLint issues
 pnpm lint:fix
 
-# Update dependencies
-pnpm taze
+# Check staged files with Biome (runs in pre-commit)
+pnpm lint:changes
 ```
 
 ## Runtime Support
@@ -201,7 +201,7 @@ After creating your project, complete these steps:
   DB_PORT=5432
   DB_USERNAME=postgres
   DB_PASSWORD=postgres
-  DB_DATABASE=nest_boilerplate
+  DB_DATABASE=awesome_nest_db
 
   # JWT (RSA key pair — see .env.example for format)
   JWT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
