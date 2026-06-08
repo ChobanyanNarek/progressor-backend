@@ -368,6 +368,10 @@ export default tseslint.config(
         'error',
         {
           code: 150,
+          ignoreUrls: true,
+          // Import lines with long module paths cannot be meaningfully wrapped.
+          // (Long SQL strings must still be wrapped — see ADR-0001.)
+          ignorePattern: '^import .*',
         },
       ],
 
@@ -458,19 +462,60 @@ export default tseslint.config(
       },
       parserOptions: {
         projectService: {
+          // Only root-level config files that are NOT part of any tsconfig
+          // `include` need the default project. Spec files and test/ are now
+          // covered by tsconfig.json (it no longer excludes `**/*.spec.ts`),
+          // so the project service finds them directly — listing them here too
+          // would raise "included by allowDefaultProject but also found in the
+          // project service".
           allowDefaultProject: [
             'eslint.config.mjs',
             'vite.config.mts',
             'taze.config.js',
             'ormconfig.ts',
-            'test/app.e2e-spec.ts',
-            'src/modules/auth/auth.controller.spec.ts',
           ],
           defaultProject: 'tsconfig.eslint.json',
         },
         // @ts-ignore
         tsconfigRootDir: import.meta.dirname,
       },
+    },
+  },
+  {
+    // boilerplate.polyfill.ts deliberately augments the Array and TypeORM
+    // SelectQueryBuilder prototypes — this IS the decision recorded in ADR-0009
+    // (docs/adr/0009-global-prototype-augmentation-polyfill.md). The native
+    // prototype-extension ban is therefore disabled for this single, documented
+    // file rather than suppressed inline.
+    files: ['src/boilerplate.polyfill.ts'],
+    rules: {
+      'canonical/no-use-extend-native': 'off',
+    },
+  },
+  {
+    // Test-file rule exemptions. Two categories:
+    //
+    // 1. no-unsafe-* family — fires on Jest mock plumbing (`jest.Mock` returns
+    //    `any`, mocks injected via `as never`, `mock.calls[i][j]` is `any[][]`)
+    //    and on asserting against the CQRS base `Command`/`Query` type; not
+    //    fixable without low-value ceremony.
+    // 2. Production-convention / framework rules that do not govern test code:
+    //    `awesome-nest/uuid-field-naming` targets DTO/entity field naming, not
+    //    test fixtures; `sonarjs/assertions-in-tests` false-positives on
+    //    supertest's `.expect(...)`; `sonarjs/no-hardcoded-passwords` flags
+    //    throwaway login fixtures.
+    //
+    // Every OTHER strict rule stays ON for tests. See CLAUDE.md.
+    files: ['**/*.spec.ts', '**/*.e2e-spec.ts', 'test/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      'awesome-nest/uuid-field-naming': 'off',
+      'sonarjs/assertions-in-tests': 'off',
+      'sonarjs/no-hardcoded-passwords': 'off',
     },
   },
 );

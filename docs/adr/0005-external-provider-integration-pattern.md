@@ -1,25 +1,41 @@
-# ADR 0005: External AI/media provider integration pattern
+# ADR-0005: External AI/media provider integration pattern
 
-- **Status:** Accepted
-- **Date:** 2026-06-03
-- **Deciders:** Backend lead, backend team
+- **Status**: Accepted
+- **Date**: 2026-06-03
+- **Deciders**: Backend team
 
-## Context
+## Context and Problem Statement
 
 The D-ID integration is the first of likely several external generation
 providers. Their work is asynchronous (submit → provider processes → result),
-credential-bearing, and webhook-driven. We want a repeatable shape so future
-providers follow the same rules instead of leaking provider concerns across the
-app.
+credential-bearing, and webhook-driven. How do we integrate such providers
+repeatably so future ones follow the same rules instead of leaking provider
+concerns across the app?
 
-## Decision
+## Decision Drivers
 
-External provider integrations follow this pattern:
+- Provider credentials must stay server-side and never be logged
+- Generation state must be tracked even when a provider call fails
+- Webhooks must not be trusted blindly, and must not trigger retry storms
+- Future providers should follow one consistent shape
+
+## Considered Options
+
+1. **Thin-client + server-side + async state machine + GET-verified webhook + GCS re-host** (the composite pattern below)
+2. **Direct client-to-provider calls** (mobile/web call the provider, store the result)
+3. **Synchronous server-side call** (block the request until the provider returns)
+
+## Decision Outcome
+
+Chosen option: **Option 1** — the composite pattern below — because it keeps
+credentials and authoritative state server-side, models long-running generation
+as a persisted, trackable state machine, and reconciles via verified webhooks
+without retry storms. External provider integrations follow this pattern:
 
 1. **Thin client service** (e.g. `DidService`) owns only HTTP translation:
    build the provider request, send credentials, return the raw response. No
-   product/state logic. Provider credentials are read from config (ADR 0002)
-   and never logged.
+   product/state logic. Provider credentials are read from config
+   ([ADR-0002](./0002-explicit-environment-configuration.md)) and never logged.
 2. **Server-side only.** Mobile/web clients never call the provider directly;
    all calls go through the Central API so credentials stay server-side and
    state stays consistent.
@@ -35,23 +51,55 @@ External provider integrations follow this pattern:
    and return 200 so the provider does not retry-loop (which would re-download
    and orphan assets); missed updates are recovered via a manual refresh
    endpoint. (A queue-based poller is deferred — see "MVP scope".)
-6. **Re-host expiring assets** to GCS per ADR 0003.
+6. **Re-host expiring assets** to GCS per
+   [ADR-0003](./0003-rehost-expiring-provider-assets-to-gcs.md).
 
-## Consequences
+### Positive Consequences
 
-- **Positive:** consistent, secure, testable provider integrations; credentials
-  and state stay server-side; no provider becomes the source of truth.
-- **Negative:** more moving parts than a direct call; webhook secret must be
-  configured and rotated; without a queue, recovery of a missed webhook relies
-  on manual/triggered refresh.
+- Consistent, secure, testable provider integrations.
+- Credentials and state stay server-side; no provider becomes the source of
+  truth.
 
-## MVP scope / deferred
+### Negative Consequences
+
+- More moving parts than a direct call.
+- Webhook secret must be configured and rotated.
+- Without a queue, recovery of a missed webhook relies on manual/triggered
+  refresh.
+
+### MVP scope / deferred
 
 Redis + BullMQ background poller, automatic retry/backoff, and admin
 preview/relink were intentionally deferred for the pilot; reconciliation is
 webhook + manual-refresh only.
 
-## References
+## Pros and Cons of the Options
 
-- `src/modules/ai-asset/` (controller webhook route, `DidService`,
-  `AiAssetService`). PR #14.
+### Option 1: Composite pattern (chosen)
+
+- Good: credentials/state stay server-side; generation is trackable; webhooks
+  verified and non-storming.
+- Bad: most moving parts; requires a rotated webhook secret and manual-refresh
+  recovery until a queue is added.
+
+### Option 2: Direct client-to-provider
+
+- Good: least server work; no webhook plumbing.
+- Bad: leaks provider credentials to clients; state becomes inconsistent and the
+  provider becomes the source of truth. Rejected.
+
+### Option 3: Synchronous server-side call
+
+- Good: simplest server flow; no webhook.
+- Bad: ties up a request for the full generation time; no resilience to provider
+  slowness/failure. Rejected for long-running generation.
+
+## Links
+
+- Project guide: [`docs/architecture.md`](../architecture.md), [`CLAUDE.md`](../../CLAUDE.md)
+- Code: `src/modules/ai-asset/` (controller webhook route, `DidService`,
+  `AiAssetService`).
+- Evidence: PR #14.
+- Related: [ADR-0002](./0002-explicit-environment-configuration.md),
+  [ADR-0003](./0003-rehost-expiring-provider-assets-to-gcs.md),
+  [ADR-0011](./0011-jwt-rs256-auth-and-auth-decorator.md)

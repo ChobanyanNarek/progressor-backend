@@ -28,7 +28,7 @@
 
 Ensure you have the required tools installed:
 
-- [Node.js](https://nodejs.org/en/) (v24+ required)
+- [Node.js](https://nodejs.org/en/) (v25+ required — see `engines` in `package.json`)
 - [pnpm](https://pnpm.io/installation) (v10.26+)
 - [PostgreSQL](https://www.postgresql.org/) (v14+)
 - [Git](https://git-scm.com/)
@@ -59,7 +59,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=postgres
 DB_PASSWORD=postgres
-DB_DATABASE=nest_boilerplate
+DB_DATABASE=awesome_nest_db
 
 # Enable ORM logging (development only)
 ENABLE_ORM_LOGS=true
@@ -100,22 +100,23 @@ export const dataSource = new DataSource({
 # Remove existing migrations
 rm -rf src/database/migrations/*
 
-# Generate new migrations for MySQL
-pnpm migration:generate -- --name=initial-migration
+# Generate a fresh migration against the new database engine (positional path — see ADR-0001)
+pnpm migration:generate src/database/migrations/InitialMigration
 ```
 
 ### Database Operations
 
-> **Note**: For TypeORM v0.3+, the migration commands have changed:
-> - `migration:create` now requires the full path to the migration file
-> - `migration:generate` requires the `-d` flag to specify the DataSource configuration
-> - All commands now use the DataSource configuration instead of the old ormconfig.ts format
+> **Note**: For TypeORM v0.3+, the migration commands take a **positional path**
+> argument, not a `--name` flag. The DataSource (`-d ormconfig.ts`) is already
+> wired into the `package.json` scripts, so you only pass the migration path.
+> Migrations are **generated, never hand-written** — see
+> [ADR-0001](adr/0001-database-migrations-must-be-generated.md).
 
 #### Migration Examples
 
-**Creating a new migration manually:**
+**Creating an empty migration manually:**
 ```bash
-# Create a new migration file
+# Create a new (empty) migration file
 pnpm migration:create src/database/migrations/add-gifts-table
 
 # This generates: 1754340825698-add-gifts-table.ts
@@ -124,8 +125,8 @@ pnpm migration:create src/database/migrations/add-gifts-table
 **Generating migration from entity changes:**
 ```bash
 # 1. Create or modify your entity (e.g., src/modules/gift/gift.entity.ts)
-# 2. Generate migration based on entity changes
-pnpm migration:generate -- --name=add-gifts-table
+# 2. Generate migration based on the entity diff (positional path)
+pnpm migration:generate src/database/migrations/AddGiftsTable
 
 # 3. Review the generated migration file
 # 4. Run the migration
@@ -138,7 +139,7 @@ pnpm migration:run
 # Edit: src/modules/gift/gift.entity.ts
 
 # 2. Generate migration
-pnpm migration:generate -- --name=gifts-table
+pnpm migration:generate src/database/migrations/GiftsTable
 
 # 3. Review generated migration
 # File: src/database/migrations/1754340825698-gifts-table.ts
@@ -168,8 +169,8 @@ pnpm start:dev
 # Alternative: Start with NestJS CLI
 pnpm nest:start:dev
 
-# Start with file watching
-pnpm watch:dev
+# Start with file watching (NestJS CLI watch mode)
+pnpm nest:watch
 
 # Start with debugger enabled
 pnpm nest:start:debug
@@ -254,7 +255,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=postgres
 DB_PASSWORD=postgres
-DB_DATABASE=nest_boilerplate
+DB_DATABASE=awesome_nest_db
 ENABLE_ORM_LOGS=true
 
 # JWT Authentication (RSA key pair — RS256 algorithm)
@@ -356,8 +357,8 @@ docker-compose -f docker-compose_mysql.yml up
 3. **Database Changes**:
    ```bash
    # Create/modify entities
-   # Generate migration
-   pnpm migration:generate -- --name=[migration-name]
+   # Generate migration (positional path — see ADR-0001)
+   pnpm migration:generate src/database/migrations/<Name>
 
    # Review generated migration
    # Run migration
