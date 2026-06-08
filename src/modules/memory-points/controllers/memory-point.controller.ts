@@ -46,6 +46,7 @@ export class MemoryPointController {
   @ApiUUIDParam('id')
   @ApiResponse({
     status: HttpStatus.OK,
+    // TODO
     // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
     type: PublicMemoryPointDto,
   })
