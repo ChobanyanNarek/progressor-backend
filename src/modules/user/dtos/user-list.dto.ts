@@ -35,9 +35,6 @@ export class UserListDto extends BaseDto {
   @EnumField(() => AccountStatus)
   status!: AccountStatus;
 
-  @DateField()
-  lastLogin!: Date;
-
   @StringFieldOptional({ nullable: true })
   avatar?: string | null;
 

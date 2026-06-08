@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
+import { AudioFileType } from '../../constants/audio-file-type.ts';
 import { MemoryPointStatus } from '../../constants/memory-point-status.ts';
+import { PhotoFileType } from '../../constants/photo-file-type.ts';
 import { RoleType } from '../../constants/role-type.ts';
 import { CreateMemoryPointCommand } from './commands/create-memory-point/create-memory-point.command.ts';
+import { CreateUploadUrlCommand } from './commands/create-upload-url/create-upload-url.command.ts';
 import { DeleteMemoryPointCommand } from './commands/delete-memory-point/delete-memory-point.command.ts';
 import { UpdateMemoryPointDetailsCommand } from './commands/update-memory-point-details/update-memory-point-details.command.ts';
 import { UpdateMemoryPointStatusCommand } from './commands/update-memory-point-status/update-memory-point-status.command.ts';
 import { UpsertMemoryPointDetailsCommand } from './commands/upsert-memory-point-details/upsert-memory-point-details.command.ts';
 import { MemoryPointService } from './memory-point.service.ts';
-import { CreateUploadUrlCommand } from './commands/create-upload-url/create-upload-url.command.ts';
 import { GetAllMemoryPointsQuery } from './queries/get-all-memory-points/get-all-memory-points.query.ts';
 import { GetMemoryPointQuery } from './queries/get-memory-point/get-memory-point.query.ts';
 import { GetMyMemoryPointsQuery } from './queries/get-my-memory-points/get-my-memory-points.query.ts';
@@ -208,8 +210,8 @@ describe('MemoryPointService', () => {
   describe('createUploadUrls', () => {
     it('dispatches CreateUploadUrlCommand and returns result', async () => {
       const dto = {
-        photoContentType: 'image/jpeg',
-        audioContentType: 'audio/mpeg',
+        photoContentType: PhotoFileType.JPG,
+        audioContentType: AudioFileType.MP3,
       } as never;
       const expected = {
         photo: { uploadUrl: 'u1', objectPath: 'p1' },
@@ -220,7 +222,8 @@ describe('MemoryPointService', () => {
       const result = await service.createUploadUrls(pointId, userId, dto);
 
       expect(commandBus.execute).toHaveBeenCalledTimes(1);
-      const command = commandBus.execute.mock.calls[0][0];
+      const command = commandBus.execute.mock
+        .calls[0]![0] as CreateUploadUrlCommand;
       expect(command).toBeInstanceOf(CreateUploadUrlCommand);
       expect(command.memoryPointId).toBe(pointId);
       expect(command.userId).toBe(userId);

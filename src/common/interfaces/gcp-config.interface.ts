@@ -5,4 +5,5 @@ export interface IGcpConfig {
   queue: string;
   targetUrl: string;
   invokerServiceAccount: string;
+  maxUploadBytes: number;
 }

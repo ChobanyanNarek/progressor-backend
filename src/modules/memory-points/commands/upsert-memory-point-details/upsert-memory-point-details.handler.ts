@@ -54,9 +54,21 @@ export class UpsertMemoryPointDetailsHandler
     }
 
     /*
-     * Trust no client-supplied path blindly: confirm both files were actually
-     * uploaded to storage before persisting them as the AI-generation source.
+     * Trust no client-supplied path blindly. First require each path to live
+     * under this memory point's own prefix, so a CREATOR cannot reference
+     * another point's object (or any nameable object) as their source. Then
+     * confirm both files actually landed in storage before persisting them.
      */
+    const photoPrefix = `memory-points/${memoryPointId}/photo/`;
+    const audioPrefix = `memory-points/${memoryPointId}/audio/`;
+
+    if (
+      !sourcePhotoUrl.startsWith(photoPrefix) ||
+      !sourceAudioUrl.startsWith(audioPrefix)
+    ) {
+      throw new MemoryPointSourceNotUploadedException();
+    }
+
     const [hasPhoto, hasAudio] = await Promise.all([
       this.gcsStorageService.exists(sourcePhotoUrl),
       this.gcsStorageService.exists(sourceAudioUrl),

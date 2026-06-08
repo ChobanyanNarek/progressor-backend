@@ -4,6 +4,7 @@ import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts'
 import { MemoryPointType } from '../../../../constants/memory-point-type.ts';
 import { MemoryPointNotEditableException } from '../../exceptions/memory-point-not-editable.exception.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
+import { MemoryPointSourceNotUploadedException } from '../../exceptions/memory-point-source-not-uploaded.exception.ts';
 import { UpsertMemoryPointDetailsCommand } from './upsert-memory-point-details.command.ts';
 
 /*
@@ -35,19 +36,24 @@ describe('UpsertMemoryPointDetailsHandler', () => {
   let detailsWhere: jest.Mock;
   let detailsCreateQueryBuilder: jest.Mock;
 
+  let exists: jest.Mock<(path: string) => Promise<boolean>>;
+
   let memoryPointRepo: { createQueryBuilder: jest.Mock };
   let detailsRepo: {
     create: jest.Mock;
     upsert: jest.Mock;
     createQueryBuilder: jest.Mock;
   };
+  let gcsStorageService: {
+    exists: jest.Mock<(path: string) => Promise<boolean>>;
+  };
 
   const pointId = 'point-1' as Uuid;
   const userId = 'user-1' as Uuid;
 
   const dto = {
-    sourcePhotoUrl: 'gcs/photo.jpg',
-    sourceAudioUrl: 'gcs/audio.mp3',
+    sourcePhotoUrl: `memory-points/${pointId}/photo/abc.jpg`,
+    sourceAudioUrl: `memory-points/${pointId}/audio/abc.mp3`,
     title: 'A title',
     description: 'A description',
     cloudAnchorId: 'anchor-1',
@@ -78,16 +84,22 @@ describe('UpsertMemoryPointDetailsHandler', () => {
       .fn()
       .mockReturnValue({ where: detailsWhere });
 
+    exists = jest
+      .fn<(path: string) => Promise<boolean>>()
+      .mockResolvedValue(true);
+
     memoryPointRepo = { createQueryBuilder: memoryPointCreateQueryBuilder };
     detailsRepo = {
       create,
       upsert,
       createQueryBuilder: detailsCreateQueryBuilder,
     };
+    gcsStorageService = { exists };
 
     handler = new handlerModule.UpsertMemoryPointDetailsHandler(
       memoryPointRepo as never,
       detailsRepo as never,
+      gcsStorageService as never,
     );
   });
 
@@ -111,12 +123,39 @@ describe('UpsertMemoryPointDetailsHandler', () => {
         memoryPointId: pointId,
       }),
     );
+    expect(exists).toHaveBeenCalledWith(dto.sourcePhotoUrl);
+    expect(exists).toHaveBeenCalledWith(dto.sourceAudioUrl);
     expect(upsert).toHaveBeenCalledWith(expect.anything(), ['memoryPointId']);
     expect(detailsWhere).toHaveBeenCalledWith(
       'details.memoryPointId = :memoryPointId',
       { memoryPointId: pointId },
     );
     expect(result).toBe(detailsDto);
+  });
+
+  it('rejects a source path that belongs to another memory point', async () => {
+    const crossPointDto = {
+      ...dto,
+      sourcePhotoUrl: 'memory-points/other-point/photo/abc.jpg',
+    };
+
+    await expect(
+      handler.execute(
+        new UpsertMemoryPointDetailsCommand(pointId, userId, crossPointDto),
+      ),
+    ).rejects.toBeInstanceOf(MemoryPointSourceNotUploadedException);
+    // Ownership is enforced before touching storage or persisting anything.
+    expect(exists).not.toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('throws MemoryPointSourceNotUploadedException when a file is missing', async () => {
+    exists.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+    await expect(run()).rejects.toBeInstanceOf(
+      MemoryPointSourceNotUploadedException,
+    );
+    expect(upsert).not.toHaveBeenCalled();
   });
 
   it('throws MemoryPointNotFoundException when the memory point does not exist', async () => {
