@@ -1,0 +1,36 @@
+{
+  "userNotFound": "User not found",
+  "invalidCredentials": "Invalid email or password",
+  "fileNotImage": "The uploaded file is not a valid image",
+  "invalidTmpKey": "Invalid temporary upload key",
+  "memoryPointNotFound": "Memory point not found",
+  "memoryPointNotEditable": "This memory point can no longer be edited",
+  "pageType": "Invalid page type",
+  "phoneNumber": "Invalid phone number",
+  "unique": {
+    "email": "This email address is already in use"
+  },
+  "fields": {
+    "is_defined": "This field is required",
+    "is_not_empty": "This field must not be empty",
+    "is_string": "This field must be a string",
+    "is_boolean": "This field must be a boolean",
+    "is_int": "This field must be an integer",
+    "is_number": "This field must be a number",
+    "is_positive": "This field must be a positive number",
+    "min": "This value is too small",
+    "max": "This value is too large",
+    "min_length": "This field is too short",
+    "max_length": "This field is too long",
+    "is_email": "This field must be a valid email address",
+    "is_enum": "This field has an invalid value",
+    "is_uuid": "This field must be a valid UUID",
+    "is_url": "This field must be a valid URL",
+    "is_date": "This field must be a valid date",
+    "is_date_string": "This field must be a valid date string",
+    "is_array": "This field must be an array",
+    "array_not_empty": "This field must not be an empty array",
+    "is_phone_number": "This field must be a valid phone number",
+    "matches": "This field has an invalid format"
+  }
+}
