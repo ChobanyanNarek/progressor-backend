@@ -1,10 +1,13 @@
-# Error messages & i18n catalog
+# Error messages & i18n keys
 
-API errors return a stable **i18n key** as the `message`, not human-readable
-prose. Clients localize the key against the catalog below. This keeps the API
-language-agnostic and lets the frontend control copy.
+API errors return a stable **i18n key** as the `message`, never human-readable
+prose. The **frontend owns localization** — it maps each key to copy from its
+own locale files. This keeps the API language-agnostic; the backend never ships
+translated error text.
 
 ## Error response shape
+
+Most errors return a single key:
 
 ```jsonc
 // e.g. POST /auth/login with a wrong password
@@ -14,14 +17,19 @@ language-agnostic and lets the frontend control copy.
 }
 ```
 
-Validation failures (HTTP `422`) carry one key per failed constraint, rewritten
-to `error.fields.{constraint}` (snake_cased class-validator constraint name) by
+Validation failures (HTTP `422`) return an **array** — one entry per failed
+field, with a key per failed constraint. The constraint message is rewritten to
+`error.fields.{constraint}` (snake_cased class-validator constraint name) by
 [`HttpExceptionFilter`](../src/filters/bad-request.filter.ts):
 
 ```jsonc
 {
   "statusCode": 422,
   "message": [
+    {
+      "property": "email",
+      "constraints": { "isEmail": "error.fields.is_email" }
+    },
     {
       "property": "role",
       "constraints": { "isEnum": "error.fields.is_enum" }
@@ -30,29 +38,37 @@ to `error.fields.{constraint}` (snake_cased class-validator constraint name) by
 }
 ```
 
-## The catalog
+The frontend renders `message` directly (single key) or walks each entry's
+`constraints` values (422), looking each key up in its own localization files.
 
-The canonical key → message mapping lives in the i18n resource files, one per
-locale:
+## Keys the API can throw
 
-- English — [`src/i18n/en_US/error.json`](../src/i18n/en_US/error.json)
-- Russian — [`src/i18n/ru_RU/error.json`](../src/i18n/ru_RU/error.json)
+Domain keys (one per error):
 
-A key like `error.userNotFound` maps to `error.json` → `userNotFound`, and
-`error.fields.is_enum` maps to `error.json` → `fields.is_enum`. The frontend can
-consume these files directly (or mirror them) to render localized messages.
+| Key | Source |
+|---|---|
+| `error.userNotFound` | user lookup |
+| `error.invalidCredentials` | auth login (added by the auth PR) |
+| `error.invalidTmpKey` | file upload |
+| `error.fileNotImage` | file upload |
+| `error.memoryPointNotFound` | memory points |
+| `error.memoryPointNotEditable` | memory points |
+| `error.pageType` | memory points |
+| `error.phoneNumber` | phone validation |
+| `error.unique.email` | DB unique constraint ([`constraint-errors.ts`](../src/filters/constraint-errors.ts)) |
 
-`error-catalog.spec.ts` guards the catalog: it asserts both locales share the
-same key structure and that every key the application throws is present. **When
-you add a new error key, add it to every locale's `error.json`** or the test
-fails.
+Validation keys are dynamic: `error.fields.{constraint}`, where `{constraint}`
+is the snake_cased class-validator constraint name (`is_email`, `is_enum`,
+`min_length`, `max_length`, `is_uuid`, `matches`, …). The frontend should have a
+generic `error.fields.*` fallback for any unrecognized constraint.
 
 ## Notes
 
-- Locale is selected per request via `?lang=`, the `Accept-Language` header, or
-  the `x-lang` header (see the `I18nModule` resolvers in
-  [`app.module.ts`](../src/app.module.ts)); fallback is configured by
-  `FALLBACK_LANGUAGE`.
-- Error responses currently return the **key** (by design). The catalog files
-  also enable server-side translation if a filter is later wired to resolve them
-  via `TranslationService`.
+- Error responses return the **key** by design — there is no server-side error
+  translation. Do not add translated `error.json` files; localization is the
+  frontend's responsibility.
+- The `nestjs-i18n` setup (`I18nModule`, `?lang=` / `Accept-Language` / `x-lang`
+  resolvers, `FALLBACK_LANGUAGE`) translates **success-response DTO fields**
+  (`@DynamicTranslate` / `@StaticTranslate`) — a separate concern from errors.
+- When you add a new thrown error key, add a row to the table above so the
+  frontend knows to localize it.
