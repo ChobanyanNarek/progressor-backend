@@ -18,10 +18,13 @@ import { MemoryPointEntity } from './entities/memory-point.entity.ts';
 import { MemoryPointDetailsEntity } from './entities/memory-point-details.entity.ts';
 import { MemoryPointService } from './memory-point.service.ts';
 import { GetAllMemoryPointsHandler } from './queries/get-all-memory-points/get-all-memory-points.handler.ts';
+import { GetMediaHandler } from './queries/get-media/get-media.handler.ts';
 import { GetMemoryPointHandler } from './queries/get-memory-point/get-memory-point.handler.ts';
 import { GetMemoryPointGenerationSourceHandler } from './queries/get-memory-point-generation-source/get-memory-point-generation-source.handler.ts';
+import { GetMemoryPointStatsHandler } from './queries/get-memory-point-stats/get-memory-point-stats.handler.ts';
 import { GetMyMemoryPointsHandler } from './queries/get-my-memory-points/get-my-memory-points.handler.ts';
 import { GetNearbyMemoryPointsHandler } from './queries/get-nearby-memory-points/get-nearby-memory-points.handler.ts';
+import { GetRecentMemoryPointsHandler } from './queries/get-recent-memory-points/get-recent-memory-points.handler.ts';
 
 const commandHandlers = [
   CreateMemoryPointHandler,
@@ -40,6 +43,9 @@ const queryHandlers = [
   GetMyMemoryPointsHandler,
   GetAllMemoryPointsHandler,
   GetNearbyMemoryPointsHandler,
+  GetMemoryPointStatsHandler,
+  GetRecentMemoryPointsHandler,
+  GetMediaHandler,
 ];
 
 @Module({

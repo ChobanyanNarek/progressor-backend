@@ -23,9 +23,6 @@ export class UserDto extends AbstractDto {
   @EmailField()
   email!: string;
 
-  @StringField()
-  password!: string;
-
   @EnumField(() => AccountStatus)
   status!: AccountStatus;
 

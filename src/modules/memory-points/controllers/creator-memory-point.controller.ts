@@ -63,7 +63,11 @@ export class CreatorMemoryPointController {
       'Get short-lived signed URLs to upload the source photo and audio straight to storage',
   })
   @ApiUUIDParam('id')
-  @ApiResponse({ status: HttpStatus.CREATED, type: MemoryPointUploadUrlsDto })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
+    type: MemoryPointUploadUrlsDto,
+  })
   createUploadUrls(
     @UUIDParam('id') id: Uuid,
     @AuthUser() user: UserEntity,
