@@ -44,23 +44,11 @@ export class AdminMemoryPointController {
     description: 'All memory points',
     type: AdminMemoryPointListItemDto,
   })
-  async getAll(
+  getAll(
     @Query(new ValidationPipe({ transform: true }))
     pageOptionsDto: PageOptionsDto,
   ): Promise<PageDto<AdminMemoryPointListItemDto>> {
-    const page =
-      await this.memoryPointService.getAllMemoryPoints(pageOptionsDto);
-
-    return PageDto.create({
-      data: page.data.map((memoryPoint) =>
-        AdminMemoryPointListItemDto.create({
-          id: memoryPoint.id,
-          location: memoryPoint.location,
-          status: memoryPoint.status,
-        }),
-      ),
-      meta: page.meta,
-    });
+    return this.memoryPointService.getAllMemoryPoints(pageOptionsDto);
   }
 
   @Get(':id')

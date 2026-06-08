@@ -2,15 +2,16 @@ import { type IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
-import type { PageDto } from '../../../../common/dto/page.dto.ts';
+import { PageDto } from '../../../../common/dto/page.dto.ts';
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
-import type { MemoryPointDto } from '../../dtos/memory-point.dto.ts';
+import { NearbyMemoryPointDto } from '../../dtos/nearby-memory-point.dto.ts';
 import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
 import { GetNearbyMemoryPointsQuery } from './get-nearby-memory-points.query.ts';
 
 @QueryHandler(GetNearbyMemoryPointsQuery)
 export class GetNearbyMemoryPointsHandler
-  implements IQueryHandler<GetNearbyMemoryPointsQuery, PageDto<MemoryPointDto>>
+  implements
+    IQueryHandler<GetNearbyMemoryPointsQuery, PageDto<NearbyMemoryPointDto>>
 {
   constructor(
     @InjectRepository(MemoryPointEntity)
@@ -19,7 +20,7 @@ export class GetNearbyMemoryPointsHandler
 
   async execute(
     query: GetNearbyMemoryPointsQuery,
-  ): Promise<PageDto<MemoryPointDto>> {
+  ): Promise<PageDto<NearbyMemoryPointDto>> {
     const { latitude, longitude, radiusMeters, name } = query.pageOptionsDto;
 
     const userPoint =
@@ -51,7 +52,18 @@ export class GetNearbyMemoryPointsHandler
       query.pageOptionsDto,
     );
 
-    // eslint-disable-next-line sonarjs/argument-type
-    return items.toPageDto(pageMetaDto);
+    return PageDto.create({
+      data: items.map((item) =>
+        NearbyMemoryPointDto.create({
+          id: item.id,
+          location: item.location,
+          title: item.memoryPointDetails?.title,
+          description: item.memoryPointDetails?.description,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+        }),
+      ),
+      meta: pageMetaDto,
+    });
   }
 }
