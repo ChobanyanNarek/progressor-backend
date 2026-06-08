@@ -8,6 +8,7 @@ import { GetMyMemoryPointsQuery } from './get-my-memory-points.query.ts';
 interface Qb {
   leftJoinAndSelect: jest.Mock;
   where: jest.Mock;
+  andWhere: jest.Mock;
   paginate: jest.Mock<() => Promise<unknown>>;
 }
 
@@ -23,6 +24,7 @@ function makeQb(items: unknown, meta: unknown): Qb {
   const qb: Partial<Qb> = {};
   qb.leftJoinAndSelect = jest.fn().mockReturnValue(qb);
   qb.where = jest.fn().mockReturnValue(qb);
+  qb.andWhere = jest.fn().mockReturnValue(qb);
   qb.paginate = jest
     .fn<() => Promise<unknown>>()
     .mockResolvedValue([items, meta]);
@@ -72,6 +74,10 @@ describe('GetMyMemoryPointsHandler', () => {
       'details',
     );
     expect(qb.where).toHaveBeenCalledWith('mp.userId = :userId', { userId });
+    expect(qb.andWhere).toHaveBeenCalledWith(
+      '(mp.status != :draftStatus OR details.id IS NOT NULL)',
+      { draftStatus: MemoryPointStatus.PENDING },
+    );
     expect(qb.paginate).toHaveBeenCalledWith(pageOptionsDto);
     expect(result.meta).toBe(meta);
     expect(result.data[0]).toBeInstanceOf(MyMemoryPointDto);
