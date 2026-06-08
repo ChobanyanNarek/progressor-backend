@@ -1,4 +1,11 @@
-import { Column, Entity, JoinColumn, OneToOne, type Relation } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  OneToOne,
+  type Relation,
+} from 'typeorm';
 
 import { AbstractEntity } from '../../../common/abstract.entity.ts';
 import { MemoryPointType } from '../../../constants/memory-point-type.ts';
@@ -8,6 +15,8 @@ import type { IMemoryPointDetailsOptions } from '../interfaces/memory-point-deta
 import { MemoryPointEntity } from './memory-point.entity.ts';
 
 @Entity({ name: 'memory_point_details' })
+// created_at: ORDER BY in the admin media list.
+@Index(['createdAt'])
 @UseDto(MemoryPointDetailsDto)
 export class MemoryPointDetailsEntity extends AbstractEntity<
   MemoryPointDetailsDto,

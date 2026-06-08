@@ -18,6 +18,10 @@ import type { IMemoryPointOptions } from '../interfaces/memory-point-options.int
 import { MemoryPointDetailsEntity } from './memory-point-details.entity.ts';
 
 @Entity({ name: 'memory_points' })
+// created_at: ORDER BY in recent-points / admin list (was a disk-spilling sort).
+@Index(['createdAt'])
+// status: dashboard per-status counts and status-filtered lists.
+@Index(['status'])
 @UseDto(MemoryPointDto)
 export class MemoryPointEntity extends AbstractEntity<
   MemoryPointDto,

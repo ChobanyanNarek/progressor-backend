@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Index,
   OneToMany,
   type Relation,
   VirtualColumn,
@@ -14,6 +15,8 @@ import { MemoryPointEntity } from '../memory-points/entities/memory-point.entity
 import { UserDto } from './dtos/user.dto.ts';
 
 @Entity({ name: 'users' })
+// role: every user/team/creator list filters by role.
+@Index(['role'])
 @UseDto(UserDto)
 export class UserEntity extends AbstractEntity<UserDto> {
   @Column({ type: 'varchar', length: 50 })
