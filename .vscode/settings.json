@@ -15,6 +15,14 @@
     ],
     "editor.detectIndentation": false,
     "rift.autostart": false,
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "typescript.enablePromptUseWorkspaceTsdk": true,
+    "editor.showDeprecated": true,
+    "eslint.useFlatConfig": true,
+    "eslint.validate": ["javascript", "typescript"],
+    "eslint.run": "onType",
+    "eslint.workingDirectories": [{ "mode": "auto" }],
+    "eslint.format.enable": false,
     "i18n-ally.localesPaths": [
       "src/i18n"
     ]
