@@ -5,9 +5,13 @@ import {
   EnumField,
   StringField,
   StringFieldOptional,
+  UUIDField,
 } from '../../../decorators/field.decorators.ts';
 
 export class GetMeDto extends BaseDto {
+  @UUIDField()
+  id!: Uuid;
+
   @StringField()
   firstName!: string;
 
