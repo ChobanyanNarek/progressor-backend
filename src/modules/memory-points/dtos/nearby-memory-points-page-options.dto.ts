@@ -1,9 +1,10 @@
 import { PageOptionsDto } from '../../../common/dto/page-options.dto.ts';
-import {
-  NumberField,
-  StringFieldOptional,
-} from '../../../decorators/field.decorators.ts';
+import { NumberField } from '../../../decorators/field.decorators.ts';
 
+/*
+ * Title search uses the inherited `q` param (consistent with every other list
+ * endpoint); results are ordered by distance, so `order` is not consumed here.
+ */
 export class NearbyMemoryPointsPageOptionsDto extends PageOptionsDto {
   @NumberField({ min: -90, max: 90 })
   readonly latitude!: number;
@@ -13,7 +14,4 @@ export class NearbyMemoryPointsPageOptionsDto extends PageOptionsDto {
 
   @NumberField({ min: 100, max: 50_000, default: 5000 })
   readonly radiusMeters!: number;
-
-  @StringFieldOptional()
-  readonly name?: string;
 }

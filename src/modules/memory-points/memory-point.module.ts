@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { MemoryPointAiGenerationModule } from '../memory-point-ai-generation/memory-point-ai-generation.module.ts';
 import { ApplyGenerationResultHandler } from './commands/apply-generation-result/apply-generation-result.handler.ts';
+import { CleanupStaleDraftsHandler } from './commands/cleanup-stale-drafts/cleanup-stale-drafts.handler.ts';
 import { CreateMemoryPointHandler } from './commands/create-memory-point/create-memory-point.handler.ts';
 import { CreateUploadUrlHandler } from './commands/create-upload-url/create-upload-url.handler.ts';
 import { DeleteMemoryPointHandler } from './commands/delete-memory-point/delete-memory-point.handler.ts';
@@ -17,6 +18,7 @@ import { MemoryPointController } from './controllers/memory-point.controller.ts'
 import { MemoryPointEntity } from './entities/memory-point.entity.ts';
 import { MemoryPointDetailsEntity } from './entities/memory-point-details.entity.ts';
 import { MemoryPointService } from './memory-point.service.ts';
+import { MemoryPointCleanupService } from './memory-point-cleanup.service.ts';
 import { GetAllMemoryPointsHandler } from './queries/get-all-memory-points/get-all-memory-points.handler.ts';
 import { GetMediaHandler } from './queries/get-media/get-media.handler.ts';
 import { GetMemoryPointHandler } from './queries/get-memory-point/get-memory-point.handler.ts';
@@ -35,6 +37,7 @@ const commandHandlers = [
   MarkGenerationStartedHandler,
   ApplyGenerationResultHandler,
   CreateUploadUrlHandler,
+  CleanupStaleDraftsHandler,
 ];
 
 const queryHandlers = [
@@ -59,7 +62,12 @@ const queryHandlers = [
     CreatorMemoryPointController,
     AdminMemoryPointController,
   ],
-  providers: [MemoryPointService, ...commandHandlers, ...queryHandlers],
+  providers: [
+    MemoryPointService,
+    MemoryPointCleanupService,
+    ...commandHandlers,
+    ...queryHandlers,
+  ],
   exports: [MemoryPointService],
 })
 export class MemoryPointModule {}

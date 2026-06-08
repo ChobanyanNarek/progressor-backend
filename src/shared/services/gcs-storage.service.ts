@@ -128,4 +128,15 @@ export class GcsStorageService {
       .file(objectPath)
       .delete({ ignoreNotFound: true });
   }
+
+  /**
+   * Delete every object under a path prefix (e.g. `memory-points/<id>/`).
+   * Used to purge all media of an abandoned draft in one call. `force: true`
+   * keeps deleting the rest if an individual object is already gone.
+   */
+  async deletePrefix(prefix: string): Promise<void> {
+    await this.storage
+      .bucket(this.bucketName)
+      .deleteFiles({ prefix, force: true });
+  }
 }

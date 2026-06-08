@@ -21,7 +21,7 @@ export class GetNearbyMemoryPointsHandler
   async execute(
     query: GetNearbyMemoryPointsQuery,
   ): Promise<PageDto<NearbyMemoryPointDto>> {
-    const { latitude, longitude, radiusMeters, name } = query.pageOptionsDto;
+    const { latitude, longitude, radiusMeters, q } = query.pageOptionsDto;
 
     const userPoint =
       'ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography';
@@ -42,9 +42,9 @@ export class GetNearbyMemoryPointsHandler
         radius: radiusMeters,
       });
 
-    if (name) {
-      queryBuilder.andWhere('details.title ILIKE :name', {
-        name: `%${name}%`,
+    if (q) {
+      queryBuilder.andWhere('details.title ILIKE :q', {
+        q: `%${q}%`,
       });
     }
 

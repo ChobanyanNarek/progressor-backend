@@ -94,6 +94,15 @@ export class ApiConfigService {
     return this.getString('FALLBACK_LANGUAGE');
   }
 
+  /**
+   * Maximum age (in milliseconds) a PENDING memory point may keep before its
+   * details are submitted. Older detail-less drafts are purged by the cleanup
+   * cron. Configured as a human duration (e.g. `24h`); parsed to ms.
+   */
+  get memoryPointDraftTtl(): number {
+    return this.getDuration('MEMORY_POINT_DRAFT_TTL');
+  }
+
   get throttlerConfigs(): ThrottlerOptions {
     return {
       ttl: this.getDuration('THROTTLER_TTL', 'second'),

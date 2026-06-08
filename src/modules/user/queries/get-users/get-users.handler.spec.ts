@@ -28,6 +28,7 @@ describe('GetUsersHandler', () => {
   let handler: GetUsersHandler;
   let where: jest.Mock;
   let andWhere: jest.Mock;
+  let orderBy: jest.Mock;
   let searchByString: jest.Mock;
   let paginate: jest.Mock;
 
@@ -35,12 +36,14 @@ describe('GetUsersHandler', () => {
     const qb: Record<string, unknown> = {};
     where = jest.fn().mockReturnValue(qb);
     andWhere = jest.fn().mockReturnValue(qb);
+    orderBy = jest.fn().mockReturnValue(qb);
     searchByString = jest.fn().mockReturnValue(qb);
     paginate = jest
       .fn<() => Promise<unknown>>()
       .mockResolvedValue([[userRow], meta]);
     qb.where = where;
     qb.andWhere = andWhere;
+    qb.orderBy = orderBy;
     qb.searchByString = searchByString;
     qb.paginate = paginate;
 
@@ -102,6 +105,14 @@ describe('GetUsersHandler', () => {
       'user.firstName',
       'user.email',
     ]);
+  });
+
+  it('orders by createdAt using the requested page order', async () => {
+    await handler.execute(
+      new GetUsersQuery({ order: 'DESC' } as UsersPageOptionsDto),
+    );
+
+    expect(orderBy).toHaveBeenCalledWith('user.createdAt', 'DESC');
   });
 
   it('filters by account status when status is present', async () => {
