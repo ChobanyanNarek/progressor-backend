@@ -35,6 +35,21 @@ the failing class-validator rule. The set is open-ended — treat an unknown
 `is_boolean`, `is_uuid`, `is_date`, `is_url`, `min_length`, `max_length`,
 `min`, `max`, `matches`.
 
+Shape — the frontend walks each entry's `constraints` values and looks each code
+up in its own locale files:
+
+```jsonc
+{
+  "statusCode": 422,
+  "message": [
+    { "property": "email", "constraints": { "isEmail": "error.fields.is_email" } },
+    { "property": "role",  "constraints": { "isEnum":  "error.fields.is_enum"  } }
+  ]
+}
+```
+
+A single-key error (non-422) is just `{ "statusCode": 401, "message": "error.invalidCredentials" }`.
+
 ## Auth 401s
 
 Authentication failures (`jwt.strategy`, guards, Passport) surface as a bare

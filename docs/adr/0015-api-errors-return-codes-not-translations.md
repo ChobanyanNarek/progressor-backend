@@ -38,7 +38,7 @@ product copy and locale ownership in the wrong layer.
 ## Decision Outcome
 
 Chosen option: **Option 1**. API errors carry a **stable code** in `message`
-(e.g. `error.invalidCredentials`, `error.cannotRemoveLastAdmin`, and validation
+(e.g. `error.invalidCredentials`, `error.userExists`, and validation
 codes `error.fields.{constraint}`). The backend does **not** translate error
 messages and does **not** gain a per-error `en_US`/`ru_RU` entry. The frontend
 maps codes to localized, user-facing copy.
