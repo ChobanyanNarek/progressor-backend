@@ -63,7 +63,11 @@ export class CreatorMemoryPointController {
       'Get short-lived signed URLs to upload the source photo and audio straight to storage',
   })
   @ApiUUIDParam('id')
-  @ApiResponse({ status: HttpStatus.CREATED, type: MemoryPointUploadUrlsDto })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
+    type: MemoryPointUploadUrlsDto,
+  })
   createUploadUrls(
     @UUIDParam('id') id: Uuid,
     @AuthUser() user: UserEntity,
@@ -109,26 +113,12 @@ export class CreatorMemoryPointController {
     description: 'My memory points',
     type: MyMemoryPointDto,
   })
-  async getMyMemoryPoints(
+  getMyMemoryPoints(
     @AuthUser() user: UserEntity,
     @Query(new ValidationPipe({ transform: true }))
     pageOptionsDto: PageOptionsDto,
   ): Promise<PageDto<MyMemoryPointDto>> {
-    const page = await this.memoryPointService.getMyMemoryPoints(
-      user.id,
-      pageOptionsDto,
-    );
-
-    return PageDto.create({
-      data: page.data.map((memoryPoint) =>
-        MyMemoryPointDto.create({
-          id: memoryPoint.id,
-          location: memoryPoint.location,
-          status: memoryPoint.status,
-        }),
-      ),
-      meta: page.meta,
-    });
+    return this.memoryPointService.getMyMemoryPoints(user.id, pageOptionsDto);
   }
 
   @Get(':id')

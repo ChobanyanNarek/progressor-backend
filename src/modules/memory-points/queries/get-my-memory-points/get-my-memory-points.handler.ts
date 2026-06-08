@@ -2,14 +2,14 @@ import { type IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
-import type { PageDto } from '../../../../common/dto/page.dto.ts';
-import type { MemoryPointDto } from '../../dtos/memory-point.dto.ts';
+import { PageDto } from '../../../../common/dto/page.dto.ts';
+import { MyMemoryPointDto } from '../../dtos/my-memory-point.dto.ts';
 import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
 import { GetMyMemoryPointsQuery } from './get-my-memory-points.query.ts';
 
 @QueryHandler(GetMyMemoryPointsQuery)
 export class GetMyMemoryPointsHandler
-  implements IQueryHandler<GetMyMemoryPointsQuery, PageDto<MemoryPointDto>>
+  implements IQueryHandler<GetMyMemoryPointsQuery, PageDto<MyMemoryPointDto>>
 {
   constructor(
     @InjectRepository(MemoryPointEntity)
@@ -18,7 +18,7 @@ export class GetMyMemoryPointsHandler
 
   async execute(
     query: GetMyMemoryPointsQuery,
-  ): Promise<PageDto<MemoryPointDto>> {
+  ): Promise<PageDto<MyMemoryPointDto>> {
     const { userId, pageOptionsDto } = query;
 
     const queryBuilder = this.memoryPointRepository
@@ -28,7 +28,19 @@ export class GetMyMemoryPointsHandler
 
     const [items, pageMetaDto] = await queryBuilder.paginate(pageOptionsDto);
 
-    // eslint-disable-next-line sonarjs/argument-type
-    return items.toPageDto(pageMetaDto);
+    return PageDto.create({
+      data: items.map((item) =>
+        MyMemoryPointDto.create({
+          id: item.id,
+          location: item.location,
+          status: item.status,
+          title: item.memoryPointDetails?.title,
+          description: item.memoryPointDetails?.description,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+        }),
+      ),
+      meta: pageMetaDto,
+    });
   }
 }
