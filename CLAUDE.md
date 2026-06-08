@@ -9,12 +9,20 @@ changing migrations, configuration, external integrations, or shared structure,
 read the relevant ADR and follow it. When a change establishes or alters a
 significant decision, add or supersede an ADR in the same PR.** Current ADRs:
 
-- **0001** — DB migrations must be **generated** (`pnpm migration:generate`), never hand-written; a clean drift check is required.
-- **0002** — Config is read **explicitly** from env; no code-side defaults (defaults belong in `.env.example`).
-- **0003** — Re-host **expiring** external provider asset URLs to GCS; mark `READY` only after a successful re-host.
-- **0004** — Interfaces live in a dedicated `interfaces/` folder (`I`-prefixed), not in service files.
-- **0005** — External AI/media providers follow the thin-client + server-side + async-state-machine + GET-verified-webhook pattern.
-- **0006** — Every feature/behavioural change ships with automated tests in the same PR (unit for logic, e2e for routes/webhooks; bug fixes get a regression test).
+- [ADR-0001](docs/adr/0001-database-migrations-must-be-generated.md) — DB migrations must be **generated** (`pnpm migration:generate src/database/migrations/<Name>`), never hand-written; a clean drift check is required.
+- [ADR-0002](docs/adr/0002-explicit-environment-configuration.md) — Config is read **explicitly** from env; no code-side defaults (defaults belong in `.env.example`).
+- [ADR-0003](docs/adr/0003-rehost-expiring-provider-assets-to-gcs.md) — Re-host **expiring** external provider asset URLs to GCS; mark `READY` only after a successful re-host.
+- [ADR-0004](docs/adr/0004-module-interfaces-in-dedicated-folder.md) — Interfaces live in a dedicated `interfaces/` folder (`I`-prefixed), not in service files.
+- [ADR-0005](docs/adr/0005-external-provider-integration-pattern.md) — External AI/media providers follow the thin-client + server-side + async-state-machine + GET-verified-webhook pattern.
+- [ADR-0006](docs/adr/0006-tests-required-for-every-feature.md) — Every feature/behavioural change ships with automated tests in the same PR (unit for logic, e2e for routes/webhooks; bug fixes get a regression test).
+- [ADR-0007](docs/adr/0007-cqrs-mandatory-for-feature-modules.md) — Feature write/read logic goes through **CQRS** command/query handlers, not fat services.
+- [ADR-0008](docs/adr/0008-abstract-entity-usedto-mapping.md) — Entities extend `AbstractEntity` and map to DTOs via the `@UseDto` decorator / `toDto()`.
+- [ADR-0009](docs/adr/0009-global-prototype-augmentation-polyfill.md) — Boilerplate polyfills and prototype augmentation are centralized (e.g. `Array.prototype.toDtos`, global types).
+- [ADR-0010](docs/adr/0010-uuid-v4-primary-keys.md) — Primary keys are **UUID v4** via `@PrimaryGeneratedColumn('uuid')` (DB-generated); v7 noted as a future option.
+- [ADR-0011](docs/adr/0011-jwt-rs256-auth-and-auth-decorator.md) — Auth uses **JWT with RS256** (RSA key pair); tokens signed/verified with `JWT_PRIVATE_KEY`/`JWT_PUBLIC_KEY`.
+- [ADR-0012](docs/adr/0012-custom-field-decorator-dto-validation.md) — DTO validation uses the custom **field decorators** (`@StringField`, `@EmailField`, …), not raw `class-validator`.
+- [ADR-0013](docs/adr/0013-enum-and-constant-value-casing.md) — Enum **values** follow the project's casing convention (consistent string casing across enums).
+- [ADR-0014](docs/adr/0014-awesome-nest-custom-lint-rules.md) — Statically-checkable conventions are enforced as custom **`@m-one-dev/awesome-nest-eslint`** rules in CI (DTOs via `.create()`/`.toDto()`, `@UseDto` required, no TypeORM finder methods, `Uuid`-typed fields end in `Id`, …), not docs alone.
 
 ## Project Overview
 
@@ -60,6 +68,45 @@ kebab-case filename, wrap long SQL) and confirm a clean drift check
 
 For detailed architecture: @docs/architecture.md
 
+### Module Anatomy
+
+A request flows top-down through one feature module. Each layer has one job:
+
+```
+HTTP request
+  → Controller (*.controller.ts)      # route, @ApiOperation, DTO validation, @Auth
+    → Service (*.service.ts)          # thin: dispatches via CommandBus / QueryBus
+      → Command / Query Handler       # CQRS business logic (ADR-0007)
+        → Repository / Entity         # TypeORM persistence (AbstractEntity + @UseDto)
+  ← DTO (entity.toDto())              # response mapping (ADR-0008)
+```
+
+**Entity ownership — one entity per module:** each entity belongs to exactly one
+module. Never import another module's entity directly — go through its service.
+
+### Quick Navigation — where things live
+
+| What | Where |
+|---|---|
+| Feature modules | `src/modules/*/` |
+| CQRS commands / queries | `src/modules/*/commands/`, `src/modules/*/queries/` |
+| DTOs | `src/modules/*/dtos/` |
+| Entities | `src/modules/*/*.entity.ts` |
+| Module interfaces (`I`-prefixed) | `src/modules/*/interfaces/` (ADR-0004) |
+| Shared services | `src/shared/services/` |
+| Migrations (generated) | `src/database/migrations/` (ADR-0001) |
+| Global filters / interceptors / pipes | registered in `src/main.ts` |
+| Config (TypeORM DataSource + env) | `ormconfig.ts` + `.env.example` (ADR-0002) |
+| E2E tests | `test/` |
+
+### File Boundaries — never hand-edit
+
+These are generated or managed by tooling; do not edit them by hand:
+
+- `src/database/migrations/*` — **generated** via `pnpm migration:generate` (ADR-0001)
+- `src/metadata.ts` — generated (Nest CLI / Swagger plugin metadata)
+- `pnpm-lock.yaml` — managed by pnpm
+
 ## Critical Code Rules
 
 **ESM imports — always include `.ts` extensions:**
@@ -74,7 +121,10 @@ import { UserService } from './user.service';
 - Each entity belongs to exactly one module
 - Never import another module's entity directly; use its service instead
 
-**Controller endpoints — always add `@ApiOperation`:**
+**Controller endpoints — every endpoint MUST have `@ApiOperation`** (see the
+[API documentation guide](docs/api-documentation.md) and Swagger setup). This is
+the standard; some legacy endpoints predate it, so when you touch an endpoint
+without one, add it:
 ```ts
 @Get(':id')
 @ApiOperation({ summary: 'Get user by ID' })
@@ -86,9 +136,31 @@ async getUser(...) {}
 import type { UserDto } from './user.dto.ts';
 ```
 
+**Custom lint rules (enforced by `@m-one-dev/awesome-nest-eslint` — see [ADR-0014](docs/adr/0014-awesome-nest-custom-lint-rules.md)):**
+- Build DTOs with `SomeDto.create({...})` (input) or `entity.toDto()` / `entity.toDtos()` (entity-backed) — never `new SomeDto(...)` or `plainToInstance(SomeDto, ...)` (ADR-0008).
+- Every `*Dto` class must extend `AbstractDto` / `BaseDto`; every concrete `AbstractEntity` needs `@UseDto(...)`.
+- No TypeORM finder methods (`find`, `findOneBy`, `count`, …) — use `createQueryBuilder(...)`.
+
 **TypeScript strictness:** No `any` — use `unknown` when type is uncertain. All strict flags are on.
 
-**Naming:** `PascalCase` classes/types/enums, `camelCase` variables/functions, `kebab-case` file names, `SCREAMING_SNAKE_CASE` env vars.
+**General casing:** `PascalCase` classes/types/enums, `camelCase` variables/functions, `kebab-case` file names, `SCREAMING_SNAKE_CASE` env vars.
+
+### Naming Patterns
+
+| Type | Pattern | Example |
+|---|---|---|
+| Entity | `*.entity.ts` | `user.entity.ts` → `UserEntity` |
+| Service | `*.service.ts` | `user.service.ts` → `UserService` |
+| Controller | `*.controller.ts` | `user.controller.ts` → `UserController` |
+| DTO | `*.dto.ts` | `user.dto.ts` → `UserDto` |
+| Command | `*.command.ts` | `create-post.command.ts` → `CreatePostCommand` |
+| Command Handler | `*.handler.ts` | `create-post.handler.ts` → `CreatePostHandler` |
+| Query | `*.query.ts` | `get-post.query.ts` → `GetPostQuery` |
+| Query Handler | `*.handler.ts` | `get-post.handler.ts` → `GetPostHandler` |
+| Module | `*.module.ts` | `user.module.ts` → `UserModule` |
+| Migration | `<timestamp>-kebab-name.ts` | `1754340825698-add-gifts-table.ts` |
+| Interface | `i-*.ts` / `I`-prefixed in `interfaces/` | `i-user-payload.ts` → `IUserPayload` (ADR-0004) |
+| Spec / test | `*.spec.ts` | `user.service.spec.ts` |
 
 For full style rules: @.cursor/rules/nestjs-clean-typescript-cursor-rules.mdc
 
@@ -106,7 +178,22 @@ docs/config-only changes are exempt but must not reduce coverage.
 - E2E tests require running Docker services (`docker-compose up -d postgres`)
 - New `*.spec.ts` files must be added to `allowDefaultProject` in
   `eslint.config.mjs` (list explicitly — `**` globs are rejected) so they are
-  type-linted; test files are exempt from the strict `no-unsafe-*` rules.
+  type-linted.
+- Test files are exempt from a small, deliberate set of rules (see the
+  test-files block in `eslint.config.mjs`); **every other strict rule stays on**
+  (async tests need an `await`, fixtures must be typed, etc.) — fix violations
+  rather than disabling. The exemptions are:
+  - `@typescript-eslint/no-unsafe-*` (assignment/member-access/call/return/
+    argument) — fire on Jest mock plumbing (`jest.Mock` returns `any`, mocks
+    injected via `as never`, `mock.calls[i][j]` is `any[][]`) and on asserting
+    against the CQRS base `Command`/`Query` type.
+  - `awesome-nest/uuid-field-naming` — governs DTO/entity field naming, not test
+    fixtures.
+  - `sonarjs/assertions-in-tests` — false-positives on supertest's `.expect()`.
+  - `sonarjs/no-hardcoded-passwords` — throwaway login fixtures.
+- Spec files are type-checked: `tsconfig.json` includes `**/*.spec.ts` (build
+  still excludes them via `tsconfig.build.json`). Run `pnpm typecheck` to catch
+  spec type errors the build/Jest (swc) skip.
 
 For testing patterns: @.cursor/rules/testing-guidelines.mdc
 

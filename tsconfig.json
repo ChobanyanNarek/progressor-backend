@@ -2,7 +2,7 @@
   "compilerOptions": {
     "module": "ESNext",
     "lib": ["ESNext"],
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
     "declaration": true,
     "noImplicitAny": true,
     "removeComments": true,
@@ -33,7 +33,6 @@
     "noEmitHelpers": true,
     "noUncheckedIndexedAccess": true,
     "outDir": "./dist",
-    "baseUrl": "./src",
     "incremental": true,
     "strict": true,
     "strictNullChecks": true
@@ -45,11 +44,11 @@
 },
   "include": [
     "src/**/*",
+    "test/**/*",
     "scripts/**/*",
     "tools/**/*"
   ],
   "exclude": [
-    "node_modules",
-    "**/*.spec.ts"
+    "node_modules"
   ]
 }
