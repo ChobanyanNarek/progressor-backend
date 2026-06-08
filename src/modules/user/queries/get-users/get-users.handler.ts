@@ -31,7 +31,24 @@ export class GetUsersHandler
 
     const [items, pageMetaDto] = await queryBuilder.paginate(pageOptionsDto);
 
-    const userListDto = items.map((user) => UserListDto.create(user));
+    /*
+     * Map explicit fields only — never spread the raw entity, which would leak
+     * `password` (and any future sensitive column) through plainToInstance.
+     */
+    const userListDto = items.map((user) =>
+      UserListDto.create({
+        id: user.id,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        avatar: user.avatar,
+        lastLogin: user.lastLogin,
+      }),
+    );
 
     // eslint-disable-next-line awesome-nest/no-dto-direct-instantiation
     return new PageDto(userListDto, pageMetaDto);
