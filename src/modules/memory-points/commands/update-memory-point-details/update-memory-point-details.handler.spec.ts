@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { MemoryPointType } from '../../../../constants/memory-point-type.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
@@ -7,7 +7,7 @@ import { UpdateMemoryPointDetailsHandler } from './update-memory-point-details.h
 
 describe('UpdateMemoryPointDetailsHandler', () => {
   let handler: UpdateMemoryPointDetailsHandler;
-  let execute: jest.Mock;
+  let execute: jest.Mock<() => Promise<unknown>>;
   let where: jest.Mock;
   let set: jest.Mock;
   let update: jest.Mock;

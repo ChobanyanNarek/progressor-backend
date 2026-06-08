@@ -45,7 +45,11 @@ export class AuthController {
   @Get('me')
   @HttpCode(HttpStatus.OK)
   @Auth([RoleType.CREATOR, RoleType.ADMIN])
-  @ApiOkResponse({ description: 'current user info' })
+  @ApiOkResponse({
+    description: 'current user info',
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
+    type: GetMeDto,
+  })
   getCurrentUser(@AuthUser() user: UserEntity): GetMeDto {
     const { id, firstName, lastName, email, role, avatar } = user;
 

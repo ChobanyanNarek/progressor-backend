@@ -4,6 +4,15 @@ import _ from 'lodash';
 
 import { GeneratorProvider } from '../providers/generator.provider.ts';
 
+type MaybeStringList = string | string[];
+type MaybeStringListOrUndefined = MaybeStringList | undefined;
+
+function trimValue(input: string, trimNewLines: boolean): string {
+  const trimmedValue = input.trim();
+
+  return trimNewLines ? trimmedValue.replaceAll(/\s\s+/g, ' ') : trimmedValue;
+}
+
 /**
  * @description trim spaces from start and end, replace multiple spaces with one.
  * @example
@@ -15,39 +24,27 @@ import { GeneratorProvider } from '../providers/generator.provider.ts';
  * @constructor
  */
 export function Trim(trimNewLines: boolean): PropertyDecorator {
-  return Transform((params): string[] | string => {
-    const value = params.value as string[] | string;
+  return Transform((params): unknown => {
+    const value = params.value as MaybeStringList;
 
     if (!value) {
       return value;
     }
 
     if (Array.isArray(value)) {
-      return value.map((v) => {
-        const trimmedValue = v.trim();
-
-        if (trimNewLines) {
-          return trimmedValue.replaceAll(/\s\s+/g, ' ');
-        }
-
-        return trimmedValue;
-      });
+      return value.map((v) => trimValue(v, trimNewLines));
     }
 
-    const trimmedValue = value.trim();
-
-    if (trimNewLines) {
-      return trimmedValue.replaceAll(/\s\s+/g, ' ');
-    }
-
-    return trimmedValue;
+    return trimValue(value, trimNewLines);
   });
 }
 
 export function ToBoolean(): PropertyDecorator {
   return Transform(
-    (params) => {
-      switch (params.value) {
+    (params): unknown => {
+      const value = params.value as unknown;
+
+      switch (value) {
         case 'true': {
           return true;
         }
@@ -57,7 +54,7 @@ export function ToBoolean(): PropertyDecorator {
         }
 
         default: {
-          return params.value;
+          return value;
         }
       }
     },
@@ -96,10 +93,10 @@ export function ToInt(): PropertyDecorator {
 export function ToArray(): PropertyDecorator {
   return Transform(
     (params): unknown[] => {
-      const value = params.value;
+      const value = params.value as unknown;
 
       if (!value) {
-        return value;
+        return value as unknown[];
       }
 
       return _.castArray(value);
@@ -110,8 +107,8 @@ export function ToArray(): PropertyDecorator {
 
 export function ToLowerCase(): PropertyDecorator {
   return Transform(
-    (params) => {
-      const value = params.value;
+    (params): unknown => {
+      const value = params.value as MaybeStringListOrUndefined;
 
       if (!value) {
         return;
@@ -131,8 +128,8 @@ export function ToLowerCase(): PropertyDecorator {
 
 export function ToUpperCase(): PropertyDecorator {
   return Transform(
-    (params) => {
-      const value = params.value;
+    (params): unknown => {
+      const value = params.value as MaybeStringListOrUndefined;
 
       if (!value) {
         return;
@@ -188,11 +185,21 @@ export function LinkCleanupTransform(options?: {
     }
 
     if (options?.removeQueryParams) {
-      value = value.replace(/\?.*$/, '');
+      const queryIndex = value.indexOf('?');
+
+      if (queryIndex !== -1) {
+        value = value.slice(0, queryIndex);
+      }
     }
 
     if (options?.removeTrailingSlash ?? true) {
-      value = value.replace(/\/+$/, '');
+      let end = value.length;
+
+      while (end > 0 && value.codePointAt(end - 1) === 47 /* '/' */) {
+        end -= 1;
+      }
+
+      value = value.slice(0, end);
     }
 
     return value;

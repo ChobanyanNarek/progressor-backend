@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { MemoryPointStatus } from '../../constants/memory-point-status.ts';
 import { RoleType } from '../../constants/role-type.ts';
@@ -14,18 +14,28 @@ import { GetMyMemoryPointsQuery } from './queries/get-my-memory-points/get-my-me
 import { GetNearbyMemoryPointsQuery } from './queries/get-nearby-memory-points/get-nearby-memory-points.query.ts';
 
 describe('MemoryPointService', () => {
-  let commandBus: { execute: jest.Mock };
-  let queryBus: { execute: jest.Mock };
-  let aiGenerationService: { generate: jest.Mock; getStatus: jest.Mock };
+  let commandBus: {
+    execute: jest.Mock<(command: unknown) => Promise<unknown>>;
+  };
+  let queryBus: { execute: jest.Mock<(query: unknown) => Promise<unknown>> };
+  let aiGenerationService: {
+    generate: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+    getStatus: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+  };
   let service: MemoryPointService;
 
   const pointId = 'point-1' as Uuid;
   const userId = 'user-1' as Uuid;
 
   beforeEach(() => {
-    commandBus = { execute: jest.fn() };
-    queryBus = { execute: jest.fn() };
-    aiGenerationService = { generate: jest.fn(), getStatus: jest.fn() };
+    commandBus = {
+      execute: jest.fn<(command: unknown) => Promise<unknown>>(),
+    };
+    queryBus = { execute: jest.fn<(query: unknown) => Promise<unknown>>() };
+    aiGenerationService = {
+      generate: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      getStatus: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+    };
 
     service = new MemoryPointService(
       commandBus as never,
@@ -43,7 +53,8 @@ describe('MemoryPointService', () => {
       const result = await service.createMemoryPoint(userId, dto);
 
       expect(commandBus.execute).toHaveBeenCalledTimes(1);
-      const command = commandBus.execute.mock.calls[0][0];
+      const command = commandBus.execute.mock
+        .calls[0]![0] as CreateMemoryPointCommand;
       expect(command).toBeInstanceOf(CreateMemoryPointCommand);
       expect(command.userId).toBe(userId);
       expect(command.createMemoryPointDto).toBe(dto);
@@ -63,7 +74,7 @@ describe('MemoryPointService', () => {
       );
 
       expect(queryBus.execute).toHaveBeenCalledTimes(1);
-      const query = queryBus.execute.mock.calls[0][0];
+      const query = queryBus.execute.mock.calls[0]![0] as GetMemoryPointQuery;
       expect(query).toBeInstanceOf(GetMemoryPointQuery);
       expect(query.memoryPointId).toBe(pointId);
       expect(query.userId).toBe(userId);
@@ -72,11 +83,9 @@ describe('MemoryPointService', () => {
     });
 
     it('dispatches GetMemoryPointQuery with only the id when no user/role', async () => {
-      queryBus.execute.mockResolvedValue(undefined);
-
       await service.getMemoryPoint(pointId);
 
-      const query = queryBus.execute.mock.calls[0][0];
+      const query = queryBus.execute.mock.calls[0]![0] as GetMemoryPointQuery;
       expect(query).toBeInstanceOf(GetMemoryPointQuery);
       expect(query.memoryPointId).toBe(pointId);
       expect(query.userId).toBeUndefined();
@@ -93,7 +102,8 @@ describe('MemoryPointService', () => {
       const result = await service.getMyMemoryPoints(userId, pageOptionsDto);
 
       expect(queryBus.execute).toHaveBeenCalledTimes(1);
-      const query = queryBus.execute.mock.calls[0][0];
+      const query = queryBus.execute.mock
+        .calls[0]![0] as GetMyMemoryPointsQuery;
       expect(query).toBeInstanceOf(GetMyMemoryPointsQuery);
       expect(query.userId).toBe(userId);
       expect(query.pageOptionsDto).toBe(pageOptionsDto);
@@ -110,7 +120,8 @@ describe('MemoryPointService', () => {
       const result = await service.getAllMemoryPoints(pageOptionsDto);
 
       expect(queryBus.execute).toHaveBeenCalledTimes(1);
-      const query = queryBus.execute.mock.calls[0][0];
+      const query = queryBus.execute.mock
+        .calls[0]![0] as GetAllMemoryPointsQuery;
       expect(query).toBeInstanceOf(GetAllMemoryPointsQuery);
       expect(query.pageOptionsDto).toBe(pageOptionsDto);
       expect(result).toBe(expected);
@@ -126,7 +137,8 @@ describe('MemoryPointService', () => {
       const result = await service.getNearbyMemoryPoints(pageOptionsDto);
 
       expect(queryBus.execute).toHaveBeenCalledTimes(1);
-      const query = queryBus.execute.mock.calls[0][0];
+      const query = queryBus.execute.mock
+        .calls[0]![0] as GetNearbyMemoryPointsQuery;
       expect(query).toBeInstanceOf(GetNearbyMemoryPointsQuery);
       expect(query.pageOptionsDto).toBe(pageOptionsDto);
       expect(result).toBe(expected);
@@ -135,12 +147,11 @@ describe('MemoryPointService', () => {
 
   describe('updateStatus', () => {
     it('dispatches UpdateMemoryPointStatusCommand', async () => {
-      commandBus.execute.mockResolvedValue(undefined);
-
       await service.updateStatus(pointId, MemoryPointStatus.APPROVED);
 
       expect(commandBus.execute).toHaveBeenCalledTimes(1);
-      const command = commandBus.execute.mock.calls[0][0];
+      const command = commandBus.execute.mock
+        .calls[0]![0] as UpdateMemoryPointStatusCommand;
       expect(command).toBeInstanceOf(UpdateMemoryPointStatusCommand);
       expect(command.memoryPointId).toBe(pointId);
       expect(command.status).toBe(MemoryPointStatus.APPROVED);
@@ -150,12 +161,12 @@ describe('MemoryPointService', () => {
   describe('updateDetails', () => {
     it('dispatches UpdateMemoryPointDetailsCommand', async () => {
       const dto = { title: 'x' } as never;
-      commandBus.execute.mockResolvedValue(undefined);
 
       await service.updateDetails(pointId, dto);
 
       expect(commandBus.execute).toHaveBeenCalledTimes(1);
-      const command = commandBus.execute.mock.calls[0][0];
+      const command = commandBus.execute.mock
+        .calls[0]![0] as UpdateMemoryPointDetailsCommand;
       expect(command).toBeInstanceOf(UpdateMemoryPointDetailsCommand);
       expect(command.memoryPointId).toBe(pointId);
       expect(command.dto).toBe(dto);
@@ -164,12 +175,11 @@ describe('MemoryPointService', () => {
 
   describe('deleteMemoryPoint', () => {
     it('dispatches DeleteMemoryPointCommand', async () => {
-      commandBus.execute.mockResolvedValue(undefined);
-
       await service.deleteMemoryPoint(pointId);
 
       expect(commandBus.execute).toHaveBeenCalledTimes(1);
-      const command = commandBus.execute.mock.calls[0][0];
+      const command = commandBus.execute.mock
+        .calls[0]![0] as DeleteMemoryPointCommand;
       expect(command).toBeInstanceOf(DeleteMemoryPointCommand);
       expect(command.memoryPointId).toBe(pointId);
     });
@@ -184,7 +194,8 @@ describe('MemoryPointService', () => {
       const result = await service.upsertDetails(pointId, userId, dto);
 
       expect(commandBus.execute).toHaveBeenCalledTimes(1);
-      const command = commandBus.execute.mock.calls[0][0];
+      const command = commandBus.execute.mock
+        .calls[0]![0] as UpsertMemoryPointDetailsCommand;
       expect(command).toBeInstanceOf(UpsertMemoryPointDetailsCommand);
       expect(command.memoryPointId).toBe(pointId);
       expect(command.userId).toBe(userId);

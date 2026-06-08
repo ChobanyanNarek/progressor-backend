@@ -7,8 +7,8 @@ import { DeleteUserHandler } from './delete-user.handler.ts';
 describe('DeleteUserHandler', () => {
   const userId = '11111111-1111-4111-8111-111111111111' as Uuid;
 
-  let getOne: jest.Mock;
-  let remove: jest.Mock;
+  let getOne: jest.Mock<() => Promise<unknown>>;
+  let remove: jest.Mock<() => Promise<void>>;
   let handler: DeleteUserHandler;
 
   beforeEach(() => {
@@ -16,7 +16,7 @@ describe('DeleteUserHandler', () => {
     const qb: Record<string, unknown> = {};
     qb.where = jest.fn().mockReturnValue(qb);
     qb.getOne = getOne;
-    remove = jest.fn<() => Promise<unknown>>().mockResolvedValue(undefined);
+    remove = jest.fn<() => Promise<void>>().mockResolvedValue();
 
     handler = new DeleteUserHandler({
       createQueryBuilder: jest.fn().mockReturnValue(qb),

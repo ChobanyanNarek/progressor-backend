@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
 import { GetMemoryPointGenerationSourceHandler } from './get-memory-point-generation-source.handler.ts';
@@ -6,19 +6,21 @@ import { GetMemoryPointGenerationSourceQuery } from './get-memory-point-generati
 
 describe('GetMemoryPointGenerationSourceHandler', () => {
   let handler: GetMemoryPointGenerationSourceHandler;
-  let findOneBy: jest.Mock;
+  let getOne: jest.Mock<() => Promise<unknown>>;
+  let where: jest.Mock;
 
   const memoryPointId = 'point-1' as Uuid;
 
   beforeEach(() => {
-    findOneBy = jest.fn<() => Promise<unknown>>();
+    getOne = jest.fn<() => Promise<unknown>>();
+    where = jest.fn().mockReturnThis();
     handler = new GetMemoryPointGenerationSourceHandler({
-      findOneBy,
+      createQueryBuilder: jest.fn(() => ({ where, getOne })),
     } as never);
   });
 
   it('returns sourcePhotoUrl and sourceAudioUrl when details exist', async () => {
-    findOneBy.mockResolvedValue({
+    getOne.mockResolvedValue({
       sourcePhotoUrl: 'photo.jpg',
       sourceAudioUrl: 'audio.mp3',
       other: 'ignored',
@@ -28,7 +30,10 @@ describe('GetMemoryPointGenerationSourceHandler', () => {
       new GetMemoryPointGenerationSourceQuery(memoryPointId),
     );
 
-    expect(findOneBy).toHaveBeenCalledWith({ memoryPointId });
+    expect(where).toHaveBeenCalledWith(
+      'details.memoryPointId = :memoryPointId',
+      { memoryPointId },
+    );
     expect(result).toEqual({
       sourcePhotoUrl: 'photo.jpg',
       sourceAudioUrl: 'audio.mp3',
@@ -36,7 +41,7 @@ describe('GetMemoryPointGenerationSourceHandler', () => {
   });
 
   it('throws MemoryPointNotFoundException when details are null', async () => {
-    findOneBy.mockResolvedValue(null);
+    getOne.mockResolvedValue(null);
 
     await expect(
       handler.execute(new GetMemoryPointGenerationSourceQuery(memoryPointId)),

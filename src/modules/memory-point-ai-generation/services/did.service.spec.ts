@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { of } from 'rxjs';
 
 import { DidService } from './did.service.ts';
@@ -11,11 +11,17 @@ const didConfig = {
 };
 
 describe('DidService', () => {
-  let httpService: { post: jest.Mock; get: jest.Mock };
+  let httpService: {
+    post: jest.Mock<(...args: unknown[]) => unknown>;
+    get: jest.Mock<(...args: unknown[]) => unknown>;
+  };
   let service: DidService;
 
   beforeEach(() => {
-    httpService = { post: jest.fn(), get: jest.fn() };
+    httpService = {
+      post: jest.fn<(...args: unknown[]) => unknown>(),
+      get: jest.fn<(...args: unknown[]) => unknown>(),
+    };
     const apiConfigService = { didConfig };
     service = new DidService(httpService as never, apiConfigService as never);
   });
@@ -48,7 +54,7 @@ describe('DidService', () => {
       });
 
       expect(httpService.post).toHaveBeenCalledTimes(1);
-      const [url, body, config] = httpService.post.mock.calls[0];
+      const [url, body, config] = httpService.post.mock.calls[0]!;
       // trailing slash on baseUrl is stripped
       expect(url).toBe('https://api.d-id.com/talks');
       expect(body).toEqual({
@@ -87,7 +93,7 @@ describe('DidService', () => {
       const result = await service.getTalk('talk-9');
 
       expect(httpService.get).toHaveBeenCalledTimes(1);
-      const [url, config] = httpService.get.mock.calls[0];
+      const [url, config] = httpService.get.mock.calls[0]!;
       expect(url).toBe('https://api.d-id.com/talks/talk-9');
       expect(config).toEqual({
         headers: { Authorization: 'Basic api-key-123' },

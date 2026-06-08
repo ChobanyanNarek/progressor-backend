@@ -43,8 +43,10 @@ export class AuthService {
       email: userLoginDto.email,
     });
 
-    // Unknown account → 404; wrong password for a real account → 401. Keeping
-    // these distinct lets the client show an accurate message.
+    /*
+     * Unknown account → 404; wrong password for a real account → 401. Keeping
+     * these distinct lets the client show an accurate message.
+     */
     if (!user) {
       throw new UserNotFoundException();
     }

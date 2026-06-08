@@ -25,9 +25,12 @@ export class GetMemoryPointGenerationSourceHandler
   async execute(
     query: GetMemoryPointGenerationSourceQuery,
   ): Promise<MemoryPointGenerationSource> {
-    const details = await this.detailsRepository.findOneBy({
-      memoryPointId: query.memoryPointId,
-    });
+    const details = await this.detailsRepository
+      .createQueryBuilder('details')
+      .where('details.memoryPointId = :memoryPointId', {
+        memoryPointId: query.memoryPointId,
+      })
+      .getOne();
 
     if (!details) {
       throw new MemoryPointNotFoundException();

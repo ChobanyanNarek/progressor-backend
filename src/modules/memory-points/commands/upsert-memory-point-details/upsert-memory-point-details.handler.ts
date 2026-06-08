@@ -37,9 +37,10 @@ export class UpsertMemoryPointDetailsHandler
       type,
     } = upsertMemoryPointDetailsDto;
 
-    const memoryPoint = await this.memoryPointRepository.findOneBy({
-      id: memoryPointId,
-    });
+    const memoryPoint = await this.memoryPointRepository
+      .createQueryBuilder('memoryPoint')
+      .where('memoryPoint.id = :id', { id: memoryPointId })
+      .getOne();
 
     if (memoryPoint?.userId !== userId) {
       throw new MemoryPointNotFoundException();
@@ -62,9 +63,10 @@ export class UpsertMemoryPointDetailsHandler
       ['memoryPointId'],
     );
 
-    const details = await this.memoryPointDetailsRepository.findOneByOrFail({
-      memoryPointId,
-    });
+    const details = await this.memoryPointDetailsRepository
+      .createQueryBuilder('details')
+      .where('details.memoryPointId = :memoryPointId', { memoryPointId })
+      .getOneOrFail();
 
     return details.toDto();
   }

@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
 import { GetNearbyMemoryPointsHandler } from './get-nearby-memory-points.handler.ts';
@@ -16,6 +16,7 @@ interface Qb {
 
 function makeQb(items: unknown, meta: unknown): Qb {
   const qb: Partial<Qb> = {};
+
   for (const m of [
     'leftJoinAndSelect',
     'addSelect',
@@ -26,9 +27,11 @@ function makeQb(items: unknown, meta: unknown): Qb {
   ] as const) {
     qb[m] = jest.fn().mockReturnValue(qb);
   }
+
   qb.paginate = jest
     .fn<() => Promise<unknown>>()
     .mockResolvedValue([items, meta]);
+
   return qb as Qb;
 }
 

@@ -25,9 +25,12 @@ export class GetAiGenerationStatusHandler
       new GetMemoryPointQuery(query.memoryPointId, query.userId, query.role),
     );
 
-    const generation = await this.aiGenerationRepository.findOneBy({
-      memoryPointId: query.memoryPointId,
-    });
+    const generation = await this.aiGenerationRepository
+      .createQueryBuilder('aiGeneration')
+      .where('aiGeneration.memoryPointId = :memoryPointId', {
+        memoryPointId: query.memoryPointId,
+      })
+      .getOne();
 
     return AiGenerationStatusResponseDto.create({
       status: generation?.status,

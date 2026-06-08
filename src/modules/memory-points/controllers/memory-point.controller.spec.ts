@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { PageDto } from '../../../common/dto/page.dto.ts';
 import { MemoryPointStatus } from '../../../constants/memory-point-status.ts';
@@ -13,16 +13,19 @@ const validLocation = {
 };
 
 describe('MemoryPointController', () => {
+  type ServiceMock = jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+
   let memoryPointService: {
-    getNearbyMemoryPoints: jest.Mock;
-    getMemoryPoint: jest.Mock;
+    getNearbyMemoryPoints: ServiceMock;
+    getMemoryPoint: ServiceMock;
   };
   let controller: MemoryPointController;
 
   beforeEach(() => {
     memoryPointService = {
-      getNearbyMemoryPoints: jest.fn(),
-      getMemoryPoint: jest.fn(),
+      getNearbyMemoryPoints:
+        jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      getMemoryPoint: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     };
     controller = new MemoryPointController(memoryPointService as never);
   });

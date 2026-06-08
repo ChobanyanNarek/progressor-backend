@@ -107,4 +107,4 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   return app;
 }
 
-export const viteNodeApp = bootstrap();
+export const viteNodeApp = await bootstrap();

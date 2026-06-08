@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
 import { DeleteMemoryPointCommand } from './delete-memory-point.command.ts';
@@ -6,7 +6,7 @@ import { DeleteMemoryPointHandler } from './delete-memory-point.handler.ts';
 
 describe('DeleteMemoryPointHandler', () => {
   let handler: DeleteMemoryPointHandler;
-  let del: jest.Mock;
+  let del: jest.Mock<() => Promise<unknown>>;
   let repo: { delete: jest.Mock };
 
   const pointId = 'point-1' as Uuid;

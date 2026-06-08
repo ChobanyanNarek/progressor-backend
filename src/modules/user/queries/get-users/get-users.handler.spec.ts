@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { PageDto } from '../../../../common/dto/page.dto.ts';
 import { AccountStatus } from '../../../../constants/account-status.ts';
@@ -22,7 +22,6 @@ describe('GetUsersHandler', () => {
     avatar: null,
     lastLogin: new Date('2026-01-03T00:00:00.000Z'),
     // Sensitive column present on the entity row — must NOT reach the DTO.
-    // eslint-disable-next-line sonarjs/no-hardcoded-passwords -- throwaway test fixture
     password: 'hashed-secret',
   };
 
@@ -60,7 +59,7 @@ describe('GetUsersHandler', () => {
 
     expect(result).toBeInstanceOf(PageDto);
     expect(result.data[0]).toBeInstanceOf(UserListDto);
-    expect(result.data[0].email).toBe('john@test.com');
+    expect(result.data[0]!.email).toBe('john@test.com');
     expect(result.meta).toBe(meta);
   });
 
@@ -69,7 +68,7 @@ describe('GetUsersHandler', () => {
       new GetUsersQuery({} as UsersPageOptionsDto),
     );
 
-    const row = result.data[0];
+    const row = result.data[0]!;
 
     expect(row).not.toHaveProperty('password');
     expect(Object.keys(row)).not.toContain('password');

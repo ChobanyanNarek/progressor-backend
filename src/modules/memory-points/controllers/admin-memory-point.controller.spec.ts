@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { PageDto } from '../../../common/dto/page.dto.ts';
 import { MemoryPointStatus } from '../../../constants/memory-point-status.ts';
@@ -13,32 +13,34 @@ const validLocation = {
   coordinates: [44.5, 40.1] as [number, number],
 };
 
-const user = {
+const user: { id: Uuid; role: RoleType } = {
   id: 'admin-1' as Uuid,
   role: RoleType.ADMIN,
-} as never;
+};
 
 describe('AdminMemoryPointController', () => {
+  type ServiceMock = jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+
   let memoryPointService: {
-    getAllMemoryPoints: jest.Mock;
-    getMemoryPoint: jest.Mock;
-    updateStatus: jest.Mock;
-    deleteMemoryPoint: jest.Mock;
-    updateDetails: jest.Mock;
-    generateVideo: jest.Mock;
-    getVideoStatus: jest.Mock;
+    getAllMemoryPoints: ServiceMock;
+    getMemoryPoint: ServiceMock;
+    updateStatus: ServiceMock;
+    deleteMemoryPoint: ServiceMock;
+    updateDetails: ServiceMock;
+    generateVideo: ServiceMock;
+    getVideoStatus: ServiceMock;
   };
   let controller: AdminMemoryPointController;
 
   beforeEach(() => {
     memoryPointService = {
-      getAllMemoryPoints: jest.fn(),
-      getMemoryPoint: jest.fn(),
-      updateStatus: jest.fn(),
-      deleteMemoryPoint: jest.fn(),
-      updateDetails: jest.fn(),
-      generateVideo: jest.fn(),
-      getVideoStatus: jest.fn(),
+      getAllMemoryPoints: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      getMemoryPoint: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      updateStatus: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      deleteMemoryPoint: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      updateDetails: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      generateVideo: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      getVideoStatus: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     };
     controller = new AdminMemoryPointController(memoryPointService as never);
   });
@@ -93,7 +95,7 @@ describe('AdminMemoryPointController', () => {
       const expected = { id: VALID_UUID };
       memoryPointService.getMemoryPoint.mockResolvedValue(expected);
 
-      const result = await controller.getOne(VALID_UUID, user);
+      const result = await controller.getOne(VALID_UUID, user as never);
 
       expect(memoryPointService.getMemoryPoint).toHaveBeenCalledWith(
         VALID_UUID,
@@ -106,8 +108,6 @@ describe('AdminMemoryPointController', () => {
 
   describe('updateStatus', () => {
     it('delegates to updateStatus with id and dto.status', async () => {
-      memoryPointService.updateStatus.mockResolvedValue(undefined);
-
       await controller.updateStatus(VALID_UUID, {
         status: MemoryPointStatus.APPROVED,
       } as never);
@@ -122,8 +122,6 @@ describe('AdminMemoryPointController', () => {
 
   describe('delete', () => {
     it('delegates to deleteMemoryPoint with the id', async () => {
-      memoryPointService.deleteMemoryPoint.mockResolvedValue(undefined);
-
       await controller.delete(VALID_UUID);
 
       expect(memoryPointService.deleteMemoryPoint).toHaveBeenCalledTimes(1);
@@ -136,7 +134,6 @@ describe('AdminMemoryPointController', () => {
   describe('updateDetails', () => {
     it('delegates to updateDetails with id and dto', async () => {
       const dto = { title: 'x' } as never;
-      memoryPointService.updateDetails.mockResolvedValue(undefined);
 
       await controller.updateDetails(VALID_UUID, dto);
 
@@ -166,7 +163,7 @@ describe('AdminMemoryPointController', () => {
       const expected = { status: 'GENERATING' };
       memoryPointService.getVideoStatus.mockResolvedValue(expected);
 
-      const result = await controller.getVideoStatus(VALID_UUID, user);
+      const result = await controller.getVideoStatus(VALID_UUID, user as never);
 
       expect(memoryPointService.getVideoStatus).toHaveBeenCalledTimes(1);
       expect(memoryPointService.getVideoStatus).toHaveBeenCalledWith(

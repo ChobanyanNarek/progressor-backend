@@ -51,16 +51,16 @@ export class AdminMemoryPointController {
     const page =
       await this.memoryPointService.getAllMemoryPoints(pageOptionsDto);
 
-    return new PageDto(
-      page.data.map((memoryPoint) =>
+    return PageDto.create({
+      data: page.data.map((memoryPoint) =>
         AdminMemoryPointListItemDto.create({
           id: memoryPoint.id,
           location: memoryPoint.location,
           status: memoryPoint.status,
         }),
       ),
-      page.meta,
-    );
+      meta: page.meta,
+    });
   }
 
   @Get(':id')
@@ -68,7 +68,11 @@ export class AdminMemoryPointController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get a single memory point by ID' })
   @ApiUUIDParam('id')
-  @ApiResponse({ status: HttpStatus.OK, type: MemoryPointDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
+    type: MemoryPointDto,
+  })
   getOne(
     @UUIDParam('id') id: Uuid,
     @AuthUser() user: UserEntity,
@@ -124,7 +128,11 @@ export class AdminMemoryPointController {
     summary: 'Send a reviewed memory point to D-ID for video generation',
   })
   @ApiUUIDParam('id')
-  @ApiResponse({ status: HttpStatus.OK, type: MemoryPointAiGenerationDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
+    type: MemoryPointAiGenerationDto,
+  })
   generateVideo(
     @UUIDParam('id') id: Uuid,
   ): Promise<MemoryPointAiGenerationDto> {
@@ -136,7 +144,11 @@ export class AdminMemoryPointController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get AI video generation status' })
   @ApiUUIDParam('id')
-  @ApiResponse({ status: HttpStatus.OK, type: AiGenerationStatusResponseDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
+    type: AiGenerationStatusResponseDto,
+  })
   getVideoStatus(
     @UUIDParam('id') id: Uuid,
     @AuthUser() user: UserEntity,

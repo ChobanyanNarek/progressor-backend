@@ -4,8 +4,9 @@ import {
   NumberFieldOptional,
   StringFieldOptional,
 } from '../../decorators/field.decorators.ts';
+import { BaseDto } from './base.dto.ts';
 
-export class PageOptionsDto {
+export class PageOptionsDto extends BaseDto {
   @EnumFieldOptional(() => Order, {
     default: Order.ASC,
   })

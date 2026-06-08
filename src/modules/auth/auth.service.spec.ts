@@ -12,13 +12,15 @@ import type { UserLoginDto } from './dto/user-login.dto.ts';
 describe('AuthService', () => {
   const jwtExpirationTime = 86_400;
 
-  let signAsync: jest.Mock;
-  let findOne: jest.Mock;
-  let update: jest.Mock;
+  let signAsync: jest.Mock<() => Promise<string>>;
+  let findOne: jest.Mock<() => Promise<UserEntity | null>>;
+  let update: jest.Mock<() => Promise<void>>;
   let service: AuthService;
 
   beforeEach(() => {
-    signAsync = jest.fn<() => Promise<string>>().mockResolvedValue('signed.jwt');
+    signAsync = jest
+      .fn<() => Promise<string>>()
+      .mockResolvedValue('signed.jwt');
     findOne = jest.fn<() => Promise<UserEntity | null>>();
     update = jest.fn<() => Promise<void>>().mockResolvedValue();
 

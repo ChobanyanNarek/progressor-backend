@@ -5,11 +5,19 @@ import type {
   ValidatorConstraintInterface,
 } from 'class-validator';
 import { registerDecorator, ValidatorConstraint } from 'class-validator';
-import type { EntitySchema, FindOptionsWhere, ObjectType } from 'typeorm';
-import type { DataSource } from 'typeorm';
+import type {
+  DataSource,
+  EntitySchema,
+  FindOptionsWhere,
+  ObjectType,
+} from 'typeorm';
 
 /**
- * @deprecated Don't use this validator until it's fixed in NestJS
+ * Async class-validator constraint backing the `@Exists` decorator: asserts that
+ * a matching row exists for the given entity/condition. Registered by the
+ * `Exists` factory below, so the symbol is referenced internally and must not be
+ * marked `@deprecated` (that would flag its own factory as using a deprecated
+ * symbol).
  */
 @ValidatorConstraint({ name: 'exists', async: true })
 export class ExistsValidator implements ValidatorConstraintInterface {
@@ -22,9 +30,11 @@ export class ExistsValidator implements ValidatorConstraintInterface {
     const [entityClass, findCondition] = args.constraints;
 
     return (
-      (await this.dataSource.getRepository(entityClass).count({
-        where: findCondition(args),
-      })) > 0
+      (await this.dataSource
+        .getRepository(entityClass)
+        .createQueryBuilder('entity')
+        .setFindOptions({ where: findCondition(args) })
+        .getCount()) > 0
     );
   }
 

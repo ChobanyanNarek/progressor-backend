@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { PageDto } from '../../../common/dto/page.dto.ts';
 import { MemoryPointStatus } from '../../../constants/memory-point-status.ts';
@@ -13,26 +13,28 @@ const validLocation = {
   coordinates: [44.5, 40.1] as [number, number],
 };
 
-const user = {
+const user: { id: Uuid; role: RoleType } = {
   id: 'user-1' as Uuid,
   role: RoleType.CREATOR,
-} as never;
+};
 
 describe('CreatorMemoryPointController', () => {
+  type ServiceMock = jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+
   let memoryPointService: {
-    createMemoryPoint: jest.Mock;
-    upsertDetails: jest.Mock;
-    getMyMemoryPoints: jest.Mock;
-    getMemoryPoint: jest.Mock;
+    createMemoryPoint: ServiceMock;
+    upsertDetails: ServiceMock;
+    getMyMemoryPoints: ServiceMock;
+    getMemoryPoint: ServiceMock;
   };
   let controller: CreatorMemoryPointController;
 
   beforeEach(() => {
     memoryPointService = {
-      createMemoryPoint: jest.fn(),
-      upsertDetails: jest.fn(),
-      getMyMemoryPoints: jest.fn(),
-      getMemoryPoint: jest.fn(),
+      createMemoryPoint: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      upsertDetails: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      getMyMemoryPoints: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      getMemoryPoint: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     };
     controller = new CreatorMemoryPointController(memoryPointService as never);
   });
@@ -92,7 +94,10 @@ describe('CreatorMemoryPointController', () => {
       });
 
       const pageOptionsDto = { page: 1, take: 10 } as never;
-      const result = await controller.getMyMemoryPoints(user, pageOptionsDto);
+      const result = await controller.getMyMemoryPoints(
+        user as never,
+        pageOptionsDto,
+      );
 
       expect(memoryPointService.getMyMemoryPoints).toHaveBeenCalledWith(
         user.id,
@@ -115,7 +120,10 @@ describe('CreatorMemoryPointController', () => {
         meta,
       });
 
-      const result = await controller.getMyMemoryPoints(user, {} as never);
+      const result = await controller.getMyMemoryPoints(
+        user as never,
+        {} as never,
+      );
 
       expect(result.data).toEqual([]);
       expect(result.meta).toBe(meta);
@@ -127,7 +135,7 @@ describe('CreatorMemoryPointController', () => {
       const expected = { id: VALID_UUID };
       memoryPointService.getMemoryPoint.mockResolvedValue(expected);
 
-      const result = await controller.getOne(VALID_UUID, user);
+      const result = await controller.getOne(VALID_UUID, user as never);
 
       expect(memoryPointService.getMemoryPoint).toHaveBeenCalledTimes(1);
       expect(memoryPointService.getMemoryPoint).toHaveBeenCalledWith(

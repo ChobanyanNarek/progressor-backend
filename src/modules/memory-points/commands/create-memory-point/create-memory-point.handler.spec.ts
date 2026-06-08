@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
 import { CreateMemoryPointCommand } from './create-memory-point.command.ts';
@@ -12,10 +12,10 @@ describe('CreateMemoryPointHandler', () => {
   let into: jest.Mock;
   let insert: jest.Mock;
   let createQueryBuilder: jest.Mock;
-  let findOneOrFail: jest.Mock;
+  let where: jest.Mock;
+  let getOneOrFail: jest.Mock;
   let repository: {
     createQueryBuilder: jest.Mock;
-    findOneOrFail: jest.Mock;
   };
 
   const userId = 'user-1' as Uuid;
@@ -29,15 +29,20 @@ describe('CreateMemoryPointHandler', () => {
     values = jest.fn().mockReturnValue({ setParameters });
     into = jest.fn().mockReturnValue({ values });
     insert = jest.fn().mockReturnValue({ into });
-    createQueryBuilder = jest.fn().mockReturnValue({ insert });
 
-    findOneOrFail = jest.fn<() => Promise<unknown>>().mockResolvedValue({
+    getOneOrFail = jest.fn<() => Promise<unknown>>().mockResolvedValue({
       id: pointId,
       status: MemoryPointStatus.PENDING,
       toDto: () => ({ id: pointId, status: MemoryPointStatus.PENDING }),
     });
+    where = jest.fn().mockReturnValue({ getOneOrFail });
 
-    repository = { createQueryBuilder, findOneOrFail };
+    createQueryBuilder = jest
+      .fn()
+      .mockReturnValueOnce({ insert })
+      .mockReturnValueOnce({ where });
+
+    repository = { createQueryBuilder };
 
     handler = new CreateMemoryPointHandler(repository as never);
   });
@@ -61,7 +66,8 @@ describe('CreateMemoryPointHandler', () => {
       longitude: 44.5152,
       latitude: 40.1872,
     });
-    expect(findOneOrFail).toHaveBeenCalledWith({ where: { id: pointId } });
+    expect(where).toHaveBeenCalledWith('memoryPoint.id = :id', { id: pointId });
+    expect(getOneOrFail).toHaveBeenCalled();
     expect(result).toEqual({ id: pointId, status: MemoryPointStatus.PENDING });
   });
 
