@@ -4,10 +4,17 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { FindOptionsWhere, Repository } from 'typeorm';
 
 import type { PageDto } from '../../common/dto/page.dto.ts';
+import type { AccountStatus } from '../../constants/account-status.ts';
+import type { RoleType } from '../../constants/role-type.ts';
 import { CreateUserCommand } from './commands/create-user/create-user.command.ts';
+import { DeleteUserCommand } from './commands/delete-user/delete-user.command.ts';
+import { EditUserCommand } from './commands/edit-user/edit-user.command.ts';
 import { UpdateUserCommand } from './commands/update-user/update-user.command.ts';
+import { UpdateUserRoleCommand } from './commands/update-user-role/update-user-role.command.ts';
+import { UpdateUserStatusCommand } from './commands/update-user-status/update-user-status.command.ts';
 import type { CreateUserDto } from './dtos/create-user.dto.ts';
 import { CreateUserResultDto } from './dtos/create-user-result.dto.ts';
+import type { EditUserDto } from './dtos/edit-user.dto.ts';
 import type { UpdateUserDto } from './dtos/update-user.dto.ts';
 import type { UserDto } from './dtos/user.dto.ts';
 import type { UserListDto } from './dtos/user-list.dto.ts';
@@ -51,6 +58,30 @@ export class UserService {
   update(userId: Uuid, updateUserDto: UpdateUserDto): Promise<void> {
     return this.commandBus.execute<UpdateUserCommand>(
       new UpdateUserCommand(userId, updateUserDto),
+    );
+  }
+
+  editUser(userId: Uuid, editUserDto: EditUserDto): Promise<UserDto> {
+    return this.commandBus.execute<EditUserCommand, UserDto>(
+      new EditUserCommand(userId, editUserDto),
+    );
+  }
+
+  deleteUser(userId: Uuid): Promise<void> {
+    return this.commandBus.execute<DeleteUserCommand>(
+      new DeleteUserCommand(userId),
+    );
+  }
+
+  updateUserStatus(userId: Uuid, status: AccountStatus): Promise<UserDto> {
+    return this.commandBus.execute<UpdateUserStatusCommand, UserDto>(
+      new UpdateUserStatusCommand(userId, status),
+    );
+  }
+
+  updateUserRole(userId: Uuid, role: RoleType): Promise<UserDto> {
+    return this.commandBus.execute<UpdateUserRoleCommand, UserDto>(
+      new UpdateUserRoleCommand(userId, role),
     );
   }
 }
