@@ -1,6 +1,7 @@
 import { BaseDto } from '../../../common/dto/base.dto.ts';
 import { AccountStatus } from '../../../constants/account-status.ts';
 import {
+  DateField,
   EmailField,
   EnumField,
   StringField,
@@ -19,6 +20,9 @@ export class UserListDto extends BaseDto {
 
   @EnumField(() => AccountStatus)
   status!: AccountStatus;
+
+  @DateField()
+  lastLogin!: Date;
 
   @StringFieldOptional({ nullable: true })
   avatar?: string | null;

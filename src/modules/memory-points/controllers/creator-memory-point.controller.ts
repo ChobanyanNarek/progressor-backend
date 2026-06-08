@@ -24,7 +24,9 @@ import type { UserEntity } from '../../user/user.entity.ts';
 import { CreateMemoryPointDto } from '../dtos/create-memory-point.dto.ts';
 import { MemoryPointDto } from '../dtos/memory-point.dto.ts';
 import { MemoryPointDetailsDto } from '../dtos/memory-point-details.dto.ts';
+import { MemoryPointUploadUrlsDto } from '../dtos/memory-point-upload-urls.dto.ts';
 import { MyMemoryPointDto } from '../dtos/my-memory-point.dto.ts';
+import { RequestUploadUrlDto } from '../dtos/request-upload-url.dto.ts';
 import { UpsertMemoryPointDetailsDto } from '../dtos/upsert-memory-point-details.dto.ts';
 import { MemoryPointService } from '../memory-point.service.ts';
 
@@ -48,6 +50,27 @@ export class CreatorMemoryPointController {
     return this.memoryPointService.createMemoryPoint(
       user.id,
       createMemoryPointDto,
+    );
+  }
+
+  @Post(':id/upload-url')
+  @Auth([RoleType.CREATOR])
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary:
+      'Get short-lived signed URLs to upload the source photo and audio straight to storage',
+  })
+  @ApiUUIDParam('id')
+  @ApiResponse({ status: HttpStatus.CREATED, type: MemoryPointUploadUrlsDto })
+  createUploadUrls(
+    @UUIDParam('id') id: Uuid,
+    @AuthUser() user: UserEntity,
+    @Body() requestUploadUrlDto: RequestUploadUrlDto,
+  ): Promise<MemoryPointUploadUrlsDto> {
+    return this.memoryPointService.createUploadUrls(
+      id,
+      user.id,
+      requestUploadUrlDto,
     );
   }
 

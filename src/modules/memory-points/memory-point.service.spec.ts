@@ -8,6 +8,7 @@ import { UpdateMemoryPointDetailsCommand } from './commands/update-memory-point-
 import { UpdateMemoryPointStatusCommand } from './commands/update-memory-point-status/update-memory-point-status.command.ts';
 import { UpsertMemoryPointDetailsCommand } from './commands/upsert-memory-point-details/upsert-memory-point-details.command.ts';
 import { MemoryPointService } from './memory-point.service.ts';
+import { CreateUploadUrlCommand } from './commands/create-upload-url/create-upload-url.command.ts';
 import { GetAllMemoryPointsQuery } from './queries/get-all-memory-points/get-all-memory-points.query.ts';
 import { GetMemoryPointQuery } from './queries/get-memory-point/get-memory-point.query.ts';
 import { GetMyMemoryPointsQuery } from './queries/get-my-memory-points/get-my-memory-points.query.ts';
@@ -189,6 +190,30 @@ describe('MemoryPointService', () => {
       expect(command.memoryPointId).toBe(pointId);
       expect(command.userId).toBe(userId);
       expect(command.upsertMemoryPointDetailsDto).toBe(dto);
+      expect(result).toBe(expected);
+    });
+  });
+
+  describe('createUploadUrls', () => {
+    it('dispatches CreateUploadUrlCommand and returns result', async () => {
+      const dto = {
+        photoContentType: 'image/jpeg',
+        audioContentType: 'audio/mpeg',
+      } as never;
+      const expected = {
+        photo: { uploadUrl: 'u1', objectPath: 'p1' },
+        audio: { uploadUrl: 'u2', objectPath: 'p2' },
+      };
+      commandBus.execute.mockResolvedValue(expected);
+
+      const result = await service.createUploadUrls(pointId, userId, dto);
+
+      expect(commandBus.execute).toHaveBeenCalledTimes(1);
+      const command = commandBus.execute.mock.calls[0][0];
+      expect(command).toBeInstanceOf(CreateUploadUrlCommand);
+      expect(command.memoryPointId).toBe(pointId);
+      expect(command.userId).toBe(userId);
+      expect(command.requestUploadUrlDto).toBe(dto);
       expect(result).toBe(expected);
     });
   });

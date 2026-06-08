@@ -21,6 +21,7 @@ const user = {
 describe('CreatorMemoryPointController', () => {
   let memoryPointService: {
     createMemoryPoint: jest.Mock;
+    createUploadUrls: jest.Mock;
     upsertDetails: jest.Mock;
     getMyMemoryPoints: jest.Mock;
     getMemoryPoint: jest.Mock;
@@ -30,6 +31,7 @@ describe('CreatorMemoryPointController', () => {
   beforeEach(() => {
     memoryPointService = {
       createMemoryPoint: jest.fn(),
+      createUploadUrls: jest.fn(),
       upsertDetails: jest.fn(),
       getMyMemoryPoints: jest.fn(),
       getMemoryPoint: jest.fn(),
@@ -47,6 +49,34 @@ describe('CreatorMemoryPointController', () => {
 
       expect(memoryPointService.createMemoryPoint).toHaveBeenCalledTimes(1);
       expect(memoryPointService.createMemoryPoint).toHaveBeenCalledWith(
+        'user-1',
+        dto,
+      );
+      expect(result).toBe(expected);
+    });
+  });
+
+  describe('createUploadUrls', () => {
+    it('delegates to createUploadUrls with id, user id and dto', async () => {
+      const dto = {
+        photoContentType: 'image/jpeg',
+        audioContentType: 'audio/mpeg',
+      } as never;
+      const expected = {
+        photo: { uploadUrl: 'u1', objectPath: 'p1' },
+        audio: { uploadUrl: 'u2', objectPath: 'p2' },
+      };
+      memoryPointService.createUploadUrls.mockResolvedValue(expected);
+
+      const result = await controller.createUploadUrls(
+        VALID_UUID,
+        { id: 'user-1' } as never,
+        dto,
+      );
+
+      expect(memoryPointService.createUploadUrls).toHaveBeenCalledTimes(1);
+      expect(memoryPointService.createUploadUrls).toHaveBeenCalledWith(
+        VALID_UUID,
         'user-1',
         dto,
       );

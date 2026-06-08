@@ -14,7 +14,6 @@ const providers: Provider[] = [
   ValidatorService,
   CloudTasksService,
   GcsStorageService,
-  GcsStorageService,
   GeneratorService,
   TranslationService,
 ];

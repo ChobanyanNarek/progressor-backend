@@ -44,9 +44,10 @@ export class CreateAiGenerationHandler
       MemoryPointGenerationSource
     >(new GetMemoryPointGenerationSourceQuery(memoryPointId));
 
-    let generation = await this.aiGenerationRepository.findOneBy({
-      memoryPointId,
-    });
+    let generation = await this.aiGenerationRepository
+      .createQueryBuilder('aiGeneration')
+      .where('aiGeneration.memoryPointId = :memoryPointId', { memoryPointId })
+      .getOne();
 
     if (!generation) {
       generation = this.aiGenerationRepository.create({

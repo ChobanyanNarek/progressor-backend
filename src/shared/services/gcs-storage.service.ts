@@ -71,6 +71,38 @@ export class GcsStorageService {
     return url;
   }
 
+  /**
+   * Generate a short-lived signed write URL the client can PUT bytes to.
+   * The `contentType` is bound into the signature, so the client must send the
+   * exact same `Content-Type` header on its PUT or GCS rejects the upload.
+   */
+  async getSignedWriteUrl(
+    objectPath: string,
+    contentType: string,
+    ttlMs: number = FIFTEEN_MINUTES_MS,
+  ): Promise<string> {
+    const [url] = await this.storage
+      .bucket(this.bucketName)
+      .file(objectPath)
+      .getSignedUrl({
+        action: 'write',
+        contentType,
+        expires: Date.now() + ttlMs,
+      });
+
+    return url;
+  }
+
+  /** Whether an object exists at the given path. */
+  async exists(objectPath: string): Promise<boolean> {
+    const [isPresent] = await this.storage
+      .bucket(this.bucketName)
+      .file(objectPath)
+      .exists();
+
+    return isPresent;
+  }
+
   async delete(objectPath: string): Promise<void> {
     await this.storage
       .bucket(this.bucketName)

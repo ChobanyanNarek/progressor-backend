@@ -4,6 +4,7 @@ import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts'
 import { MemoryPointType } from '../../../../constants/memory-point-type.ts';
 import { MemoryPointNotEditableException } from '../../exceptions/memory-point-not-editable.exception.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
+import { MemoryPointSourceNotUploadedException } from '../../exceptions/memory-point-source-not-uploaded.exception.ts';
 import { UpsertMemoryPointDetailsCommand } from './upsert-memory-point-details.command.ts';
 
 // The handler is decorated with @Transactional(), which requires an initialized
@@ -15,7 +16,7 @@ jest.unstable_mockModule('typeorm-transactional', () => ({
 
 const { UpsertMemoryPointDetailsHandler } = await import(
   './upsert-memory-point-details.handler.ts'
-);
+  );
 
 describe('UpsertMemoryPointDetailsHandler', () => {
   let handler: InstanceType<typeof UpsertMemoryPointDetailsHandler>;
@@ -25,6 +26,7 @@ describe('UpsertMemoryPointDetailsHandler', () => {
   let create: jest.Mock;
   let upsert: jest.Mock;
   let findOneByOrFail: jest.Mock;
+  let exists: jest.Mock;
 
   let memoryPointRepo: { findOneBy: jest.Mock; update: jest.Mock };
   let detailsRepo: {
@@ -32,6 +34,7 @@ describe('UpsertMemoryPointDetailsHandler', () => {
     upsert: jest.Mock;
     findOneByOrFail: jest.Mock;
   };
+  let gcsStorageService: { exists: jest.Mock };
 
   const pointId = 'point-1' as Uuid;
   const userId = 'user-1' as Uuid;
@@ -63,13 +66,16 @@ describe('UpsertMemoryPointDetailsHandler', () => {
       memoryPointId: pointId,
       toDto: () => detailsDto,
     });
+    exists = jest.fn<() => Promise<boolean>>().mockResolvedValue(true);
 
     memoryPointRepo = { findOneBy, update: memoryPointUpdate };
     detailsRepo = { create, upsert, findOneByOrFail };
+    gcsStorageService = { exists };
 
     handler = new UpsertMemoryPointDetailsHandler(
       memoryPointRepo as never,
       detailsRepo as never,
+      gcsStorageService as never,
     );
   });
 
@@ -81,6 +87,8 @@ describe('UpsertMemoryPointDetailsHandler', () => {
   it('upserts details, keeps the point PENDING and returns the details DTO', async () => {
     const result = await run();
 
+    expect(exists).toHaveBeenCalledWith(dto.sourcePhotoUrl);
+    expect(exists).toHaveBeenCalledWith(dto.sourceAudioUrl);
     expect(findOneBy).toHaveBeenCalledWith({ id: pointId });
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -129,5 +137,27 @@ describe('UpsertMemoryPointDetailsHandler', () => {
     await expect(run()).rejects.toBeInstanceOf(MemoryPointNotEditableException);
     expect(upsert).not.toHaveBeenCalled();
     expect(memoryPointUpdate).not.toHaveBeenCalled();
+  });
+
+  it('throws MemoryPointSourceNotUploadedException when the photo is missing in storage', async () => {
+    exists.mockImplementation((path: string) =>
+      Promise.resolve(path !== dto.sourcePhotoUrl),
+    );
+
+    await expect(run()).rejects.toBeInstanceOf(
+      MemoryPointSourceNotUploadedException,
+    );
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('throws MemoryPointSourceNotUploadedException when the audio is missing in storage', async () => {
+    exists.mockImplementation((path: string) =>
+      Promise.resolve(path !== dto.sourceAudioUrl),
+    );
+
+    await expect(run()).rejects.toBeInstanceOf(
+      MemoryPointSourceNotUploadedException,
+    );
+    expect(upsert).not.toHaveBeenCalled();
   });
 });
