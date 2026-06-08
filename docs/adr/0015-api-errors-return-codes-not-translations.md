@@ -60,9 +60,11 @@ Rules:
 ### Scope / non-goals
 
 This ADR governs **error** responses. It does not remove `nestjs-i18n` (still
-used for translatable content fields). Migrating the few legacy literal-message
-exceptions (e.g. `UserExistsException` → `error.userExists`) is desirable but
-out of scope here; match on HTTP status until migrated.
+used for translatable content fields). All domain exceptions now emit `error.*`
+codes (`UserExistsException` was migrated to `error.userExists`). The only
+non-coded responses are framework `401`s (Passport / `UnauthorizedException`),
+which carry the HTTP reason phrase `"Unauthorized"` — clients key off the `401`
+status, not the message.
 
 ### Positive Consequences
 
