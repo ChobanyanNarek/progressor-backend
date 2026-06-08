@@ -27,10 +27,10 @@ describe('GetMemoryPointStatsHandler', () => {
     const result = await handler.execute();
 
     expect(result.total).toBe(10);
-    expect(result.byStatus[MemoryPointStatus.PENDING]).toBe(4);
-    expect(result.byStatus[MemoryPointStatus.APPROVED]).toBe(6);
+    expect(result.byStatus.pending).toBe(4);
+    expect(result.byStatus.approved).toBe(6);
     // Statuses with no rows are still present as zero.
-    expect(result.byStatus[MemoryPointStatus.REJECTED]).toBe(0);
+    expect(result.byStatus.rejected).toBe(0);
   });
 
   it('returns every status zeroed when no points exist', async () => {

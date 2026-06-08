@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
-import { RoleType } from '../../../../constants/role-type.ts';
+import { MemoryPointStatsDto } from '../../../memory-points/dtos/memory-point-stats.dto.ts';
+import { MemoryPointStatusBreakdownDto } from '../../../memory-points/dtos/memory-point-status-breakdown.dto.ts';
 import type { MemoryPointService } from '../../../memory-points/memory-point.service.ts';
+import { UserRoleBreakdownDto } from '../../../user/dtos/user-role-breakdown.dto.ts';
+import { UserStatsDto } from '../../../user/dtos/user-stats.dto.ts';
 import type { UserService } from '../../../user/user.service.ts';
 import { GetDashboardStatsHandler } from './get-dashboard-stats.handler.ts';
 
@@ -12,21 +14,25 @@ describe('GetDashboardStatsHandler', () => {
   let mpGetStats: jest.Mock;
 
   beforeEach(() => {
-    userGetStats = jest.fn<() => Promise<unknown>>().mockResolvedValue({
-      total: 10,
-      byRole: { [RoleType.CREATOR]: 7, [RoleType.ADMIN]: 3 },
-    });
-    mpGetStats = jest.fn<() => Promise<unknown>>().mockResolvedValue({
-      total: 5,
-      byStatus: {
-        [MemoryPointStatus.PENDING]: 2,
-        [MemoryPointStatus.ADMIN_REVIEWING]: 1,
-        [MemoryPointStatus.GENERATING]: 0,
-        [MemoryPointStatus.AI_REVIEWING]: 0,
-        [MemoryPointStatus.APPROVED]: 2,
-        [MemoryPointStatus.REJECTED]: 0,
-      },
-    });
+    userGetStats = jest.fn<() => Promise<unknown>>().mockResolvedValue(
+      UserStatsDto.create({
+        total: 10,
+        byRole: UserRoleBreakdownDto.create({ creator: 7, admin: 3 }),
+      }),
+    );
+    mpGetStats = jest.fn<() => Promise<unknown>>().mockResolvedValue(
+      MemoryPointStatsDto.create({
+        total: 5,
+        byStatus: MemoryPointStatusBreakdownDto.create({
+          pending: 2,
+          adminReviewing: 1,
+          generating: 0,
+          aiReviewing: 0,
+          approved: 2,
+          rejected: 0,
+        }),
+      }),
+    );
 
     handler = new GetDashboardStatsHandler(
       { getStats: userGetStats } as unknown as UserService,

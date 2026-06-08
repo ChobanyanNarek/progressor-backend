@@ -1,10 +1,5 @@
 import { Query } from '@nestjs/cqrs';
 
-import type { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import type { MemoryPointStatsDto } from '../../dtos/memory-point-stats.dto.ts';
 
-export interface IMemoryPointStats {
-  total: number;
-  byStatus: Record<MemoryPointStatus, number>;
-}
-
-export class GetMemoryPointStatsQuery extends Query<IMemoryPointStats> {}
+export class GetMemoryPointStatsQuery extends Query<MemoryPointStatsDto> {}

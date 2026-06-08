@@ -3,7 +3,7 @@ import {
   ClassField,
   NumberField,
 } from '../../../decorators/field.decorators.ts';
-import { MemoryPointStatusBreakdownDto } from './memory-point-status-breakdown.dto.ts';
+import { MemoryPointStatusBreakdownDto } from '../../memory-points/dtos/memory-point-status-breakdown.dto.ts';
 
 export class DashboardStatsDto extends BaseDto {
   @NumberField({ int: true })
