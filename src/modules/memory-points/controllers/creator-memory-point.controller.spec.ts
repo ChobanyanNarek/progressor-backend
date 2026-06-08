@@ -1,19 +1,11 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { PageDto } from '../../../common/dto/page.dto.ts';
 import { AudioFileType } from '../../../constants/audio-file-type.ts';
-import { MemoryPointStatus } from '../../../constants/memory-point-status.ts';
 import { PhotoFileType } from '../../../constants/photo-file-type.ts';
 import { RoleType } from '../../../constants/role-type.ts';
-import { MyMemoryPointDto } from '../dtos/my-memory-point.dto.ts';
 import { CreatorMemoryPointController } from './creator-memory-point.controller.ts';
 
 const VALID_UUID = '0190f8e2-0000-4000-8000-000000000000' as Uuid;
-
-const validLocation = {
-  type: 'Point' as const,
-  coordinates: [44.5, 40.1] as [number, number],
-};
 
 const user: { id: Uuid; role: RoleType } = {
   id: 'user-1' as Uuid,
@@ -111,19 +103,9 @@ describe('CreatorMemoryPointController', () => {
   });
 
   describe('getMyMemoryPoints', () => {
-    it('maps service items to MyMemoryPointDto and wraps in PageDto', async () => {
-      const meta = { page: 1, take: 10 };
-      memoryPointService.getMyMemoryPoints.mockResolvedValue({
-        data: [
-          {
-            id: VALID_UUID,
-            location: validLocation,
-            status: MemoryPointStatus.PENDING,
-            secret: 'should-not-leak',
-          },
-        ],
-        meta,
-      });
+    it('delegates to getMyMemoryPoints with the user id and returns its page unchanged', async () => {
+      const expected = { data: [{ id: VALID_UUID }], meta: { page: 1 } };
+      memoryPointService.getMyMemoryPoints.mockResolvedValue(expected);
 
       const pageOptionsDto = { page: 1, take: 10 } as never;
       const result = await controller.getMyMemoryPoints(
@@ -131,34 +113,12 @@ describe('CreatorMemoryPointController', () => {
         pageOptionsDto,
       );
 
+      expect(memoryPointService.getMyMemoryPoints).toHaveBeenCalledTimes(1);
       expect(memoryPointService.getMyMemoryPoints).toHaveBeenCalledWith(
         user.id,
         pageOptionsDto,
       );
-      expect(result).toBeInstanceOf(PageDto);
-      expect(result.meta).toBe(meta);
-      expect(result.data[0]).toBeInstanceOf(MyMemoryPointDto);
-      expect(result.data[0]).toEqual({
-        id: VALID_UUID,
-        location: validLocation,
-        status: MemoryPointStatus.PENDING,
-      });
-    });
-
-    it('returns an empty page when the service returns no items', async () => {
-      const meta = { page: 1, take: 10 };
-      memoryPointService.getMyMemoryPoints.mockResolvedValue({
-        data: [],
-        meta,
-      });
-
-      const result = await controller.getMyMemoryPoints(
-        user as never,
-        {} as never,
-      );
-
-      expect(result.data).toEqual([]);
-      expect(result.meta).toBe(meta);
+      expect(result).toBe(expected);
     });
   });
 

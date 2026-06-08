@@ -14,10 +14,13 @@ import { DeleteMemoryPointCommand } from './commands/delete-memory-point/delete-
 import { UpdateMemoryPointDetailsCommand } from './commands/update-memory-point-details/update-memory-point-details.command.ts';
 import { UpdateMemoryPointStatusCommand } from './commands/update-memory-point-status/update-memory-point-status.command.ts';
 import { UpsertMemoryPointDetailsCommand } from './commands/upsert-memory-point-details/upsert-memory-point-details.command.ts';
+import type { AdminMemoryPointListItemDto } from './dtos/admin-memory-point-list-item.dto.ts';
 import type { CreateMemoryPointDto } from './dtos/create-memory-point.dto.ts';
 import type { MemoryPointDto } from './dtos/memory-point.dto.ts';
 import type { MemoryPointDetailsDto } from './dtos/memory-point-details.dto.ts';
 import type { MemoryPointUploadUrlsDto } from './dtos/memory-point-upload-urls.dto.ts';
+import type { MyMemoryPointDto } from './dtos/my-memory-point.dto.ts';
+import type { NearbyMemoryPointDto } from './dtos/nearby-memory-point.dto.ts';
 import type { NearbyMemoryPointsPageOptionsDto } from './dtos/nearby-memory-points-page-options.dto.ts';
 import type { RequestUploadUrlDto } from './dtos/request-upload-url.dto.ts';
 import type { UpdateMemoryPointDetailsDto } from './dtos/update-memory-point-details.dto.ts';
@@ -69,10 +72,10 @@ export class MemoryPointService {
   getMyMemoryPoints(
     userId: Uuid,
     pageOptionsDto: PageOptionsDto,
-  ): Promise<PageDto<MemoryPointDto>> {
+  ): Promise<PageDto<MyMemoryPointDto>> {
     return this.queryBus.execute<
       GetMyMemoryPointsQuery,
-      PageDto<MemoryPointDto>
+      PageDto<MyMemoryPointDto>
     >(new GetMyMemoryPointsQuery(userId, pageOptionsDto));
   }
 
@@ -97,19 +100,19 @@ export class MemoryPointService {
 
   getAllMemoryPoints(
     pageOptionsDto: PageOptionsDto,
-  ): Promise<PageDto<MemoryPointDto>> {
+  ): Promise<PageDto<AdminMemoryPointListItemDto>> {
     return this.queryBus.execute<
       GetAllMemoryPointsQuery,
-      PageDto<MemoryPointDto>
+      PageDto<AdminMemoryPointListItemDto>
     >(new GetAllMemoryPointsQuery(pageOptionsDto));
   }
 
   getNearbyMemoryPoints(
     pageOptionsDto: NearbyMemoryPointsPageOptionsDto,
-  ): Promise<PageDto<MemoryPointDto>> {
+  ): Promise<PageDto<NearbyMemoryPointDto>> {
     return this.queryBus.execute<
       GetNearbyMemoryPointsQuery,
-      PageDto<MemoryPointDto>
+      PageDto<NearbyMemoryPointDto>
     >(new GetNearbyMemoryPointsQuery(pageOptionsDto));
   }
 

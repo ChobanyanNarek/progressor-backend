@@ -33,22 +33,11 @@ export class MemoryPointController {
     description: 'Nearby approved memory points',
     type: NearbyMemoryPointDto,
   })
-  async getNearby(
+  getNearby(
     @Query(new ValidationPipe({ transform: true }))
     pageOptionsDto: NearbyMemoryPointsPageOptionsDto,
   ): Promise<PageDto<NearbyMemoryPointDto>> {
-    const page =
-      await this.memoryPointService.getNearbyMemoryPoints(pageOptionsDto);
-
-    return PageDto.create({
-      data: page.data.map((memoryPoint) =>
-        NearbyMemoryPointDto.create({
-          id: memoryPoint.id,
-          location: memoryPoint.location,
-        }),
-      ),
-      meta: page.meta,
-    });
+    return this.memoryPointService.getNearbyMemoryPoints(pageOptionsDto);
   }
 
   @Get(':id')
@@ -57,6 +46,7 @@ export class MemoryPointController {
   @ApiUUIDParam('id')
   @ApiResponse({
     status: HttpStatus.OK,
+    // TODO
     // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
     type: PublicMemoryPointDto,
   })

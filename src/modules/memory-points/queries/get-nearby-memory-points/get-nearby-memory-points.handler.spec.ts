@@ -1,8 +1,17 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import { NearbyMemoryPointDto } from '../../dtos/nearby-memory-point.dto.ts';
 import { GetNearbyMemoryPointsHandler } from './get-nearby-memory-points.handler.ts';
 import { GetNearbyMemoryPointsQuery } from './get-nearby-memory-points.query.ts';
+
+const VALID_UUID = '0190f8e2-0000-4000-8000-000000000000' as Uuid;
+const location = {
+  type: 'Point' as const,
+  coordinates: [44.5, 40.1] as [number, number],
+};
+const createdAt = new Date('2024-01-01T00:00:00.000Z');
+const updatedAt = new Date('2024-01-02T00:00:00.000Z');
 
 interface Qb {
   leftJoinAndSelect: jest.Mock;
@@ -40,9 +49,7 @@ describe('GetNearbyMemoryPointsHandler', () => {
   let qb: Qb;
   let createQueryBuilder: jest.Mock;
 
-  const sentinelPage = { data: ['nearby'] };
   const meta = { meta: true };
-  let items: unknown[] & { toPageDto: jest.Mock };
 
   const baseOptions = {
     latitude: 40.1,
@@ -51,9 +58,19 @@ describe('GetNearbyMemoryPointsHandler', () => {
   };
 
   beforeEach(() => {
-    items = Object.assign([], {
-      toPageDto: jest.fn().mockReturnValue(sentinelPage),
-    });
+    const items = [
+      {
+        id: VALID_UUID,
+        location,
+        status: MemoryPointStatus.APPROVED,
+        createdAt,
+        updatedAt,
+        memoryPointDetails: {
+          title: 'Nearby title',
+          description: 'Nearby description',
+        },
+      },
+    ];
     qb = makeQb(items, meta);
     createQueryBuilder = jest.fn().mockReturnValue(qb);
     handler = new GetNearbyMemoryPointsHandler({
@@ -61,7 +78,7 @@ describe('GetNearbyMemoryPointsHandler', () => {
     } as never);
   });
 
-  it('filters by APPROVED status, orders by distance and passes lng/lat/radius params', async () => {
+  it('filters by APPROVED status, orders by distance, passes params and maps items to NearbyMemoryPointDto', async () => {
     const pageOptionsDto = { ...baseOptions } as never;
 
     const result = await handler.execute(
@@ -85,8 +102,12 @@ describe('GetNearbyMemoryPointsHandler', () => {
       radius: baseOptions.radiusMeters,
     });
     expect(qb.paginate).toHaveBeenCalledWith(pageOptionsDto);
-    expect(items.toPageDto).toHaveBeenCalledWith(meta);
-    expect(result).toBe(sentinelPage);
+    expect(result.meta).toBe(meta);
+    expect(result.data[0]).toBeInstanceOf(NearbyMemoryPointDto);
+    expect(result.data[0]).toEqual({
+      id: VALID_UUID,
+      location,
+    });
   });
 
   it('does NOT apply the title filter when name is not provided', async () => {

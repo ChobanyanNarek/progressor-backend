@@ -1,17 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { PageDto } from '../../../common/dto/page.dto.ts';
 import { MemoryPointStatus } from '../../../constants/memory-point-status.ts';
 import { RoleType } from '../../../constants/role-type.ts';
-import { AdminMemoryPointListItemDto } from '../dtos/admin-memory-point-list-item.dto.ts';
 import { AdminMemoryPointController } from './admin-memory-point.controller.ts';
 
 const VALID_UUID = '0190f8e2-0000-4000-8000-000000000000' as Uuid;
-
-const validLocation = {
-  type: 'Point' as const,
-  coordinates: [44.5, 40.1] as [number, number],
-};
 
 const user: { id: Uuid; role: RoleType } = {
   id: 'admin-1' as Uuid,
@@ -46,47 +39,18 @@ describe('AdminMemoryPointController', () => {
   });
 
   describe('getAll', () => {
-    it('maps service items to AdminMemoryPointListItemDto and wraps in PageDto', async () => {
-      const meta = { page: 1, take: 10 };
-      memoryPointService.getAllMemoryPoints.mockResolvedValue({
-        data: [
-          {
-            id: VALID_UUID,
-            location: validLocation,
-            status: MemoryPointStatus.ADMIN_REVIEWING,
-            secret: 'should-not-leak',
-          },
-        ],
-        meta,
-      });
+    it('delegates to getAllMemoryPoints and returns its page unchanged', async () => {
+      const expected = { data: [{ id: VALID_UUID }], meta: { page: 1 } };
+      memoryPointService.getAllMemoryPoints.mockResolvedValue(expected);
 
       const pageOptionsDto = { page: 1, take: 10 } as never;
       const result = await controller.getAll(pageOptionsDto);
 
+      expect(memoryPointService.getAllMemoryPoints).toHaveBeenCalledTimes(1);
       expect(memoryPointService.getAllMemoryPoints).toHaveBeenCalledWith(
         pageOptionsDto,
       );
-      expect(result).toBeInstanceOf(PageDto);
-      expect(result.meta).toBe(meta);
-      expect(result.data[0]).toBeInstanceOf(AdminMemoryPointListItemDto);
-      expect(result.data[0]).toEqual({
-        id: VALID_UUID,
-        location: validLocation,
-        status: MemoryPointStatus.ADMIN_REVIEWING,
-      });
-    });
-
-    it('returns an empty page when the service returns no items', async () => {
-      const meta = { page: 1, take: 10 };
-      memoryPointService.getAllMemoryPoints.mockResolvedValue({
-        data: [],
-        meta,
-      });
-
-      const result = await controller.getAll({} as never);
-
-      expect(result.data).toEqual([]);
-      expect(result.meta).toBe(meta);
+      expect(result).toBe(expected);
     });
   });
 
