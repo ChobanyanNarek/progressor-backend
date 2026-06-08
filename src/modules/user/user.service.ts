@@ -19,7 +19,6 @@ import type { UpdateUserDto } from './dtos/update-user.dto.ts';
 import type { UserDto } from './dtos/user.dto.ts';
 import type { UserListDto } from './dtos/user-list.dto.ts';
 import type { UsersPageOptionsDto } from './dtos/users-page-options.dto.ts';
-import { GetAdminsQuery } from './queries/get-admins/get-admins.query.ts';
 import { GetUserQuery } from './queries/get-user/get-user.query.ts';
 import {
   GetUserStatsQuery,
@@ -63,12 +62,6 @@ export class UserService {
   getStats(): Promise<IUserStats> {
     return this.queryBus.execute<GetUserStatsQuery, IUserStats>(
       new GetUserStatsQuery(),
-    );
-  }
-
-  getAdmins(): Promise<UserDto[]> {
-    return this.queryBus.execute<GetAdminsQuery, UserDto[]>(
-      new GetAdminsQuery(),
     );
   }
 

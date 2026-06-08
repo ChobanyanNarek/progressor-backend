@@ -21,8 +21,6 @@ This page is the contract: the list of codes the frontend must handle. The
 | `error.memoryPointNotFound` | 404 | No memory point matches the id (or not owned) |
 | `error.memoryPointNotEditable` | 403 | Memory point is past the editable state |
 | `error.memoryPointSourceNotUploaded` | 403 | Photo/audio not uploaded before saving details |
-| `error.cannotRemoveSelf` | 403 | Admin tried to remove their own team account |
-| `error.cannotRemoveLastAdmin` | 403 | Tried to remove the last remaining admin |
 | `error.unique.email` | 409 | Email already in use (DB unique constraint) |
 
 ## Validation field codes (`error.fields.*`)
