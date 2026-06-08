@@ -203,8 +203,8 @@
       "auth": "@Auth([CREATOR])",
       "controller": "CreatorMemoryPointController",
       "requestDto": {
-        "sourcePhotoUrl": "string",
-        "sourceAudioUrl": "string",
+        "sourcePhotoUrl": "string (objectPath from /upload-url, under memory-points/:id/photo/)",
+        "sourceAudioUrl": "string (objectPath from /upload-url, under memory-points/:id/audio/)",
         "title?": "string",
         "description?": "string",
         "cloudAnchorId?": "string",

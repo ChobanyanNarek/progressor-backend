@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { PageDto } from '../../../common/dto/page.dto.ts';
+import { AudioFileType } from '../../../constants/audio-file-type.ts';
 import { MemoryPointStatus } from '../../../constants/memory-point-status.ts';
+import { PhotoFileType } from '../../../constants/photo-file-type.ts';
 import { RoleType } from '../../../constants/role-type.ts';
 import { MyMemoryPointDto } from '../dtos/my-memory-point.dto.ts';
 import { CreatorMemoryPointController } from './creator-memory-point.controller.ts';
@@ -23,6 +25,7 @@ describe('CreatorMemoryPointController', () => {
 
   let memoryPointService: {
     createMemoryPoint: ServiceMock;
+    createUploadUrls: ServiceMock;
     upsertDetails: ServiceMock;
     getMyMemoryPoints: ServiceMock;
     getMemoryPoint: ServiceMock;
@@ -32,6 +35,7 @@ describe('CreatorMemoryPointController', () => {
   beforeEach(() => {
     memoryPointService = {
       createMemoryPoint: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      createUploadUrls: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       upsertDetails: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       getMyMemoryPoints: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       getMemoryPoint: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
@@ -70,6 +74,34 @@ describe('CreatorMemoryPointController', () => {
 
       expect(memoryPointService.upsertDetails).toHaveBeenCalledTimes(1);
       expect(memoryPointService.upsertDetails).toHaveBeenCalledWith(
+        VALID_UUID,
+        'user-1',
+        dto,
+      );
+      expect(result).toBe(expected);
+    });
+  });
+
+  describe('createUploadUrls', () => {
+    it('delegates to createUploadUrls with id, user id and dto', async () => {
+      const dto = {
+        photoContentType: PhotoFileType.JPG,
+        audioContentType: AudioFileType.MP3,
+      } as never;
+      const expected = {
+        photo: { uploadUrl: 'u1', objectPath: 'p1' },
+        audio: { uploadUrl: 'u2', objectPath: 'p2' },
+      };
+      memoryPointService.createUploadUrls.mockResolvedValue(expected);
+
+      const result = await controller.createUploadUrls(
+        VALID_UUID,
+        { id: 'user-1' } as never,
+        dto,
+      );
+
+      expect(memoryPointService.createUploadUrls).toHaveBeenCalledTimes(1);
+      expect(memoryPointService.createUploadUrls).toHaveBeenCalledWith(
         VALID_UUID,
         'user-1',
         dto,
