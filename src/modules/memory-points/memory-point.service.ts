@@ -16,31 +16,25 @@ import { UpdateMemoryPointStatusCommand } from './commands/update-memory-point-s
 import { UpsertMemoryPointDetailsCommand } from './commands/upsert-memory-point-details/upsert-memory-point-details.command.ts';
 import type { AdminMemoryPointListItemDto } from './dtos/admin-memory-point-list-item.dto.ts';
 import type { CreateMemoryPointDto } from './dtos/create-memory-point.dto.ts';
+import type { MediaItemDto } from './dtos/media-item.dto.ts';
 import type { MemoryPointDto } from './dtos/memory-point.dto.ts';
 import type { MemoryPointDetailsDto } from './dtos/memory-point-details.dto.ts';
+import type { MemoryPointStatsDto } from './dtos/memory-point-stats.dto.ts';
 import type { MemoryPointUploadUrlsDto } from './dtos/memory-point-upload-urls.dto.ts';
 import type { MyMemoryPointDto } from './dtos/my-memory-point.dto.ts';
 import type { NearbyMemoryPointDto } from './dtos/nearby-memory-point.dto.ts';
 import type { NearbyMemoryPointsPageOptionsDto } from './dtos/nearby-memory-points-page-options.dto.ts';
+import type { RecentMemoryPointDto } from './dtos/recent-memory-point.dto.ts';
 import type { RequestUploadUrlDto } from './dtos/request-upload-url.dto.ts';
 import type { UpdateMemoryPointDetailsDto } from './dtos/update-memory-point-details.dto.ts';
 import type { UpsertMemoryPointDetailsDto } from './dtos/upsert-memory-point-details.dto.ts';
 import { GetAllMemoryPointsQuery } from './queries/get-all-memory-points/get-all-memory-points.query.ts';
-import {
-  GetMediaQuery,
-  type IMediaItem,
-} from './queries/get-media/get-media.query.ts';
+import { GetMediaQuery } from './queries/get-media/get-media.query.ts';
 import { GetMemoryPointQuery } from './queries/get-memory-point/get-memory-point.query.ts';
-import {
-  GetMemoryPointStatsQuery,
-  type IMemoryPointStats,
-} from './queries/get-memory-point-stats/get-memory-point-stats.query.ts';
+import { GetMemoryPointStatsQuery } from './queries/get-memory-point-stats/get-memory-point-stats.query.ts';
 import { GetMyMemoryPointsQuery } from './queries/get-my-memory-points/get-my-memory-points.query.ts';
 import { GetNearbyMemoryPointsQuery } from './queries/get-nearby-memory-points/get-nearby-memory-points.query.ts';
-import {
-  GetRecentMemoryPointsQuery,
-  type IRecentMemoryPoint,
-} from './queries/get-recent-memory-points/get-recent-memory-points.query.ts';
+import { GetRecentMemoryPointsQuery } from './queries/get-recent-memory-points/get-recent-memory-points.query.ts';
 
 @Injectable()
 export class MemoryPointService {
@@ -79,21 +73,21 @@ export class MemoryPointService {
     >(new GetMyMemoryPointsQuery(userId, pageOptionsDto));
   }
 
-  getStats(): Promise<IMemoryPointStats> {
-    return this.queryBus.execute<GetMemoryPointStatsQuery, IMemoryPointStats>(
+  getStats(): Promise<MemoryPointStatsDto> {
+    return this.queryBus.execute<GetMemoryPointStatsQuery, MemoryPointStatsDto>(
       new GetMemoryPointStatsQuery(),
     );
   }
 
-  getRecent(limit: number): Promise<IRecentMemoryPoint[]> {
+  getRecent(limit: number): Promise<RecentMemoryPointDto[]> {
     return this.queryBus.execute<
       GetRecentMemoryPointsQuery,
-      IRecentMemoryPoint[]
+      RecentMemoryPointDto[]
     >(new GetRecentMemoryPointsQuery(limit));
   }
 
-  getMedia(pageOptionsDto: PageOptionsDto): Promise<PageDto<IMediaItem>> {
-    return this.queryBus.execute<GetMediaQuery, PageDto<IMediaItem>>(
+  getMedia(pageOptionsDto: PageOptionsDto): Promise<PageDto<MediaItemDto>> {
+    return this.queryBus.execute<GetMediaQuery, PageDto<MediaItemDto>>(
       new GetMediaQuery(pageOptionsDto),
     );
   }

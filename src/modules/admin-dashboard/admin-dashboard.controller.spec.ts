@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { MemoryPointStatus } from '../../constants/memory-point-status.ts';
+import { MemoryPointStatusBreakdownDto } from '../memory-points/dtos/memory-point-status-breakdown.dto.ts';
+import { RecentMemoryPointDto } from '../memory-points/dtos/recent-memory-point.dto.ts';
 import { AdminDashboardController } from './admin-dashboard.controller.ts';
 import type { AdminDashboardService } from './admin-dashboard.service.ts';
 import { DashboardStatsDto } from './dtos/dashboard-stats.dto.ts';
-import { MemoryPointStatusBreakdownDto } from './dtos/memory-point-status-breakdown.dto.ts';
-import { RecentMemoryPointDto } from './dtos/recent-memory-point.dto.ts';
 import { RecentMemoryPointsDto } from './dtos/recent-memory-points.dto.ts';
 import type { RecentPointsOptionsDto } from './dtos/recent-points-options.dto.ts';
 

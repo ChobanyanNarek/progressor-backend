@@ -27,8 +27,8 @@ describe('GetUserStatsHandler', () => {
     const result = await handler.execute();
 
     expect(result.total).toBe(10);
-    expect(result.byRole[RoleType.CREATOR]).toBe(7);
-    expect(result.byRole[RoleType.ADMIN]).toBe(3);
+    expect(result.byRole.creator).toBe(7);
+    expect(result.byRole.admin).toBe(3);
   });
 
   it('returns zeroed roles when no users exist', async () => {
@@ -37,7 +37,7 @@ describe('GetUserStatsHandler', () => {
     const result = await handler.execute();
 
     expect(result.total).toBe(0);
-    expect(result.byRole[RoleType.CREATOR]).toBe(0);
-    expect(result.byRole[RoleType.ADMIN]).toBe(0);
+    expect(result.byRole.creator).toBe(0);
+    expect(result.byRole.admin).toBe(0);
   });
 });

@@ -1,6 +1,6 @@
 import { BaseDto } from '../../../common/dto/base.dto.ts';
 import { ClassField } from '../../../decorators/field.decorators.ts';
-import { RecentMemoryPointDto } from './recent-memory-point.dto.ts';
+import { RecentMemoryPointDto } from '../../memory-points/dtos/recent-memory-point.dto.ts';
 
 /**
  * Envelope so the endpoint returns a `Dto` (not a bare array) per ADR-0016.

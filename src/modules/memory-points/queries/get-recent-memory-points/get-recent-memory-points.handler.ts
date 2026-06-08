@@ -2,15 +2,13 @@ import { type IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
+import { RecentMemoryPointDto } from '../../dtos/recent-memory-point.dto.ts';
 import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
-import {
-  GetRecentMemoryPointsQuery,
-  type IRecentMemoryPoint,
-} from './get-recent-memory-points.query.ts';
+import { GetRecentMemoryPointsQuery } from './get-recent-memory-points.query.ts';
 
 @QueryHandler(GetRecentMemoryPointsQuery)
 export class GetRecentMemoryPointsHandler
-  implements IQueryHandler<GetRecentMemoryPointsQuery, IRecentMemoryPoint[]>
+  implements IQueryHandler<GetRecentMemoryPointsQuery, RecentMemoryPointDto[]>
 {
   constructor(
     @InjectRepository(MemoryPointEntity)
@@ -19,7 +17,7 @@ export class GetRecentMemoryPointsHandler
 
   async execute(
     query: GetRecentMemoryPointsQuery,
-  ): Promise<IRecentMemoryPoint[]> {
+  ): Promise<RecentMemoryPointDto[]> {
     const items = await this.memoryPointRepository
       .createQueryBuilder('mp')
       .leftJoin('mp.memoryPointDetails', 'details')
@@ -28,11 +26,13 @@ export class GetRecentMemoryPointsHandler
       .take(query.limit)
       .getMany();
 
-    return items.map((mp) => ({
-      id: mp.id,
-      title: mp.memoryPointDetails?.title ?? null,
-      status: mp.status,
-      createdAt: mp.createdAt,
-    }));
+    return items.map((mp) =>
+      RecentMemoryPointDto.create({
+        id: mp.id,
+        title: mp.memoryPointDetails?.title ?? null,
+        status: mp.status,
+        createdAt: mp.createdAt,
+      }),
+    );
   }
 }

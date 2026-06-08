@@ -3,8 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
 import { RoleType } from '../../../../constants/role-type.ts';
+import { UserRoleBreakdownDto } from '../../dtos/user-role-breakdown.dto.ts';
+import { UserStatsDto } from '../../dtos/user-stats.dto.ts';
 import { UserEntity } from '../../user.entity.ts';
-import { GetUserStatsQuery, type IUserStats } from './get-user-stats.query.ts';
+import { GetUserStatsQuery } from './get-user-stats.query.ts';
 
 interface IRoleCountRow {
   role: RoleType;
@@ -13,14 +15,14 @@ interface IRoleCountRow {
 
 @QueryHandler(GetUserStatsQuery)
 export class GetUserStatsHandler
-  implements IQueryHandler<GetUserStatsQuery, IUserStats>
+  implements IQueryHandler<GetUserStatsQuery, UserStatsDto>
 {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
   ) {}
 
-  async execute(): Promise<IUserStats> {
+  async execute(): Promise<UserStatsDto> {
     const rows = await this.userRepository
       .createQueryBuilder('user')
       .select('user.role', 'role')
@@ -28,7 +30,7 @@ export class GetUserStatsHandler
       .groupBy('user.role')
       .getRawMany<IRoleCountRow>();
 
-    const byRole: Record<RoleType, number> = {
+    const counts: Record<RoleType, number> = {
       [RoleType.CREATOR]: 0,
       [RoleType.ADMIN]: 0,
     };
@@ -37,10 +39,16 @@ export class GetUserStatsHandler
 
     for (const row of rows) {
       const count = Number(row.count);
-      byRole[row.role] = count;
+      counts[row.role] = count;
       total += count;
     }
 
-    return { total, byRole };
+    return UserStatsDto.create({
+      total,
+      byRole: UserRoleBreakdownDto.create({
+        creator: counts[RoleType.CREATOR],
+        admin: counts[RoleType.ADMIN],
+      }),
+    });
   }
 }

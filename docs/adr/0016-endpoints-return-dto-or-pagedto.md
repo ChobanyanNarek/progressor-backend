@@ -32,13 +32,31 @@ Swagger-described, validated type. That causes:
 **Forbidden** as endpoint return types: bare arrays (`T[]`), inline object
 literals (`{ a: boolean }`), raw interfaces, primitives.
 
-### Internal data shapes vs wire DTOs
+### Internal CQRS projections also return a `Dto`
 
-This rule governs the **controller/endpoint** boundary only. Internal layers
-(CQRS query/command handlers, service helpers) may — and should — return plain
-typed **interfaces** (`IMediaItem`, `IUserStats`, …) so a data-owning module
-does not depend on a presentation DTO it doesn't own (ADR-0004 ownership). The
-controller/service maps the interface to the `Dto` at the edge.
+Originally this ADR exempted internal layers (CQRS query/command handlers,
+service helpers), allowing them to return plain typed **interfaces**
+(`IMediaItem`, `IUserStats`, …). **That exemption is removed.** A structured
+return shape is a `Dto` everywhere — at the endpoint *and* in the CQRS
+query/command handler and service that produces it. Handlers build the `Dto`
+via `.create()`/`.toDto()` and return it; the controller passes it through (or
+wraps a list in its envelope `Dto`).
+
+Rationale: one named, validated, Swagger-described shape per concept — no
+"is this an internal interface or a wire DTO?" judgement call, no parallel
+interface that drifts from the DTO it mirrors, and `BaseDto.create()` validation
+runs at the point of construction.
+
+**The producing (data-owning) module owns the `Dto`.** This keeps ADR-0004
+intact: a consumer (e.g. `admin-dashboard`, `admin-media`) imports the `Dto`
+from the module that owns the data (`memory-points`, `user`); the producer never
+imports a consumer's DTO. Cross-module stat/aggregate shapes use nested
+breakdown DTOs (`MemoryPointStatusBreakdownDto`, `UserRoleBreakdownDto`) instead
+of `Record<Enum, number>`.
+
+> Plain interfaces remain fine for **non-return** internal shapes — query-row
+> projections, raw SQL result rows (`IStatusCountRow`), config objects — i.e.
+> anything that is not a handler/service *return type*.
 
 ### Exemptions
 
@@ -54,6 +72,25 @@ controller/service maps the interface to the `Dto` at the edge.
 - Internal `POST /internal/ai-generation/process` returned
   `{ processed: boolean }` → `ProcessGenerationResultDto`.
 - D-ID webhook returned `{ received: boolean }` → `DidWebhookAckDto`.
+
+### Internal projection interfaces → DTOs (exemption removal)
+
+The original "internal layers return interfaces" carve-out was dropped. These
+CQRS handler/service return interfaces became DTOs, owned by the producing
+module:
+
+- `IMediaItem` → `MediaItemDto` (`memory-points`); `get-media` handler now
+  returns `PageDto<MediaItemDto>`, the `admin-media` controller passes it
+  through.
+- `IRecentMemoryPoint` → `RecentMemoryPointDto` (`memory-points`); the
+  `admin-dashboard` envelope `RecentMemoryPointsDto` imports it.
+- `IMemoryPointStats` → `MemoryPointStatsDto { total, byStatus:
+  MemoryPointStatusBreakdownDto }` (`memory-points`).
+- `IUserStats` → `UserStatsDto { total, byRole: UserRoleBreakdownDto }`
+  (`user`).
+
+`MemoryPointStatusBreakdownDto` moved from `admin-dashboard` to its owning
+`memory-points` module; `DashboardStatsDto` imports it from there.
 
 ### Positive Consequences
 

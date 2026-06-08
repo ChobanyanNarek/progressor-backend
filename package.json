@@ -24,6 +24,7 @@
     "typeorm": "typeorm-ts-node-esm",
     "migration:generate": "pnpm run typeorm migration:generate -d ormconfig.ts",
     "migration:create": "pnpm run typeorm migration:create",
+    "metadata:generate": "node --loader ts-node/esm scripts/generate-swagger-metadata.ts",
     "generate": "nest g -c awesome-nestjs-schematics --no-spec",
     "g": "pnpm run generate",
     "migration:run": "pnpm run typeorm migration:run -d ormconfig.ts",

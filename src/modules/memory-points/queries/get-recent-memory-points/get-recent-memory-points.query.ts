@@ -1,15 +1,8 @@
 import { Query } from '@nestjs/cqrs';
 
-import type { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import type { RecentMemoryPointDto } from '../../dtos/recent-memory-point.dto.ts';
 
-export interface IRecentMemoryPoint {
-  id: Uuid;
-  title: string | null;
-  status: MemoryPointStatus;
-  createdAt: Date;
-}
-
-export class GetRecentMemoryPointsQuery extends Query<IRecentMemoryPoint[]> {
+export class GetRecentMemoryPointsQuery extends Query<RecentMemoryPointDto[]> {
   constructor(public readonly limit: number) {
     super();
   }
