@@ -14,7 +14,10 @@ services:
       postgres:
         condition: service_healthy
   postgres:
-    image: postgres
+    # Schema requires the PostGIS extension (migration 1778768769174 runs
+    # `CREATE EXTENSION postgis` and stores `geography(Point,4326)`); the plain
+    # `postgres` image lacks it, so a fresh `up` fails migrations. Use PostGIS.
+    image: postgis/postgis:16-3.4
     container_name: postgres
     restart: always
     environment:
