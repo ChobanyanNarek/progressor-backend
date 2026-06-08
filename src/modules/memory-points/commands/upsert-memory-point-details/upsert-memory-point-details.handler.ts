@@ -4,11 +4,13 @@ import type { Repository } from 'typeorm';
 import { Transactional } from 'typeorm-transactional';
 
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import { GcsStorageService } from '../../../../shared/services/gcs-storage.service.ts';
 import { MemoryPointDetailsDto } from '../../dtos/memory-point-details.dto.ts';
 import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
 import { MemoryPointDetailsEntity } from '../../entities/memory-point-details.entity.ts';
 import { MemoryPointNotEditableException } from '../../exceptions/memory-point-not-editable.exception.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
+import { MemoryPointSourceNotUploadedException } from '../../exceptions/memory-point-source-not-uploaded.exception.ts';
 import { UpsertMemoryPointDetailsCommand } from './upsert-memory-point-details.command.ts';
 
 @CommandHandler(UpsertMemoryPointDetailsCommand)
@@ -21,6 +23,7 @@ export class UpsertMemoryPointDetailsHandler
     private readonly memoryPointRepository: Repository<MemoryPointEntity>,
     @InjectRepository(MemoryPointDetailsEntity)
     private readonly memoryPointDetailsRepository: Repository<MemoryPointDetailsEntity>,
+    private readonly gcsStorageService: GcsStorageService,
   ) {}
 
   @Transactional()
@@ -48,6 +51,31 @@ export class UpsertMemoryPointDetailsHandler
 
     if (memoryPoint.status !== MemoryPointStatus.PENDING) {
       throw new MemoryPointNotEditableException();
+    }
+
+    /*
+     * Trust no client-supplied path blindly. First require each path to live
+     * under this memory point's own prefix, so a CREATOR cannot reference
+     * another point's object (or any nameable object) as their source. Then
+     * confirm both files actually landed in storage before persisting them.
+     */
+    const photoPrefix = `memory-points/${memoryPointId}/photo/`;
+    const audioPrefix = `memory-points/${memoryPointId}/audio/`;
+
+    if (
+      !sourcePhotoUrl.startsWith(photoPrefix) ||
+      !sourceAudioUrl.startsWith(audioPrefix)
+    ) {
+      throw new MemoryPointSourceNotUploadedException();
+    }
+
+    const [hasPhoto, hasAudio] = await Promise.all([
+      this.gcsStorageService.exists(sourcePhotoUrl),
+      this.gcsStorageService.exists(sourceAudioUrl),
+    ]);
+
+    if (!hasPhoto || !hasAudio) {
+      throw new MemoryPointSourceNotUploadedException();
     }
 
     await this.memoryPointDetailsRepository.upsert(

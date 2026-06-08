@@ -163,6 +163,7 @@ export class ApiConfigService {
       queue: this.getString('CLOUD_TASKS_QUEUE'),
       targetUrl: this.getString('CLOUD_TASKS_TARGET_URL'),
       invokerServiceAccount: this.getString('CLOUD_TASKS_INVOKER_SA'),
+      maxUploadBytes: this.getNumber('GCS_MAX_UPLOAD_BYTES'),
     };
   }
 

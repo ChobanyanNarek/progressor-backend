@@ -14,11 +14,14 @@ export class GcsStorageService {
 
   private readonly bucketName: string;
 
+  private readonly maxUploadBytes: number;
+
   constructor(apiConfigService: ApiConfigService) {
-    const { projectId, bucket } = apiConfigService.gcpConfig;
+    const { projectId, bucket, maxUploadBytes } = apiConfigService.gcpConfig;
 
     this.storage = new Storage({ projectId });
     this.bucketName = bucket;
+    this.maxUploadBytes = maxUploadBytes;
   }
 
   /** Upload a buffer to the given object path and return that path. */
@@ -69,6 +72,44 @@ export class GcsStorageService {
       });
 
     return url;
+  }
+
+  /**
+   * Generate a short-lived signed write URL the client can PUT bytes to.
+   * The `contentType` is bound into the signature, so the client must send the
+   * exact same `Content-Type` header on its PUT or GCS rejects the upload.
+   * An `x-goog-content-length-range` upper bound is also bound in, so the client
+   * must send that header too and GCS rejects oversize bodies (cost/abuse cap).
+   */
+  async getSignedWriteUrl(
+    objectPath: string,
+    contentType: string,
+    ttlMs: number = FIFTEEN_MINUTES_MS,
+  ): Promise<string> {
+    const [url] = await this.storage
+      .bucket(this.bucketName)
+      .file(objectPath)
+      .getSignedUrl({
+        action: 'write',
+        contentType,
+        extensionHeaders: {
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          'x-goog-content-length-range': `0,${this.maxUploadBytes}`,
+        },
+        expires: Date.now() + ttlMs,
+      });
+
+    return url;
+  }
+
+  /** Whether an object exists at the given path. */
+  async exists(objectPath: string): Promise<boolean> {
+    const [isPresent] = await this.storage
+      .bucket(this.bucketName)
+      .file(objectPath)
+      .exists();
+
+    return isPresent;
   }
 
   async delete(objectPath: string): Promise<void> {

@@ -1,0 +1,471 @@
+{
+  "info": {
+    "title": "Ghost App API Map",
+    "globalPrefix": null,
+    "totalEndpoints": 22
+  },
+  "endpoints": [
+    {
+      "method": "POST",
+      "url": "/auth/login",
+      "summary": "User info with access token",
+      "auth": "@Public",
+      "controller": "AuthController",
+      "requestDto": {
+        "email": "string",
+        "password": "string"
+      },
+      "responseDto": {
+        "accessToken": {
+          "expiresIn": "number",
+          "token": "string"
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/auth/me",
+      "summary": "Current user info",
+      "auth": "@Auth([CREATOR, ADMIN])",
+      "controller": "AuthController",
+      "requestDto": null,
+      "responseDto": {
+        "firstName": "string",
+        "lastName": "string",
+        "email": "string",
+        "role": "RoleType",
+        "avatar?": "string | null"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/health",
+      "summary": "Health check",
+      "auth": "@Public",
+      "controller": "HealthCheckerController",
+      "requestDto": null,
+      "responseDto": {
+        "status": "string",
+        "info": "Record<string, unknown>",
+        "error": "Record<string, unknown>",
+        "details": "Record<string, unknown>"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/webhooks/did/:secret",
+      "summary": "Handle D-ID webhook",
+      "auth": "Secret param validation",
+      "controller": "DidWebhookController",
+      "requestDto": {
+        "id": "string",
+        "status": "string",
+        "result_url?": "string",
+        "user_data?": "string",
+        "duration?": "number",
+        "error?": {
+          "kind?": "string",
+          "description?": "string"
+        }
+      },
+      "responseDto": {
+        "received": "boolean"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/internal/ai-generation/process",
+      "summary": "Process AI generation task",
+      "auth": "@UseGuards(CloudTasksOidcGuard)",
+      "controller": "InternalAiGenerationController",
+      "requestDto": {
+        "talkId": "string"
+      },
+      "responseDto": {
+        "processed": "boolean"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/memory-points/nearby",
+      "summary": "Get approved memory points near location",
+      "auth": "@Public",
+      "controller": "MemoryPointController",
+      "requestDto": {
+        "latitude": "number (-90..90)",
+        "longitude": "number (-180..180)",
+        "radiusMeters": "number (100..50000, default 5000)",
+        "name?": "string",
+        "order?": "Order (default ASC)",
+        "page?": "number (default 1)",
+        "take?": "number (default 10)",
+        "q?": "string"
+      },
+      "responseDto": {
+        "data": [
+          {
+            "id": "Uuid",
+            "location": {
+              "type": "'Point'",
+              "coordinates": "[number, number]"
+            }
+          }
+        ],
+        "meta": {
+          "page": "number",
+          "take": "number",
+          "itemCount": "number",
+          "pageCount": "number",
+          "hasPreviousPage": "boolean",
+          "hasNextPage": "boolean"
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/memory-points/:id",
+      "summary": "Get a single approved memory point",
+      "auth": "@Public",
+      "controller": "MemoryPointController",
+      "requestDto": null,
+      "responseDto": {
+        "id": "Uuid",
+        "createdAt": "Date",
+        "updatedAt": "Date",
+        "location": {
+          "type": "'Point'",
+          "coordinates": "[number, number]"
+        },
+        "status": "MemoryPointStatus",
+        "userId": "Uuid",
+        "memoryPointDetails?": {
+          "id": "Uuid",
+          "createdAt": "Date",
+          "updatedAt": "Date",
+          "title?": "string",
+          "description?": "string",
+          "cloudAnchorId?": "string",
+          "videoUrl?": "string (url)",
+          "type": "MemoryPointType",
+          "sourcePhotoUrl?": "string",
+          "sourceAudioUrl?": "string"
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/creator/memory-points",
+      "summary": "Create a new memory point",
+      "auth": "@Auth([CREATOR])",
+      "controller": "CreatorMemoryPointController",
+      "requestDto": {
+        "latitude": "number (-90..90)",
+        "longitude": "number (-180..180)"
+      },
+      "responseDto": {
+        "id": "Uuid",
+        "createdAt": "Date",
+        "updatedAt": "Date",
+        "location": {
+          "type": "'Point'",
+          "coordinates": "[number, number]"
+        },
+        "status": "MemoryPointStatus",
+        "userId": "Uuid",
+        "memoryPointDetails?": "MemoryPointDetailsDto"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/creator/memory-points/:id/upload-url",
+      "summary": "Get short-lived signed URLs to upload the source photo and audio straight to storage",
+      "auth": "@Auth([CREATOR])",
+      "controller": "CreatorMemoryPointController",
+      "requestDto": {
+        "photoContentType": "PhotoFileType (jpg|jpeg|png)",
+        "audioContentType": "AudioFileType (mp3|wav|m4a)"
+      },
+      "responseDto": {
+        "photo": {
+          "uploadUrl": "string",
+          "objectPath": "string"
+        },
+        "audio": {
+          "uploadUrl": "string",
+          "objectPath": "string"
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/creator/memory-points/:id/details",
+      "summary": "Upsert memory point details",
+      "auth": "@Auth([CREATOR])",
+      "controller": "CreatorMemoryPointController",
+      "requestDto": {
+        "sourcePhotoUrl": "string (objectPath from /upload-url, under memory-points/:id/photo/)",
+        "sourceAudioUrl": "string (objectPath from /upload-url, under memory-points/:id/audio/)",
+        "title?": "string",
+        "description?": "string",
+        "cloudAnchorId?": "string",
+        "type?": "MemoryPointType"
+      },
+      "responseDto": {
+        "id": "Uuid",
+        "createdAt": "Date",
+        "updatedAt": "Date",
+        "title?": "string",
+        "description?": "string",
+        "cloudAnchorId?": "string",
+        "videoUrl?": "string (url)",
+        "type": "MemoryPointType",
+        "sourcePhotoUrl?": "string",
+        "sourceAudioUrl?": "string"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/creator/memory-points/mine",
+      "summary": "Get my memory points",
+      "auth": "@Auth([CREATOR])",
+      "controller": "CreatorMemoryPointController",
+      "requestDto": {
+        "order?": "Order (default ASC)",
+        "page?": "number (default 1, min 1)",
+        "take?": "number (default 10, min 1, max 50)",
+        "q?": "string"
+      },
+      "responseDto": {
+        "data": [
+          {
+            "id": "Uuid",
+            "location": {
+              "type": "'Point'",
+              "coordinates": "[number, number]"
+            },
+            "status": "MemoryPointStatus"
+          }
+        ],
+        "meta": {
+          "page": "number",
+          "take": "number",
+          "itemCount": "number",
+          "pageCount": "number",
+          "hasPreviousPage": "boolean",
+          "hasNextPage": "boolean"
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/creator/memory-points/:id",
+      "summary": "Get a single memory point by ID",
+      "auth": "@Auth([CREATOR])",
+      "controller": "CreatorMemoryPointController",
+      "requestDto": null,
+      "responseDto": {
+        "id": "Uuid",
+        "createdAt": "Date",
+        "updatedAt": "Date",
+        "location": {
+          "type": "'Point'",
+          "coordinates": "[number, number]"
+        },
+        "status": "MemoryPointStatus",
+        "userId": "Uuid",
+        "memoryPointDetails?": "MemoryPointDetailsDto"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/admin/memory-points",
+      "summary": "Get all memory points",
+      "auth": "@Auth([ADMIN])",
+      "controller": "AdminMemoryPointController",
+      "requestDto": {
+        "order?": "Order (default ASC)",
+        "page?": "number (default 1, min 1)",
+        "take?": "number (default 10, min 1, max 50)",
+        "q?": "string"
+      },
+      "responseDto": {
+        "data": [
+          {
+            "id": "Uuid",
+            "location": {
+              "type": "'Point'",
+              "coordinates": "[number, number]"
+            },
+            "status": "MemoryPointStatus"
+          }
+        ],
+        "meta": {
+          "page": "number",
+          "take": "number",
+          "itemCount": "number",
+          "pageCount": "number",
+          "hasPreviousPage": "boolean",
+          "hasNextPage": "boolean"
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/admin/memory-points/:id",
+      "summary": "Get a single memory point by ID",
+      "auth": "@Auth([ADMIN])",
+      "controller": "AdminMemoryPointController",
+      "requestDto": null,
+      "responseDto": {
+        "id": "Uuid",
+        "createdAt": "Date",
+        "updatedAt": "Date",
+        "location": {
+          "type": "'Point'",
+          "coordinates": "[number, number]"
+        },
+        "status": "MemoryPointStatus",
+        "userId": "Uuid",
+        "memoryPointDetails?": "MemoryPointDetailsDto"
+      }
+    },
+    {
+      "method": "PATCH",
+      "url": "/admin/memory-points/:id/status",
+      "summary": "Update memory point status",
+      "auth": "@Auth([ADMIN])",
+      "controller": "AdminMemoryPointController",
+      "requestDto": {
+        "status": "MemoryPointStatus"
+      },
+      "responseDto": "void (204 No Content)"
+    },
+    {
+      "method": "DELETE",
+      "url": "/admin/memory-points/:id",
+      "summary": "Delete a memory point",
+      "auth": "@Auth([ADMIN])",
+      "controller": "AdminMemoryPointController",
+      "requestDto": null,
+      "responseDto": "void (204 No Content)"
+    },
+    {
+      "method": "PATCH",
+      "url": "/admin/memory-points/:id/details",
+      "summary": "Update editable memory point details",
+      "auth": "@Auth([ADMIN])",
+      "controller": "AdminMemoryPointController",
+      "requestDto": {
+        "title?": "string",
+        "description?": "string",
+        "cloudAnchorId?": "string",
+        "type?": "MemoryPointType"
+      },
+      "responseDto": "void (204 No Content)"
+    },
+    {
+      "method": "POST",
+      "url": "/admin/memory-points/:id/generate-video",
+      "summary": "Send memory point to D-ID for video generation",
+      "auth": "@Auth([ADMIN])",
+      "controller": "AdminMemoryPointController",
+      "requestDto": null,
+      "responseDto": {
+        "id": "Uuid",
+        "createdAt": "Date",
+        "updatedAt": "Date",
+        "memoryPointId": "Uuid",
+        "didTalkId?": "string",
+        "status": "AiGenerationStatus",
+        "resultVideoUrl?": "string",
+        "errorMessage?": "string",
+        "userData?": "string",
+        "durationSeconds?": "number",
+        "attemptNumber": "number"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/admin/memory-points/:id/video-status",
+      "summary": "Get AI video generation status",
+      "auth": "@Auth([ADMIN])",
+      "controller": "AdminMemoryPointController",
+      "requestDto": null,
+      "responseDto": {
+        "status?": "AiGenerationStatus"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/users",
+      "summary": "Get users list",
+      "auth": "@Auth([ADMIN])",
+      "controller": "UserController",
+      "requestDto": {
+        "role?": "RoleType",
+        "order?": "Order (default ASC)",
+        "page?": "number (default 1)",
+        "take?": "number (default 10)",
+        "q?": "string"
+      },
+      "responseDto": {
+        "data": [
+          {
+            "firstName": "string",
+            "lastName": "string",
+            "email": "string",
+            "status": "AccountStatus",
+            "avatar?": "string | null"
+          }
+        ],
+        "meta": {
+          "page": "number",
+          "take": "number",
+          "itemCount": "number",
+          "pageCount": "number",
+          "hasPreviousPage": "boolean",
+          "hasNextPage": "boolean"
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/users",
+      "summary": "Create user",
+      "auth": "@Auth([ADMIN])",
+      "controller": "UserController",
+      "requestDto": {
+        "firstName": "string (minLength 3)",
+        "lastName": "string (minLength 3)",
+        "email": "string",
+        "password": "string (minLength 6)",
+        "role": "RoleType",
+        "status?": "AccountStatus"
+      },
+      "responseDto": {
+        "id": "string (uuid)"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/users/:id",
+      "summary": "Get user by id",
+      "auth": "@Auth([ADMIN])",
+      "controller": "UserController",
+      "requestDto": null,
+      "responseDto": {
+        "id": "Uuid",
+        "createdAt": "Date",
+        "updatedAt": "Date",
+        "firstName": "string",
+        "lastName": "string",
+        "email": "string",
+        "role": "RoleType",
+        "password": "string",
+        "status": "AccountStatus",
+        "lastLogin": "Date",
+        "avatar?": "string | null"
+      }
+    }
+  ]
+}

@@ -9,6 +9,7 @@ import type { AiGenerationStatusResponseDto } from '../memory-point-ai-generatio
 import type { MemoryPointAiGenerationDto } from '../memory-point-ai-generation/dtos/memory-point-ai-generation.dto.ts';
 import { MemoryPointAiGenerationService } from '../memory-point-ai-generation/services/memory-point-ai-generation.service.ts';
 import { CreateMemoryPointCommand } from './commands/create-memory-point/create-memory-point.command.ts';
+import { CreateUploadUrlCommand } from './commands/create-upload-url/create-upload-url.command.ts';
 import { DeleteMemoryPointCommand } from './commands/delete-memory-point/delete-memory-point.command.ts';
 import { UpdateMemoryPointDetailsCommand } from './commands/update-memory-point-details/update-memory-point-details.command.ts';
 import { UpdateMemoryPointStatusCommand } from './commands/update-memory-point-status/update-memory-point-status.command.ts';
@@ -16,7 +17,9 @@ import { UpsertMemoryPointDetailsCommand } from './commands/upsert-memory-point-
 import type { CreateMemoryPointDto } from './dtos/create-memory-point.dto.ts';
 import type { MemoryPointDto } from './dtos/memory-point.dto.ts';
 import type { MemoryPointDetailsDto } from './dtos/memory-point-details.dto.ts';
+import type { MemoryPointUploadUrlsDto } from './dtos/memory-point-upload-urls.dto.ts';
 import type { NearbyMemoryPointsPageOptionsDto } from './dtos/nearby-memory-points-page-options.dto.ts';
+import type { RequestUploadUrlDto } from './dtos/request-upload-url.dto.ts';
 import type { UpdateMemoryPointDetailsDto } from './dtos/update-memory-point-details.dto.ts';
 import type { UpsertMemoryPointDetailsDto } from './dtos/upsert-memory-point-details.dto.ts';
 import { GetAllMemoryPointsQuery } from './queries/get-all-memory-points/get-all-memory-points.query.ts';
@@ -112,6 +115,17 @@ export class MemoryPointService {
         upsertMemoryPointDetailsDto,
       ),
     );
+  }
+
+  createUploadUrls(
+    memoryPointId: Uuid,
+    userId: Uuid,
+    requestUploadUrlDto: RequestUploadUrlDto,
+  ): Promise<MemoryPointUploadUrlsDto> {
+    return this.commandBus.execute<
+      CreateUploadUrlCommand,
+      MemoryPointUploadUrlsDto
+    >(new CreateUploadUrlCommand(memoryPointId, userId, requestUploadUrlDto));
   }
 
   generateVideo(memoryPointId: Uuid): Promise<MemoryPointAiGenerationDto> {

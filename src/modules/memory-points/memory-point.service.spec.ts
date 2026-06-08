@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
+import { AudioFileType } from '../../constants/audio-file-type.ts';
 import { MemoryPointStatus } from '../../constants/memory-point-status.ts';
+import { PhotoFileType } from '../../constants/photo-file-type.ts';
 import { RoleType } from '../../constants/role-type.ts';
 import { CreateMemoryPointCommand } from './commands/create-memory-point/create-memory-point.command.ts';
+import { CreateUploadUrlCommand } from './commands/create-upload-url/create-upload-url.command.ts';
 import { DeleteMemoryPointCommand } from './commands/delete-memory-point/delete-memory-point.command.ts';
 import { UpdateMemoryPointDetailsCommand } from './commands/update-memory-point-details/update-memory-point-details.command.ts';
 import { UpdateMemoryPointStatusCommand } from './commands/update-memory-point-status/update-memory-point-status.command.ts';
@@ -200,6 +203,31 @@ describe('MemoryPointService', () => {
       expect(command.memoryPointId).toBe(pointId);
       expect(command.userId).toBe(userId);
       expect(command.upsertMemoryPointDetailsDto).toBe(dto);
+      expect(result).toBe(expected);
+    });
+  });
+
+  describe('createUploadUrls', () => {
+    it('dispatches CreateUploadUrlCommand and returns result', async () => {
+      const dto = {
+        photoContentType: PhotoFileType.JPG,
+        audioContentType: AudioFileType.MP3,
+      } as never;
+      const expected = {
+        photo: { uploadUrl: 'u1', objectPath: 'p1' },
+        audio: { uploadUrl: 'u2', objectPath: 'p2' },
+      };
+      commandBus.execute.mockResolvedValue(expected);
+
+      const result = await service.createUploadUrls(pointId, userId, dto);
+
+      expect(commandBus.execute).toHaveBeenCalledTimes(1);
+      const command = commandBus.execute.mock
+        .calls[0]![0] as CreateUploadUrlCommand;
+      expect(command).toBeInstanceOf(CreateUploadUrlCommand);
+      expect(command.memoryPointId).toBe(pointId);
+      expect(command.userId).toBe(userId);
+      expect(command.requestUploadUrlDto).toBe(dto);
       expect(result).toBe(expected);
     });
   });
