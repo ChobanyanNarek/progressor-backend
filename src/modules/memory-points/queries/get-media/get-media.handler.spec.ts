@@ -4,6 +4,7 @@ import { PageDto } from '../../../../common/dto/page.dto.ts';
 import type { PageOptionsDto } from '../../../../common/dto/page-options.dto.ts';
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
 import { MemoryPointType } from '../../../../constants/memory-point-type.ts';
+import type { GcsStorageService } from '../../../../shared/services/gcs-storage.service.ts';
 import { MediaItemDto } from '../../dtos/media-item.dto.ts';
 import { GetMediaHandler } from './get-media.handler.ts';
 import { GetMediaQuery } from './get-media.query.ts';
@@ -28,6 +29,7 @@ describe('GetMediaHandler', () => {
   let handler: GetMediaHandler;
   let andWhere: jest.Mock;
   let paginate: jest.Mock<() => Promise<unknown>>;
+  let getSignedReadUrl: jest.Mock<(objectPath: string) => Promise<string>>;
 
   beforeEach(() => {
     const qb: Record<string, unknown> = {};
@@ -40,12 +42,21 @@ describe('GetMediaHandler', () => {
       .mockResolvedValue([[detailsRow], meta]);
     qb.paginate = paginate;
 
-    handler = new GetMediaHandler({
-      createQueryBuilder: jest.fn().mockReturnValue(qb),
-    } as never);
+    getSignedReadUrl = jest
+      .fn<(objectPath: string) => Promise<string>>()
+      .mockImplementation((objectPath) =>
+        Promise.resolve(`https://signed.example/${objectPath}?sig=abc`),
+      );
+
+    handler = new GetMediaHandler(
+      {
+        createQueryBuilder: jest.fn().mockReturnValue(qb),
+      } as never,
+      { getSignedReadUrl } as unknown as GcsStorageService,
+    );
   });
 
-  it('projects details + point status into media items', async () => {
+  it('signs stored object paths into short-lived read URLs', async () => {
     const result = await handler.execute(
       new GetMediaQuery({ order: 'ASC' } as PageOptionsDto),
     );
@@ -56,8 +67,25 @@ describe('GetMediaHandler', () => {
     expect(item).toBeInstanceOf(MediaItemDto);
     expect(item.memoryPointId).toBe(MEMORY_POINT_ID);
     expect(item.status).toBe(MemoryPointStatus.APPROVED);
-    expect(item.photoUrl).toBe('memory-points/mp1/photo/x.jpg');
+    expect(item.photoUrl).toBe(
+      'https://signed.example/memory-points/mp1/photo/x.jpg?sig=abc',
+    );
+    expect(item.audioUrl).toBe(
+      'https://signed.example/memory-points/mp1/audio/x.mp3?sig=abc',
+    );
+    expect(getSignedReadUrl).toHaveBeenCalledWith(
+      'memory-points/mp1/photo/x.jpg',
+    );
+  });
+
+  it('leaves missing media as null without signing', async () => {
+    const result = await handler.execute(
+      new GetMediaQuery({ order: 'ASC' } as PageOptionsDto),
+    );
+
+    const item = result.data[0]!;
     expect(item.videoUrl).toBeNull();
+    expect(getSignedReadUrl).not.toHaveBeenCalledWith(null);
   });
 
   it('filters by title when q is present', async () => {
