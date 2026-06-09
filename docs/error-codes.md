@@ -25,6 +25,7 @@ This page is the contract: the list of codes the frontend must handle. The
 | `error.unique.email` | 409 | Email already in use (DB unique constraint) |
 | `error.aiGenerationFailed` | 500 | Starting the AI video generation failed for a non-recoverable reason (provider 5xx, network error, internal error); the generation row is marked `FAILED` |
 | `error.aiGenerationInvalidMedia` | 422 | The provider rejected the source media at create time (4xx — unfetchable/undecodable/invalid photo or audio); client can re-upload valid media. Row marked `FAILED` |
+| `error.duplicateMemoryPoint` | 409 | A memory point already exists within `DUPLICATE_RADIUS_METERS` of the requested coordinates; retry with `force: true` to override. Response body includes `nearestId` (UUID of nearest point) and `distanceMeters` (distance in metres). |
 
 ## Validation field codes (`error.fields.*`)
 

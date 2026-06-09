@@ -104,6 +104,16 @@ export class ApiConfigService {
     return this.getDuration('MEMORY_POINT_DRAFT_TTL');
   }
 
+  /**
+   * Radius (in metres) used to detect duplicate memory points at creation time.
+   * When a new point would land within this distance of an existing point, the
+   * create handler rejects it with a 409 unless `force: true` is supplied.
+   * Configure via DUPLICATE_RADIUS_METERS in the environment.
+   */
+  get duplicateRadiusMeters(): number {
+    return this.getNumber('DUPLICATE_RADIUS_METERS');
+  }
+
   get throttlerConfigs(): ThrottlerOptions {
     return {
       ttl: this.getDuration('THROTTLER_TTL', 'second'),

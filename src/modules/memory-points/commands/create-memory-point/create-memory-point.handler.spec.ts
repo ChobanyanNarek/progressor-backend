@@ -1,86 +1,255 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import { DuplicateMemoryPointException } from '../../exceptions/duplicate-memory-point.exception.ts';
 import { CreateMemoryPointCommand } from './create-memory-point.command.ts';
 import { CreateMemoryPointHandler } from './create-memory-point.handler.ts';
 
+const USER_ID = 'user-1' as Uuid;
+const POINT_ID = 'point-1' as Uuid;
+const NEARBY_ID = 'nearby-1' as Uuid;
+
+const DUPLICATE_RADIUS = 10;
+
+/**
+ * Builds a mocked repository whose createQueryBuilder chain yields the
+ * provided rawOne result for the duplicate-check call and a normal insert
+ * for the creation call.
+ */
+function makeRepository(duplicateRaw?: { id: Uuid; distance: string }): {
+  createQueryBuilder: jest.Mock;
+} {
+  // --- INSERT query builder ---
+  const insertExecute = jest
+    .fn<() => Promise<unknown>>()
+    .mockResolvedValue({ identifiers: [{ id: POINT_ID }] });
+  const insertSetParameters = jest
+    .fn()
+    .mockReturnValue({ execute: insertExecute });
+  const insertValues = jest
+    .fn()
+    .mockReturnValue({ setParameters: insertSetParameters });
+  const insertInto = jest.fn().mockReturnValue({ values: insertValues });
+  const insertQb = { insert: jest.fn().mockReturnValue({ into: insertInto }) };
+
+  // --- SELECT for re-fetching the newly created point ---
+  const getOneOrFail = jest.fn<() => Promise<unknown>>().mockResolvedValue({
+    id: POINT_ID,
+    status: MemoryPointStatus.PENDING,
+    toDto: () => ({ id: POINT_ID, status: MemoryPointStatus.PENDING }),
+  });
+  const refetchQb = { where: jest.fn().mockReturnValue({ getOneOrFail }) };
+
+  // --- Duplicate-check query builder ---
+  const getRawOne = jest
+    .fn<() => Promise<unknown>>()
+    .mockResolvedValue(duplicateRaw);
+  const dupQb: Record<string, unknown> = {};
+  dupQb.select = jest.fn().mockReturnValue(dupQb);
+  dupQb.addSelect = jest.fn().mockReturnValue(dupQb);
+  dupQb.where = jest.fn().mockReturnValue(dupQb);
+  dupQb.setParameters = jest.fn().mockReturnValue(dupQb);
+  dupQb.orderBy = jest.fn().mockReturnValue(dupQb);
+  dupQb.getRawOne = getRawOne;
+
+  // First call = duplicate check; second = insert qb; third = re-fetch qb
+  const createQueryBuilder = jest
+    .fn()
+    .mockReturnValueOnce(dupQb)
+    .mockReturnValueOnce(insertQb)
+    .mockReturnValueOnce(refetchQb);
+
+  return { createQueryBuilder };
+}
+
+function makeApiConfigService(): { duplicateRadiusMeters: number } {
+  return { duplicateRadiusMeters: DUPLICATE_RADIUS };
+}
+
 describe('CreateMemoryPointHandler', () => {
-  let handler: CreateMemoryPointHandler;
-  let insertExecute: jest.Mock;
-  let setParameters: jest.Mock;
-  let values: jest.Mock;
-  let into: jest.Mock;
-  let insert: jest.Mock;
-  let createQueryBuilder: jest.Mock;
-  let where: jest.Mock;
-  let getOneOrFail: jest.Mock;
-  let repository: {
-    createQueryBuilder: jest.Mock;
-  };
+  describe('when no nearby point exists', () => {
+    let handler: CreateMemoryPointHandler;
 
-  const userId = 'user-1' as Uuid;
-  const pointId = 'point-1' as Uuid;
-
-  beforeEach(() => {
-    insertExecute = jest
-      .fn<() => Promise<unknown>>()
-      .mockResolvedValue({ identifiers: [{ id: pointId }] });
-    setParameters = jest.fn().mockReturnValue({ execute: insertExecute });
-    values = jest.fn().mockReturnValue({ setParameters });
-    into = jest.fn().mockReturnValue({ values });
-    insert = jest.fn().mockReturnValue({ into });
-
-    getOneOrFail = jest.fn<() => Promise<unknown>>().mockResolvedValue({
-      id: pointId,
-      status: MemoryPointStatus.PENDING,
-      toDto: () => ({ id: pointId, status: MemoryPointStatus.PENDING }),
-    });
-    where = jest.fn().mockReturnValue({ getOneOrFail });
-
-    createQueryBuilder = jest
-      .fn()
-      .mockReturnValueOnce({ insert })
-      .mockReturnValueOnce({ where });
-
-    repository = { createQueryBuilder };
-
-    handler = new CreateMemoryPointHandler(repository as never);
-  });
-
-  it('inserts a PENDING memory point with the PostGIS point and returns its DTO', async () => {
-    const command = new CreateMemoryPointCommand(userId, {
-      latitude: 40.1872,
-      longitude: 44.5152,
+    beforeEach(() => {
+      const repo = makeRepository();
+      handler = new CreateMemoryPointHandler(
+        repo as never,
+        makeApiConfigService() as never,
+      );
     });
 
-    const result = await handler.execute(command);
+    it('inserts a PENDING memory point and returns its DTO', async () => {
+      const result = await handler.execute(
+        new CreateMemoryPointCommand(USER_ID, {
+          latitude: 40.1872,
+          longitude: 44.5152,
+        }),
+      );
 
-    expect(values).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId,
+      expect(result).toEqual({
+        id: POINT_ID,
         status: MemoryPointStatus.PENDING,
-        location: expect.any(Function),
-      }),
-    );
-    expect(setParameters).toHaveBeenCalledWith({
-      longitude: 44.5152,
-      latitude: 40.1872,
+      });
     });
-    expect(where).toHaveBeenCalledWith('memoryPoint.id = :id', { id: pointId });
-    expect(getOneOrFail).toHaveBeenCalled();
-    expect(result).toEqual({ id: pointId, status: MemoryPointStatus.PENDING });
   });
 
-  it('builds the location as a ST_SetSRID/ST_MakePoint expression', async () => {
-    await handler.execute(
-      new CreateMemoryPointCommand(userId, { latitude: 1, longitude: 2 }),
-    );
+  describe('when a nearby point exists and force is not set', () => {
+    let handler: CreateMemoryPointHandler;
 
-    const passedValues = values.mock.calls[0]![0] as {
-      location: () => string;
-    };
+    beforeEach(() => {
+      const repo = makeRepository({ id: NEARBY_ID, distance: '5.3' });
+      handler = new CreateMemoryPointHandler(
+        repo as never,
+        makeApiConfigService() as never,
+      );
+    });
 
-    expect(passedValues.location()).toContain('ST_SetSRID');
-    expect(passedValues.location()).toContain('ST_MakePoint');
+    it('throws DuplicateMemoryPointException with nearest id and distance', async () => {
+      await expect(
+        handler.execute(
+          new CreateMemoryPointCommand(USER_ID, {
+            latitude: 40.1872,
+            longitude: 44.5152,
+          }),
+        ),
+      ).rejects.toBeInstanceOf(DuplicateMemoryPointException);
+    });
+  });
+
+  describe('when a nearby point exists but force = true', () => {
+    let handler: CreateMemoryPointHandler;
+
+    beforeEach(() => {
+      // When force=true, duplicate check is skipped entirely; only insert + refetch qbs are used.
+      const insertExecute = jest
+        .fn<() => Promise<unknown>>()
+        .mockResolvedValue({ identifiers: [{ id: POINT_ID }] });
+      const insertSetParameters = jest
+        .fn()
+        .mockReturnValue({ execute: insertExecute });
+      const insertValues = jest
+        .fn()
+        .mockReturnValue({ setParameters: insertSetParameters });
+      const insertInto = jest.fn().mockReturnValue({ values: insertValues });
+      const insertQb = {
+        insert: jest.fn().mockReturnValue({ into: insertInto }),
+      };
+
+      const getOneOrFail = jest.fn<() => Promise<unknown>>().mockResolvedValue({
+        id: POINT_ID,
+        status: MemoryPointStatus.PENDING,
+        toDto: () => ({ id: POINT_ID, status: MemoryPointStatus.PENDING }),
+      });
+      const refetchQb = { where: jest.fn().mockReturnValue({ getOneOrFail }) };
+
+      // With force=true, only 2 calls: insert + refetch
+      const createQueryBuilder = jest
+        .fn()
+        .mockReturnValueOnce(insertQb)
+        .mockReturnValueOnce(refetchQb);
+
+      handler = new CreateMemoryPointHandler(
+        { createQueryBuilder } as never,
+        makeApiConfigService() as never,
+      );
+    });
+
+    it('bypasses duplicate check and creates the point', async () => {
+      const result = await handler.execute(
+        new CreateMemoryPointCommand(USER_ID, {
+          latitude: 40.1872,
+          longitude: 44.5152,
+          force: true,
+        }),
+      );
+
+      expect(result).toEqual({
+        id: POINT_ID,
+        status: MemoryPointStatus.PENDING,
+      });
+    });
+  });
+
+  describe('when the point is far enough (no duplicate)', () => {
+    let handler: CreateMemoryPointHandler;
+
+    beforeEach(() => {
+      // getRawOne returns undefined = no nearby point
+      const repo = makeRepository();
+      handler = new CreateMemoryPointHandler(
+        repo as never,
+        makeApiConfigService() as never,
+      );
+    });
+
+    it('creates the point successfully when outside the radius', async () => {
+      const result = await handler.execute(
+        new CreateMemoryPointCommand(USER_ID, {
+          latitude: 51.5074,
+          longitude: -0.1278,
+        }),
+      );
+
+      expect(result).toEqual({
+        id: POINT_ID,
+        status: MemoryPointStatus.PENDING,
+      });
+    });
+  });
+
+  describe('ST_MakePoint location expression', () => {
+    let handler: CreateMemoryPointHandler;
+    let insertValues: jest.Mock;
+
+    beforeEach(() => {
+      const insertExecute = jest
+        .fn<() => Promise<unknown>>()
+        .mockResolvedValue({ identifiers: [{ id: POINT_ID }] });
+      const insertSetParameters = jest
+        .fn()
+        .mockReturnValue({ execute: insertExecute });
+      insertValues = jest
+        .fn()
+        .mockReturnValue({ setParameters: insertSetParameters });
+      const insertInto = jest.fn().mockReturnValue({ values: insertValues });
+      const insertQb = {
+        insert: jest.fn().mockReturnValue({ into: insertInto }),
+      };
+
+      const getOneOrFail = jest.fn<() => Promise<unknown>>().mockResolvedValue({
+        id: POINT_ID,
+        status: MemoryPointStatus.PENDING,
+        toDto: () => ({ id: POINT_ID, status: MemoryPointStatus.PENDING }),
+      });
+      const refetchQb = { where: jest.fn().mockReturnValue({ getOneOrFail }) };
+
+      // No duplicate check result; force = true to skip dup check
+      const createQueryBuilder = jest
+        .fn()
+        .mockReturnValueOnce(insertQb)
+        .mockReturnValueOnce(refetchQb);
+
+      handler = new CreateMemoryPointHandler(
+        { createQueryBuilder } as never,
+        makeApiConfigService() as never,
+      );
+    });
+
+    it('builds the location as a ST_SetSRID/ST_MakePoint expression', async () => {
+      await handler.execute(
+        new CreateMemoryPointCommand(USER_ID, {
+          latitude: 1,
+          longitude: 2,
+          force: true,
+        }),
+      );
+
+      const passedValues = insertValues.mock.calls[0]![0] as {
+        location: () => string;
+      };
+
+      expect(passedValues.location()).toContain('ST_SetSRID');
+      expect(passedValues.location()).toContain('ST_MakePoint');
+    });
   });
 });

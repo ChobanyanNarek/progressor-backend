@@ -17,6 +17,8 @@ import {
 import { NearbyMemoryPointDto } from '../dtos/nearby-memory-point.dto.ts';
 import { NearbyMemoryPointsPageOptionsDto } from '../dtos/nearby-memory-points-page-options.dto.ts';
 import { PublicMemoryPointDto } from '../dtos/public-memory-point.dto.ts';
+import { SearchMemoryPointDto } from '../dtos/search-memory-point.dto.ts';
+import { SearchMemoryPointsPageOptionsDto } from '../dtos/search-memory-points-page-options.dto.ts';
 import { MemoryPointService } from '../memory-point.service.ts';
 
 @Controller('memory-points')
@@ -40,13 +42,28 @@ export class MemoryPointController {
     return this.memoryPointService.getNearbyMemoryPoints(pageOptionsDto);
   }
 
+  @Get('search')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Search approved memory points by title (no location required)',
+  })
+  @ApiPageResponse({
+    description: 'Approved memory points matching the search term',
+    type: SearchMemoryPointDto,
+  })
+  search(
+    @Query(new ValidationPipe({ transform: true }))
+    pageOptionsDto: SearchMemoryPointsPageOptionsDto,
+  ): Promise<PageDto<SearchMemoryPointDto>> {
+    return this.memoryPointService.searchMemoryPoints(pageOptionsDto);
+  }
+
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get a single approved memory point' })
   @ApiUUIDParam('id')
   @ApiResponse({
     status: HttpStatus.OK,
-    // TODO
     // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
     type: PublicMemoryPointDto,
   })

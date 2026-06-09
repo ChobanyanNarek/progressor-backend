@@ -12,6 +12,7 @@ import { CreateMemoryPointCommand } from './commands/create-memory-point/create-
 import { CreateUploadUrlCommand } from './commands/create-upload-url/create-upload-url.command.ts';
 import { DeleteMemoryPointCommand } from './commands/delete-memory-point/delete-memory-point.command.ts';
 import { UpdateMemoryPointDetailsCommand } from './commands/update-memory-point-details/update-memory-point-details.command.ts';
+import { UpdateMemoryPointLocationCommand } from './commands/update-memory-point-location/update-memory-point-location.command.ts';
 import { UpdateMemoryPointStatusCommand } from './commands/update-memory-point-status/update-memory-point-status.command.ts';
 import { UpsertMemoryPointDetailsCommand } from './commands/upsert-memory-point-details/upsert-memory-point-details.command.ts';
 import type { AdminMemoryPointListItemDto } from './dtos/admin-memory-point-list-item.dto.ts';
@@ -26,7 +27,10 @@ import type { NearbyMemoryPointDto } from './dtos/nearby-memory-point.dto.ts';
 import type { NearbyMemoryPointsPageOptionsDto } from './dtos/nearby-memory-points-page-options.dto.ts';
 import type { RecentMemoryPointDto } from './dtos/recent-memory-point.dto.ts';
 import type { RequestUploadUrlDto } from './dtos/request-upload-url.dto.ts';
+import type { SearchMemoryPointDto } from './dtos/search-memory-point.dto.ts';
+import type { SearchMemoryPointsPageOptionsDto } from './dtos/search-memory-points-page-options.dto.ts';
 import type { UpdateMemoryPointDetailsDto } from './dtos/update-memory-point-details.dto.ts';
+import type { UpdateMemoryPointLocationDto } from './dtos/update-memory-point-location.dto.ts';
 import type { UpsertMemoryPointDetailsDto } from './dtos/upsert-memory-point-details.dto.ts';
 import { GetAllMemoryPointsQuery } from './queries/get-all-memory-points/get-all-memory-points.query.ts';
 import { GetMediaQuery } from './queries/get-media/get-media.query.ts';
@@ -35,6 +39,7 @@ import { GetMemoryPointStatsQuery } from './queries/get-memory-point-stats/get-m
 import { GetMyMemoryPointsQuery } from './queries/get-my-memory-points/get-my-memory-points.query.ts';
 import { GetNearbyMemoryPointsQuery } from './queries/get-nearby-memory-points/get-nearby-memory-points.query.ts';
 import { GetRecentMemoryPointsQuery } from './queries/get-recent-memory-points/get-recent-memory-points.query.ts';
+import { SearchMemoryPointsQuery } from './queries/search-memory-points/search-memory-points.query.ts';
 
 @Injectable()
 export class MemoryPointService {
@@ -108,6 +113,32 @@ export class MemoryPointService {
       GetNearbyMemoryPointsQuery,
       PageDto<NearbyMemoryPointDto>
     >(new GetNearbyMemoryPointsQuery(pageOptionsDto));
+  }
+
+  searchMemoryPoints(
+    pageOptionsDto: SearchMemoryPointsPageOptionsDto,
+  ): Promise<PageDto<SearchMemoryPointDto>> {
+    return this.queryBus.execute<
+      SearchMemoryPointsQuery,
+      PageDto<SearchMemoryPointDto>
+    >(new SearchMemoryPointsQuery(pageOptionsDto));
+  }
+
+  updateMemoryPointLocation(
+    memoryPointId: Uuid,
+    dto: UpdateMemoryPointLocationDto,
+    shouldSkipOwnershipCheck: boolean,
+    userId?: Uuid,
+  ): Promise<void> {
+    return this.commandBus.execute<UpdateMemoryPointLocationCommand>(
+      new UpdateMemoryPointLocationCommand(
+        memoryPointId,
+        dto.latitude,
+        dto.longitude,
+        shouldSkipOwnershipCheck,
+        userId,
+      ),
+    );
   }
 
   updateStatus(memoryPointId: Uuid, status: MemoryPointStatus): Promise<void> {
