@@ -110,3 +110,6 @@ docs/handoff/
 
 # Local-only PRD (kept on disk, not tracked)
 docs/PRD.md
+
+# Local-only PRD-gap tickets (kept on disk, not tracked)
+docs/tickets/
