@@ -57,9 +57,12 @@ pnpm migration:generate src/database/migrations/<Name>
 pnpm migration:run      # Apply migrations
 pnpm migration:revert   # Revert last migration
 ```
-After generating, apply the lint cleanup noted in ADR 0001 (`import type`,
-kebab-case filename, wrap long SQL) and confirm a clean drift check
-(re-running generate reports "No changes").
+Generated migrations are **lint-exempt** (ignored by ESLint + Biome) and
+committed verbatim — do **not** reformat or wrap their SQL. The only mandatory
+post-generate change is the type-only import
+(`import type { MigrationInterface, QueryRunner }`; a value import crashes at
+`migration:run`); kebab-case filename is convention only. Confirm a clean drift
+check (re-running generate reports "No changes"). See ADR 0001.
 
 ## Architecture
 

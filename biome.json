@@ -8,7 +8,12 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["*src/**/*", "!src/metadata.ts", "!**/.vscode/**/*"]
+    "includes": [
+      "*src/**/*",
+      "!src/metadata.ts",
+      "!src/database/migrations/**",
+      "!**/.vscode/**/*"
+    ]
   },
   "formatter": {
     "enabled": true,
