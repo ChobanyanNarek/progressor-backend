@@ -109,15 +109,15 @@ alter DDL:
 
 ## Notes
 
-- **Indexes not expressible in entity metadata** (e.g. `pg_trgm` GIN
-  `gin_trgm_ops` search indexes) would otherwise make `migration:generate`
-  perpetually want to drop them, breaking the clean-drift check. Declare them on
-  the entity with the shared `UNMANAGED_INDEX` (`synchronize: false`) helper
-  (`src/database/unmanaged-index.options.ts`) so the generator neither creates
-  nor drops them; the index itself is still created by a generated migration's
-  reviewed SQL. The same applies to custom-named constraints/FKs — pin the name
-  on the entity (`@Index('UQ_…')`, `@JoinColumn({ foreignKeyConstraintName })`)
-  so the entity matches the live DB and the diff stays clean.
+- **All indexes are TypeORM-managed via entity `@Index` metadata.** Raw
+  expression indexes that entity metadata cannot express (e.g. `pg_trgm` GIN
+  `gin_trgm_ops` search indexes) are **not** maintained — an earlier
+  `synchronize: false` "unmanaged index" escape hatch was removed in favour of a
+  fully generated schema. If such an index is needed again, prefer a managed
+  alternative; only fall back to a reviewed raw-SQL migration as a deliberate,
+  documented exception. Custom-named constraints/FKs are still pinned on the
+  entity (`@Index('UQ_…')`, `@JoinColumn({ foreignKeyConstraintName })`) so the
+  entity matches the live DB and the diff stays clean.
 
 ## Links
 

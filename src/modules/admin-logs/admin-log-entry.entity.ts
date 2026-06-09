@@ -34,7 +34,7 @@ export class AdminLogEntryEntity extends AbstractEntity<AdminLogEntryDto> {
    * append-only diagnostics, so a point delete must not cascade-delete its
    * history. `Uuid`-typed + `Id` suffix satisfies the field-naming lint rule.
    */
-  @Column({ type: 'uuid', name: 'memory_point_id', nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   memoryPointId?: Uuid | null;
 
   @Column({ type: 'jsonb', nullable: true })

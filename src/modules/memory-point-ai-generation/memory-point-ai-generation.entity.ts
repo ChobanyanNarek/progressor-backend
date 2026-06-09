@@ -17,7 +17,7 @@ import { MemoryPointAiGenerationDto } from './dtos/memory-point-ai-generation.dt
 @UseDto(MemoryPointAiGenerationDto)
 export class MemoryPointAiGenerationEntity extends AbstractEntity<MemoryPointAiGenerationDto> {
   @Index('UQ_mpag_memory_point_id', { unique: true })
-  @Column({ type: 'uuid', name: 'memory_point_id' })
+  @Column({ type: 'uuid' })
   memoryPointId!: Uuid;
 
   @Index('UQ_mpag_did_talk_id', {

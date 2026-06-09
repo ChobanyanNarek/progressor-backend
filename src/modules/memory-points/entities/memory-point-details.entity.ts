@@ -9,7 +9,6 @@ import {
 
 import { AbstractEntity } from '../../../common/abstract.entity.ts';
 import { MemoryPointType } from '../../../constants/memory-point-type.ts';
-import { UNMANAGED_INDEX } from '../../../database/unmanaged-index.options.ts';
 import { UseDto } from '../../../decorators/use-dto.decorator.ts';
 import { MemoryPointDetailsDto } from '../dtos/memory-point-details.dto.ts';
 import type { IMemoryPointDetailsOptions } from '../interfaces/memory-point-details-options.interface.ts';
@@ -23,15 +22,13 @@ export class MemoryPointDetailsEntity extends AbstractEntity<
   MemoryPointDetailsDto,
   IMemoryPointDetailsOptions
 > {
-  // pg_trgm GIN index backs the admin media/points ILIKE search; raw SQL only.
-  @Index('IDX_mpd_title_trgm', UNMANAGED_INDEX)
   @Column({ type: 'varchar', nullable: true })
   title?: string;
 
   @Column({ type: 'varchar', nullable: true })
   description?: string;
 
-  @Column({ type: 'varchar', name: 'cloud_anchor_id', nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   cloudAnchorId?: string;
 
   /**
@@ -40,11 +37,11 @@ export class MemoryPointDetailsEntity extends AbstractEntity<
    * is uploaded; the creator submission flow still validates presence, so the
    * "ADMIN_REVIEWING+ has sources" invariant holds.
    */
-  @Column({ type: 'varchar', name: 'source_photo_url', nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   sourcePhotoUrl?: string | null;
 
   /** GCS object path of the uploaded audio, used as the D-ID script. */
-  @Column({ type: 'varchar', name: 'source_audio_url', nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   sourceAudioUrl?: string | null;
 
   @Column({ type: 'varchar', nullable: true })
@@ -62,7 +59,7 @@ export class MemoryPointDetailsEntity extends AbstractEntity<
   })
   type?: MemoryPointType | null;
 
-  @Column({ type: 'uuid', name: 'memory_point_id' })
+  @Column({ type: 'uuid' })
   memoryPointId!: Uuid;
 
   @OneToOne(

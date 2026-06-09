@@ -43,7 +43,7 @@ export class MemoryPointEntity extends AbstractEntity<
   })
   status!: MemoryPointStatus;
 
-  @Column({ type: 'uuid', name: 'user_id' })
+  @Column({ type: 'uuid' })
   userId!: Uuid;
 
   @OneToOne(() => MemoryPointDetailsEntity, (details) => details.memoryPoint, {
