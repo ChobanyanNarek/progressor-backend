@@ -101,3 +101,6 @@ src/database/data/validations.json
 
 # k6 load-test run artifacts (large)
 scripts/perf/results/
+
+# Claude Code session lock (transient)
+.claude/scheduled_tasks.lock
