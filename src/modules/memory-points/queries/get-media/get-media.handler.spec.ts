@@ -29,7 +29,9 @@ describe('GetMediaHandler', () => {
   let handler: GetMediaHandler;
   let andWhere: jest.Mock;
   let paginate: jest.Mock<() => Promise<unknown>>;
-  let getSignedReadUrl: jest.Mock<(objectPath: string) => Promise<string>>;
+  let getSignedReadUrlOrNull: jest.Mock<
+    (objectPath: string | null | undefined) => Promise<string | null>
+  >;
 
   beforeEach(() => {
     const qb: Record<string, unknown> = {};
@@ -42,17 +44,20 @@ describe('GetMediaHandler', () => {
       .mockResolvedValue([[detailsRow], meta]);
     qb.paginate = paginate;
 
-    getSignedReadUrl = jest
-      .fn<(objectPath: string) => Promise<string>>()
+    // Mirrors the real null-safe signer: null/empty in → null out.
+    getSignedReadUrlOrNull = jest
+      .fn<(objectPath: string | null | undefined) => Promise<string | null>>()
       .mockImplementation((objectPath) =>
-        Promise.resolve(`https://signed.example/${objectPath}?sig=abc`),
+        Promise.resolve(
+          objectPath ? `https://signed.example/${objectPath}?sig=abc` : null,
+        ),
       );
 
     handler = new GetMediaHandler(
       {
         createQueryBuilder: jest.fn().mockReturnValue(qb),
       } as never,
-      { getSignedReadUrl } as unknown as GcsStorageService,
+      { getSignedReadUrlOrNull } as unknown as GcsStorageService,
     );
   });
 
@@ -73,34 +78,18 @@ describe('GetMediaHandler', () => {
     expect(item.audioUrl).toBe(
       'https://signed.example/memory-points/mp1/audio/x.mp3?sig=abc',
     );
-    expect(getSignedReadUrl).toHaveBeenCalledWith(
+    expect(getSignedReadUrlOrNull).toHaveBeenCalledWith(
       'memory-points/mp1/photo/x.jpg',
     );
   });
 
-  it('leaves missing media as null without signing', async () => {
+  it('leaves missing media (null video path) as null', async () => {
     const result = await handler.execute(
       new GetMediaQuery({ order: 'ASC' } as PageOptionsDto),
     );
 
     const item = result.data[0]!;
     expect(item.videoUrl).toBeNull();
-    // Only photo + audio are signed; the null video path is skipped entirely.
-    expect(getSignedReadUrl).toHaveBeenCalledTimes(2);
-  });
-
-  it('degrades a failed sign to null instead of failing the page', async () => {
-    getSignedReadUrl.mockRejectedValueOnce(new Error('signBlob denied'));
-
-    const result = await handler.execute(
-      new GetMediaQuery({ order: 'ASC' } as PageOptionsDto),
-    );
-
-    const item = result.data[0]!;
-    expect(item.photoUrl).toBeNull();
-    expect(item.audioUrl).toBe(
-      'https://signed.example/memory-points/mp1/audio/x.mp3?sig=abc',
-    );
   });
 
   it('filters by title when q is present', async () => {

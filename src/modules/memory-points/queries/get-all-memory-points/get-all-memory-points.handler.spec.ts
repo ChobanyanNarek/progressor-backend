@@ -2,10 +2,29 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
 import { MemoryPointType } from '../../../../constants/memory-point-type.ts';
+import type { GcsStorageService } from '../../../../shared/services/gcs-storage.service.ts';
 import { AdminMemoryPointListItemDto } from '../../dtos/admin-memory-point-list-item.dto.ts';
 import { CreatorSummaryDto } from '../../dtos/creator-summary.dto.ts';
 import { GetAllMemoryPointsHandler } from './get-all-memory-points.handler.ts';
 import { GetAllMemoryPointsQuery } from './get-all-memory-points.query.ts';
+
+/*
+ * Mirrors GcsStorageService.getSignedReadUrlOrNull: null/empty in → null out,
+ * else a recognizable signed URL so tests can assert the path was signed.
+ */
+function makeGcs(): {
+  getSignedReadUrlOrNull: jest.Mock<
+    (path: string | null | undefined) => Promise<string | null>
+  >;
+} {
+  return {
+    getSignedReadUrlOrNull: jest
+      .fn<(path: string | null | undefined) => Promise<string | null>>()
+      .mockImplementation((path) =>
+        Promise.resolve(path ? `https://signed/${path}` : null),
+      ),
+  };
+}
 
 interface IQb {
   leftJoinAndSelect: jest.Mock;
@@ -71,9 +90,10 @@ describe('GetAllMemoryPointsHandler', () => {
     ];
     qb = makeQb(items, meta);
     createQueryBuilder = jest.fn().mockReturnValue(qb);
-    handler = new GetAllMemoryPointsHandler({
-      createQueryBuilder,
-    } as never);
+    handler = new GetAllMemoryPointsHandler(
+      { createQueryBuilder } as never,
+      makeGcs() as unknown as GcsStorageService,
+    );
   });
 
   it('builds the query joining details and maps items to AdminMemoryPointListItemDto', async () => {
@@ -103,7 +123,7 @@ describe('GetAllMemoryPointsHandler', () => {
       type: MemoryPointType.MEMORIAL,
       title: 'Admin title',
       description: 'Admin description',
-      photoUrl: 'memory-points/p1/photo/a.jpg',
+      photoUrl: 'https://signed/memory-points/p1/photo/a.jpg',
       creator: CreatorSummaryDto.create({
         id: USER_UUID,
         firstName: 'Ada',
@@ -130,9 +150,10 @@ describe('GetAllMemoryPointsHandler', () => {
       },
     ];
     const bareQb = makeQb(bareItems, meta);
-    handler = new GetAllMemoryPointsHandler({
-      createQueryBuilder: jest.fn().mockReturnValue(bareQb),
-    } as never);
+    handler = new GetAllMemoryPointsHandler(
+      { createQueryBuilder: jest.fn().mockReturnValue(bareQb) } as never,
+      makeGcs() as unknown as GcsStorageService,
+    );
 
     const result = await handler.execute(
       new GetAllMemoryPointsQuery({} as never),

@@ -63,4 +63,35 @@ describe('GcsStorageService', () => {
       });
     });
   });
+
+  describe('getSignedReadUrlOrNull', () => {
+    it('signs a present object path into a read URL', async () => {
+      const url = await service.getSignedReadUrlOrNull(
+        'memory-points/a/photo/b.jpeg',
+      );
+
+      expect(url).toBe('https://signed.example');
+      expect(getSignedUrl).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([null, undefined, ''])(
+      'returns null without signing for %p',
+      async (path) => {
+        const url = await service.getSignedReadUrlOrNull(path);
+
+        expect(url).toBeNull();
+        expect(getSignedUrl).not.toHaveBeenCalled();
+      },
+    );
+
+    it('degrades a signing failure to null instead of throwing', async () => {
+      getSignedUrl.mockRejectedValueOnce(new Error('signBlob denied'));
+
+      const url = await service.getSignedReadUrlOrNull(
+        'memory-points/a/photo/b.jpeg',
+      );
+
+      expect(url).toBeNull();
+    });
+  });
 });

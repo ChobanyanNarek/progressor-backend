@@ -5,6 +5,7 @@ import type { Repository } from 'typeorm';
 import { PageDto } from '../../../../common/dto/page.dto.ts';
 import { escapeLikePattern } from '../../../../common/utils.ts';
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import { GcsStorageService } from '../../../../shared/services/gcs-storage.service.ts';
 import { AdminMemoryPointListItemDto } from '../../dtos/admin-memory-point-list-item.dto.ts';
 import { CreatorSummaryDto } from '../../dtos/creator-summary.dto.ts';
 import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
@@ -18,6 +19,7 @@ export class GetAllMemoryPointsHandler
   constructor(
     @InjectRepository(MemoryPointEntity)
     private readonly memoryPointRepository: Repository<MemoryPointEntity>,
+    private readonly gcsService: GcsStorageService,
   ) {}
 
   async execute(
@@ -46,8 +48,16 @@ export class GetAllMemoryPointsHandler
 
     const [items, pageMetaDto] = await queryBuilder.paginate(pageOptionsDto);
 
-    return PageDto.create({
-      data: items.map((item) =>
+    /*
+     * photoUrl is a GCS object path (private bucket) — a raw path 404s in the
+     * browser, so sign each into a short-lived read URL the thumbnail can load.
+     * One signed read per row, run concurrently across the page. The page size
+     * is bounded — PageOptionsDto.take is capped at max 50 — so this fans out at
+     * most 50 concurrent signBlob calls; no extra concurrency limiter needed. If
+     * that cap is ever raised, add bounded concurrency / batching here.
+     */
+    const data = await Promise.all(
+      items.map(async (item) =>
         AdminMemoryPointListItemDto.create({
           id: item.id,
           userId: item.userId,
@@ -56,7 +66,9 @@ export class GetAllMemoryPointsHandler
           type: item.memoryPointDetails?.type ?? undefined,
           title: item.memoryPointDetails?.title,
           description: item.memoryPointDetails?.description,
-          photoUrl: item.memoryPointDetails?.sourcePhotoUrl ?? null,
+          photoUrl: await this.gcsService.getSignedReadUrlOrNull(
+            item.memoryPointDetails?.sourcePhotoUrl,
+          ),
           creator: item.user
             ? CreatorSummaryDto.create({
                 id: item.user.id,
@@ -70,7 +82,8 @@ export class GetAllMemoryPointsHandler
           updatedAt: item.updatedAt,
         }),
       ),
-      meta: pageMetaDto,
-    });
+    );
+
+    return PageDto.create({ data, meta: pageMetaDto });
   }
 }
