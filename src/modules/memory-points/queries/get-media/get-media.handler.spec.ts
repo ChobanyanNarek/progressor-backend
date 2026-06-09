@@ -85,7 +85,22 @@ describe('GetMediaHandler', () => {
 
     const item = result.data[0]!;
     expect(item.videoUrl).toBeNull();
-    expect(getSignedReadUrl).not.toHaveBeenCalledWith(null);
+    // Only photo + audio are signed; the null video path is skipped entirely.
+    expect(getSignedReadUrl).toHaveBeenCalledTimes(2);
+  });
+
+  it('degrades a failed sign to null instead of failing the page', async () => {
+    getSignedReadUrl.mockRejectedValueOnce(new Error('signBlob denied'));
+
+    const result = await handler.execute(
+      new GetMediaQuery({ order: 'ASC' } as PageOptionsDto),
+    );
+
+    const item = result.data[0]!;
+    expect(item.photoUrl).toBeNull();
+    expect(item.audioUrl).toBe(
+      'https://signed.example/memory-points/mp1/audio/x.mp3?sig=abc',
+    );
   });
 
   it('filters by title when q is present', async () => {
