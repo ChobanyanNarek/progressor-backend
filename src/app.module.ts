@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -80,7 +81,12 @@ import { SharedModule } from './shared/shared.module.ts';
       useFactory: (configService: ApiConfigService) => ({
         fallbackLanguage: configService.fallbackLanguage,
         loaderOptions: {
-          path: path.join(import.meta.dirname, 'i18n/'),
+          path: path.join(
+            // import.meta.dirname is undefined under jest's ESM runtime.
+            // eslint-disable-next-line unicorn/prefer-import-meta-properties
+            path.dirname(fileURLToPath(import.meta.url)),
+            'i18n/',
+          ),
           watch: configService.isDevelopment,
         },
       }),
