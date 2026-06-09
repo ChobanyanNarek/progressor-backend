@@ -1,5 +1,17 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
+/**
+ * Generated migration (`pnpm migration:generate`) — committed verbatim except
+ * the mandatory type-only import (ADR-0001; migrations are lint-exempt).
+ *
+ * The `DROP INDEX IDX_*_trgm` statements are intentional and NOT redundant:
+ * the `pg_trgm` GIN indexes were created by `1780942602928-add-performance-indexes`,
+ * which is already merged to develop and applied to api-dev (the app runs
+ * migrations on boot — `migrationsRun: true`). Per ADR-0001 we never rewrite an
+ * applied migration, so the only correct way to retire an already-shipped index
+ * is a new migration that drops it — this one. Going forward all indexes are
+ * TypeORM-managed via entity `@Index` metadata.
+ */
 export class AdminV1Schema1781009948806 implements MigrationInterface {
     name = 'AdminV1Schema1781009948806'
 
