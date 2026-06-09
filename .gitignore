@@ -104,3 +104,6 @@ scripts/perf/results/
 
 # Claude Code session lock (transient)
 .claude/scheduled_tasks.lock
+
+# Local-only FE handoff (kept on disk, not tracked)
+docs/handoff/
