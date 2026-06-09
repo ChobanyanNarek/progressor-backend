@@ -26,14 +26,15 @@ export class MediaItemDto extends BaseDto {
   @EnumField(() => MemoryPointStatus)
   status!: MemoryPointStatus;
 
-  /** GCS object path of the source photo; null until media is uploaded. */
+  /** Short-lived signed read URL for the source photo; null until uploaded. */
   @StringFieldOptional({ nullable: true })
   photoUrl!: string | null;
 
-  /** GCS object path of the source audio; null until media is uploaded. */
+  /** Short-lived signed read URL for the source audio; null until uploaded. */
   @StringFieldOptional({ nullable: true })
   audioUrl!: string | null;
 
+  /** Short-lived signed read URL for the result video; null until generated. */
   @StringFieldOptional({ nullable: true })
   videoUrl!: string | null;
 
