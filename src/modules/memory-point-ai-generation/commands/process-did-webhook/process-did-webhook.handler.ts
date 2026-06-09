@@ -7,7 +7,10 @@ import { firstValueFrom } from 'rxjs';
 import type { Repository } from 'typeorm';
 
 import { AiGenerationStatus } from '../../../../constants/ai-generation-status.ts';
+import { LogLevel } from '../../../../constants/log-level.ts';
+import { LogSource } from '../../../../constants/log-source.ts';
 import { GcsStorageService } from '../../../../shared/services/gcs-storage.service.ts';
+import { AdminLogsService } from '../../../admin-logs/admin-logs.service.ts';
 import { ApplyGenerationResultCommand } from '../../../memory-points/commands/apply-generation-result/apply-generation-result.command.ts';
 import { MemoryPointAiGenerationEntity } from '../../memory-point-ai-generation.entity.ts';
 import { DidService } from '../../services/did.service.ts';
@@ -24,6 +27,7 @@ export class ProcessDidWebhookHandler
     private readonly gcsService: GcsStorageService,
     private readonly commandBus: CommandBus,
     private readonly httpService: HttpService,
+    private readonly adminLogsService: AdminLogsService,
   ) {}
 
   async execute(command: ProcessDidWebhookCommand): Promise<void> {
@@ -69,6 +73,17 @@ export class ProcessDidWebhookHandler
         }),
       );
 
+      this.adminLogsService.record({
+        level: LogLevel.INFO,
+        source: LogSource.DID,
+        memoryPointId,
+        message: 'D-ID video generation completed',
+        context: {
+          generationId: generation.id,
+          didTalkId: generation.didTalkId,
+        },
+      });
+
       return;
     }
 
@@ -87,6 +102,18 @@ export class ProcessDidWebhookHandler
           errorMessage,
         }),
       );
+
+      this.adminLogsService.record({
+        level: LogLevel.ERROR,
+        source: LogSource.DID,
+        memoryPointId,
+        message: 'D-ID video generation failed',
+        context: {
+          generationId: generation.id,
+          didTalkId: generation.didTalkId,
+          talkStatus: talk.status,
+        },
+      });
     }
   }
 

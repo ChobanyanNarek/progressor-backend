@@ -43,7 +43,7 @@ export class MemoryPointEntity extends AbstractEntity<
   })
   status!: MemoryPointStatus;
 
-  @Column({ type: 'uuid', name: 'user_id' })
+  @Column({ type: 'uuid' })
   userId!: Uuid;
 
   @OneToOne(() => MemoryPointDetailsEntity, (details) => details.memoryPoint, {
@@ -52,9 +52,13 @@ export class MemoryPointEntity extends AbstractEntity<
   })
   memoryPointDetails?: Relation<MemoryPointDetailsEntity>;
 
+  /*
+   * Optional in the type: only populated when a query explicitly joins it
+   * (the `user_id` FK column is always set; the relation object is lazy).
+   */
   @ManyToOne(() => UserEntity, (user) => user.memoryPoints, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'user_id' })
-  user!: Relation<UserEntity>;
+  user?: Relation<UserEntity>;
 }

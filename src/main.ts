@@ -20,6 +20,7 @@ import { HttpExceptionFilter } from './filters/bad-request.filter.ts';
 import { QueryFailedFilter } from './filters/query-failed.filter.ts';
 import { TranslationInterceptor } from './interceptors/translation-interceptor.service.ts';
 import { loadSecrets } from './load-secrets.ts';
+import { AdminLogsService } from './modules/admin-logs/admin-logs.service.ts';
 import { setupSwagger } from './setup-swagger.ts';
 import { ApiConfigService } from './shared/services/api-config.service.ts';
 import { TranslationService } from './shared/services/translation.service.ts';
@@ -57,7 +58,7 @@ export async function bootstrap(): Promise<NestExpressApplication> {
 
   app.useGlobalFilters(
     new HttpExceptionFilter(reflector),
-    new QueryFailedFilter(reflector),
+    new QueryFailedFilter(reflector, app.get(AdminLogsService)),
   );
 
   app.useGlobalInterceptors(
@@ -92,12 +93,14 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   const port = configService.appConfig.port;
 
   /*
-   * Vite plugin binds the server in dev mode (PROD===false); in all other runtimes import.meta.env is undefined.
-   * biome-ignore lint/style/useNamingConvention: PROD is Vite's injected env key
+   * Vite plugin binds the server in dev mode (PROD===false); in all other
+   * runtimes import.meta.env is undefined.
    */
-  const viteEnv = (
-    import.meta as unknown as { env?: { DEV?: boolean; PROD?: boolean } }
-  ).env;
+  interface IViteImportMeta {
+    // biome-ignore lint/style/useNamingConvention: PROD/DEV are Vite's injected env keys
+    env?: { DEV?: boolean; PROD?: boolean };
+  }
+  const viteEnv = (import.meta as unknown as IViteImportMeta).env;
 
   if (!viteEnv?.DEV) {
     await app.listen(port, '0.0.0.0');

@@ -97,11 +97,25 @@ explains it.
 - Bad: produces lowercase members like `en_US`, violating the constant
   convention and the linter's naming rules. Rejected.
 
+## Exceptions
+
+External wire-format enums whose string values are fixed by an outside contract
+keep that contract's casing rather than the project convention (same rationale
+as the i18n locale / GeoJSON `Point` values above):
+
+- **`LogLevel`** (`info` / `warn` / `error`) and **`LogSource`**
+  (`api` / `ar` / `did` / `maps` / `auth`) use **lowercase** values because the
+  admin-frontend logs contract specifies them lowercase (conventional logging
+  casing). Enum *member names* stay `SCREAMING_SNAKE_CASE` (`INFO`, `API`); only
+  the serialized wire values are lowercase. Code: `src/constants/log-level.ts`,
+  `src/constants/log-source.ts`.
+
 ## Links
 
 - Project guide: [`CLAUDE.md`](../../CLAUDE.md) (Naming)
 - Code: `src/constants/role-type.ts`, `src/constants/account-status.ts`,
   `src/constants/language-code.ts`, `src/modules/memory-points/dtos/geo-point.dto.ts`,
+  `src/constants/log-level.ts`, `src/constants/log-source.ts`,
   `src/i18n/` (locale directory names).
 - Related: [ADR-0004](./0004-module-interfaces-in-dedicated-folder.md)
   (external-wire-format naming exception),

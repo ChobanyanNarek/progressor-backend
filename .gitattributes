@@ -1,0 +1,4 @@
+# Collapse test files in GitHub PR diffs by default (still expandable).
+# Also excludes them from repo language stats.
+*.spec.ts linguist-generated=true
+*.e2e-spec.ts linguist-generated=true

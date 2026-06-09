@@ -1,6 +1,6 @@
 import { applyDecorators } from '@nestjs/common';
 import type { ApiPropertyOptions } from '@nestjs/swagger';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -12,6 +12,7 @@ import {
   IsEnum,
   IsInt,
   IsNumber,
+  IsObject,
   IsPositive,
   IsString,
   IsUrl,
@@ -29,6 +30,7 @@ import { supportedLanguageCount } from '../constants/language-code.ts';
 import type { Constructor } from '../types.ts';
 import { ApiEnumProperty, ApiUUIDProperty } from './property.decorators.ts';
 import {
+  DefaultValue,
   LinkCleanupTransform,
   PhoneNumberSerializer,
   ToArray,
@@ -125,6 +127,7 @@ export function NumberFieldOptional(
   return applyDecorators(
     IsUndefinable(),
     NumberField({ required: false, ...options }),
+    ...(options.default === undefined ? [] : [DefaultValue(options.default)]),
   );
 }
 
@@ -190,6 +193,7 @@ export function StringFieldOptional(
   return applyDecorators(
     IsUndefinable(),
     StringField({ required: false, ...options }),
+    ...(options.default === undefined ? [] : [DefaultValue(options.default)]),
   );
 }
 
@@ -260,6 +264,34 @@ export function BooleanFieldOptional(
     IsUndefinable(),
     BooleanField({ required: false, ...options }),
   );
+}
+
+/**
+ * Optional free-form object (`jsonb` / structured payload) field. ADR-0012:
+ * keeps object fields on the custom field-decorator surface instead of raw
+ * class-validator. `@Expose` is required so the value survives
+ * `excludeExtraneousValues` in `BaseDto.create`.
+ */
+export function ObjectFieldOptional(
+  options: Omit<ApiPropertyOptions, 'type' | 'required'> & IFieldOptions = {},
+): PropertyDecorator {
+  const decorators = [
+    Expose({ groups: options.groups, name: options.name }),
+    IsObject(),
+    IsUndefinable(),
+  ];
+
+  if (options.swagger !== false) {
+    decorators.push(
+      ApiPropertyOptional({
+        type: Object,
+        additionalProperties: true,
+        ...(options as ApiPropertyOptions),
+      }),
+    );
+  }
+
+  return applyDecorators(...decorators);
 }
 
 export function TranslationsField(
@@ -418,6 +450,7 @@ export function EnumFieldOptional<TEnum extends object>(
   return applyDecorators(
     IsUndefinable(),
     EnumField(getEnum, { required: false, ...options }),
+    ...(options.default === undefined ? [] : [DefaultValue(options.default)]),
   );
 }
 

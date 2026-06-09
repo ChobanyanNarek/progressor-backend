@@ -200,5 +200,210 @@ describe('Memory points (e2e)', () => {
         ),
       ).toBe(true);
     });
+
+    it('admin list row carries userId, type, photoUrl and an embedded creator (§2.1/§2.2)', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/admin/memory-points?take=50')
+        .set(authHeader(adminToken))
+        .expect(200);
+
+      const completed = response.body.data.find(
+        (point: { id: string }) => point.id === completedPointId,
+      ) as {
+        userId: string;
+        type: string;
+        photoUrl: string | null;
+        creator: {
+          id: string;
+          firstName: string;
+          lastName: string;
+          email: string;
+        };
+      };
+
+      expect(completed).toBeDefined();
+      expect(typeof completed.userId).toBe('string');
+      expect(completed.type).toBe('MEMORIAL');
+      // photoUrl is the source thumbnail (string) or null when no media uploaded.
+      expect(
+        completed.photoUrl === null || typeof completed.photoUrl === 'string',
+      ).toBe(true);
+      expect(completed.creator).toBeDefined();
+      expect(typeof completed.creator.id).toBe('string');
+      expect(typeof completed.creator.firstName).toBe('string');
+      expect(typeof completed.creator.lastName).toBe('string');
+      expect(typeof completed.creator.email).toBe('string');
+    });
+
+    it('admin GET-by-id embeds the creator and userId matches creator.id (§2.2)', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/admin/memory-points/${completedPointId}`)
+        .set(authHeader(adminToken))
+        .expect(200);
+
+      const body = response.body as {
+        userId: string;
+        creator: {
+          id: string;
+          firstName: string;
+          lastName: string;
+          email: string;
+        };
+      };
+
+      expect(body.creator).toBeDefined();
+      expect(typeof body.creator.id).toBe('string');
+      expect(typeof body.creator.firstName).toBe('string');
+      expect(typeof body.creator.lastName).toBe('string');
+      expect(typeof body.creator.email).toBe('string');
+      expect(body.userId).toBe(body.creator.id);
+    });
+  });
+
+  describe('GET /admin/logs', () => {
+    it('rejects a non-admin (creator) token with 403 (RolesGuard)', async () => {
+      await request(app.getHttpServer())
+        .get('/admin/logs')
+        .set(authHeader(creatorToken))
+        .expect(403);
+    });
+
+    it('returns the standard envelope with per-source counts for admin', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/admin/logs')
+        .set(authHeader(adminToken))
+        .expect(200);
+
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.meta).toBeDefined();
+
+      const counts = response.body.meta.counts as Record<string, number>;
+      expect(counts).toBeDefined();
+
+      // Empty table -> every source count is present and zero.
+      for (const key of ['api', 'ar', 'did', 'maps', 'auth']) {
+        expect(counts[key]).toBe(0);
+      }
+    });
+
+    it('passes through level/source/take filters and keeps the envelope', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/admin/logs?level=error&source=api&take=5')
+        .set(authHeader(adminToken))
+        .expect(200);
+
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.meta).toBeDefined();
+      expect(response.body.meta.counts).toBeDefined();
+    });
+
+    it('rejects an inverted time window (from > to) with 422', async () => {
+      await request(app.getHttpServer())
+        .get(
+          '/admin/logs?from=2026-02-01T00:00:00.000Z&to=2026-01-01T00:00:00.000Z',
+        )
+        .set(authHeader(adminToken))
+        .expect(HttpStatus.UNPROCESSABLE_ENTITY);
+    });
+  });
+
+  describe('GET /admin/jobs', () => {
+    it('rejects a non-admin (creator) token with 403 (RolesGuard)', async () => {
+      await request(app.getHttpServer())
+        .get('/admin/jobs')
+        .set(authHeader(creatorToken))
+        .expect(403);
+    });
+
+    it('returns an empty data array with a meta envelope for admin', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/admin/jobs')
+        .set(authHeader(adminToken))
+        .expect(200);
+
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.data).toHaveLength(0);
+      expect(response.body.meta).toBeDefined();
+    });
+
+    it('accepts the status filter and keeps the envelope', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/admin/jobs?status=PENDING')
+        .set(authHeader(adminToken))
+        .expect(200);
+
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.meta).toBeDefined();
+    });
+  });
+
+  describe('admin upserts details on a fresh PENDING point (§2.3 regression)', () => {
+    let pendingPointId: string;
+
+    it('creator creates a fresh PENDING point with no details row', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/creator/memory-points')
+        .set(authHeader(creatorToken))
+        .send({ latitude: 42.2, longitude: 43.3 })
+        .expect(201);
+
+      expect(response.body.status).toBe('PENDING');
+      pendingPointId = (response.body as { id: string }).id;
+    });
+
+    it('admin PATCH details on the detail-less point returns 204 (was 404)', async () => {
+      await request(app.getHttpServer())
+        .patch(`/admin/memory-points/${pendingPointId}/details`)
+        .set(authHeader(adminToken))
+        .send({
+          title: 'Admin set title',
+          description: 'desc',
+          type: 'GRAVE',
+        })
+        .expect(204);
+    });
+
+    it('persists the admin-set details and leaves the point PENDING', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/admin/memory-points/${pendingPointId}`)
+        .set(authHeader(adminToken))
+        .expect(200);
+
+      const body = response.body as {
+        status: string;
+        memoryPointDetails: { title: string; type: string };
+      };
+
+      // Admin GET-by-id returns PENDING points (no status restriction).
+      expect(body.status).toBe('PENDING');
+      expect(body.memoryPointDetails.title).toBe('Admin set title');
+      expect(body.memoryPointDetails.type).toBe('GRAVE');
+    });
+
+    it('second PATCH (description only) is 204 and preserves the title', async () => {
+      await request(app.getHttpServer())
+        .patch(`/admin/memory-points/${pendingPointId}/details`)
+        .set(authHeader(adminToken))
+        .send({ description: 'updated' })
+        .expect(204);
+
+      const response = await request(app.getHttpServer())
+        .get(`/admin/memory-points/${pendingPointId}`)
+        .set(authHeader(adminToken))
+        .expect(200);
+
+      const body = response.body as {
+        memoryPointDetails: {
+          title: string;
+          description: string;
+          type: string;
+        };
+      };
+
+      // Update branch only touches provided fields; title/type are preserved.
+      expect(body.memoryPointDetails.title).toBe('Admin set title');
+      expect(body.memoryPointDetails.type).toBe('GRAVE');
+      expect(body.memoryPointDetails.description).toBe('updated');
+    });
   });
 });

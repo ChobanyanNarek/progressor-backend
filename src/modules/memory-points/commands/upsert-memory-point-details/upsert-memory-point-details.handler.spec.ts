@@ -188,7 +188,7 @@ describe('UpsertMemoryPointDetailsHandler', () => {
     expect(upsert).not.toHaveBeenCalled();
   });
 
-  it('throws MemoryPointNotEditableException when the point is not PENDING', async () => {
+  it('throws MemoryPointNotEditableException once the point is under review (ADMIN_REVIEWING)', async () => {
     getOne.mockResolvedValue({
       id: pointId,
       userId,
@@ -197,5 +197,22 @@ describe('UpsertMemoryPointDetailsHandler', () => {
 
     await expect(run()).rejects.toBeInstanceOf(MemoryPointNotEditableException);
     expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('lets a REJECTED point be re-submitted and re-enters ADMIN_REVIEWING', async () => {
+    getOne.mockResolvedValue({
+      id: pointId,
+      userId,
+      status: MemoryPointStatus.REJECTED,
+    });
+
+    const result = await run();
+
+    expect(upsert).toHaveBeenCalledWith(expect.anything(), ['memoryPointId']);
+    expect(updateStatus).toHaveBeenCalledWith(
+      { id: pointId },
+      { status: MemoryPointStatus.ADMIN_REVIEWING },
+    );
+    expect(result).toBe(detailsDto);
   });
 });

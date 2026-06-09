@@ -176,8 +176,8 @@
   },
   "lint-staged": {
     "src/**/*.ts": [
-      "npx @biomejs/biome lint --write",
-      "eslint --fix",
+      "npx @biomejs/biome lint --write --no-errors-on-unmatched",
+      "eslint --fix --no-warn-ignored",
       "git add"
     ]
   },

@@ -1,7 +1,7 @@
 import { AbstractDto } from '../../../common/dto/abstract.dto.ts';
 import { MemoryPointType } from '../../../constants/memory-point-type.ts';
 import {
-  EnumField,
+  EnumFieldOptional,
   StringFieldOptional,
   URLFieldOptional,
 } from '../../../decorators/field.decorators.ts';
@@ -21,14 +21,14 @@ export class MemoryPointDetailsDto extends AbstractDto {
   @URLFieldOptional()
   videoUrl?: string;
 
-  @EnumField(() => MemoryPointType)
-  type!: MemoryPointType;
+  @EnumFieldOptional(() => MemoryPointType, { nullable: true })
+  type?: MemoryPointType | null;
 
-  @StringFieldOptional()
-  sourcePhotoUrl?: string;
+  @StringFieldOptional({ nullable: true })
+  sourcePhotoUrl?: string | null;
 
-  @StringFieldOptional()
-  sourceAudioUrl?: string;
+  @StringFieldOptional({ nullable: true })
+  sourceAudioUrl?: string | null;
 
   constructor(
     entity: MemoryPointDetailsEntity,

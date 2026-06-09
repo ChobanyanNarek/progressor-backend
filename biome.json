@@ -8,7 +8,12 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["*src/**/*", "!src/metadata.ts", "!**/.vscode/**/*"]
+    "includes": [
+      "*src/**/*",
+      "!src/metadata.ts",
+      "!src/database/migrations/**",
+      "!**/.vscode/**/*"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -51,6 +56,7 @@
       "correctness": {
         "noConstAssign": "error",
         "noConstantCondition": "error",
+        "useHookAtTopLevel": "off",
         "noEmptyCharacterClassInRegex": "error",
         "noEmptyPattern": "error",
         "noGlobalObjectCalls": "error",

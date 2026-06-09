@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
 import { PageDto } from '../../../../common/dto/page.dto.ts';
+import { escapeLikePattern } from '../../../../common/utils.ts';
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
 import { NearbyMemoryPointDto } from '../../dtos/nearby-memory-point.dto.ts';
 import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
@@ -44,7 +45,7 @@ export class GetNearbyMemoryPointsHandler
 
     if (q) {
       queryBuilder.andWhere('details.title ILIKE :q', {
-        q: `%${q}%`,
+        q: `%${escapeLikePattern(q)}%`,
       });
     }
 

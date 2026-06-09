@@ -45,6 +45,19 @@ export function parseCorsOrigins(raw: string | undefined): string[] {
     .filter((origin) => origin.length > 0);
 }
 
+/**
+ * Escape `LIKE` / `ILIKE` wildcards (`%`, `_`) and the escape char (`\`) in
+ * user-supplied search text so they match literally instead of acting as
+ * patterns. Postgres uses backslash as the default `LIKE` escape character, so
+ * `\` must be escaped first (the regex handles all three at once). Wrap the
+ * result in `%…%` for a contains-search.
+ *
+ * @example `'100%_off'` -> `'100\\%\\_off'`
+ */
+export function escapeLikePattern(value: string): string {
+  return value.replaceAll(/[%\\_]/g, String.raw`\$&`);
+}
+
 export function getVariableName(getVar: () => unknown): string {
   const m = /\(\)=>(.*)/.exec(
     getVar.toString().replaceAll(/(\r\n|\n|\r|\s)/gm, ''),

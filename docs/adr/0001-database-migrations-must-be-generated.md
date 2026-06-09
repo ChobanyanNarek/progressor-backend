@@ -61,15 +61,25 @@ Workflow:
 
 ### Required post-generation cleanup
 
-TypeORM's raw output is not lint-clean in this repo (ESM + strict lint). After
-generating, apply only formatting/syntax fixes — never rename constraints or
-alter DDL:
+Generated migration files are **exempt from ESLint and Biome** — they are
+ignored in `eslint.config.mjs` and `biome.json`, so code-style rules (line
+length, formatting, indentation) **must not** touch generated SQL. The raw
+`migration:generate` output is committed essentially as-is, with exactly **one
+mandatory** change:
 
-- Use a type-only import: `import type { MigrationInterface, QueryRunner }`
-  (`verbatimModuleSyntax` is on; a value import crashes at runtime).
-- Rename the file to kebab-case (`unicorn/filename-case`), e.g.
-  `1780490447264-add-ai-assets.ts`. The class name stays PascalCase.
-- Wrap long SQL strings across lines to satisfy `max-len` (150).
+- Convert the import to a **type-only import**:
+  `import type { MigrationInterface, QueryRunner } from 'typeorm'`. This is not
+  cosmetic — with `verbatimModuleSyntax` + ESM + `transpileOnly`, a value import
+  of these type-only exports throws
+  `SyntaxError: does not provide an export named 'MigrationInterface'` at
+  `migration:run`. (A post-generate codemod could automate even this.)
+
+By convention also rename the file to kebab-case
+(`<timestamp>-kebab-name.ts`; the class name stays PascalCase) to match the
+other migrations — consistency only, no longer lint-enforced. Do **not**
+reformat SQL, wrap lines, change indentation, rename constraints, or alter DDL.
+Migrations are still **type-checked** (`pnpm typecheck`) and executed via
+ts-node, which catches a genuinely broken file.
 
 ### Positive Consequences
 
@@ -84,7 +94,8 @@ alter DDL:
 
 - Generating requires a DB in the correct pre-migration state (run existing
   migrations first; do not pre-create the new table).
-- Every generated file needs the small lint cleanup above.
+- Every generated file needs the one mandatory `import type` change above
+  (migrations are otherwise lint-exempt and committed verbatim).
 
 ## Pros and Cons of the Options
 
@@ -106,6 +117,18 @@ alter DDL:
 - Good: zero migration ceremony in development.
 - Bad: no review, no rollback, unsafe for production; silent destructive schema
   changes. Categorically rejected.
+
+## Notes
+
+- **All indexes are TypeORM-managed via entity `@Index` metadata.** Raw
+  expression indexes that entity metadata cannot express (e.g. `pg_trgm` GIN
+  `gin_trgm_ops` search indexes) are **not** maintained — an earlier
+  `synchronize: false` "unmanaged index" escape hatch was removed in favour of a
+  fully generated schema. If such an index is needed again, prefer a managed
+  alternative; only fall back to a reviewed raw-SQL migration as a deliberate,
+  documented exception. Custom-named constraints/FKs are still pinned on the
+  entity (`@Index('UQ_…')`, `@JoinColumn({ foreignKeyConstraintName })`) so the
+  entity matches the live DB and the diff stays clean.
 
 ## Links
 

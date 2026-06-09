@@ -6,15 +6,15 @@ import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-
 import { GetMemoryPointHandler } from './get-memory-point.handler.ts';
 import { GetMemoryPointQuery } from './get-memory-point.query.ts';
 
-interface Qb {
+interface IQb {
   leftJoinAndSelect: jest.Mock;
   where: jest.Mock;
   andWhere: jest.Mock;
   getOne: jest.Mock;
 }
 
-function makeQb(getOneResult: unknown): Qb {
-  const qb: Partial<Qb> = {};
+function makeQb(getOneResult: unknown): IQb {
+  const qb: Partial<IQb> = {};
 
   for (const m of ['leftJoinAndSelect', 'where', 'andWhere'] as const) {
     qb[m] = jest.fn().mockReturnValue(qb);
@@ -22,12 +22,12 @@ function makeQb(getOneResult: unknown): Qb {
 
   qb.getOne = jest.fn<() => Promise<unknown>>().mockResolvedValue(getOneResult);
 
-  return qb as Qb;
+  return qb as IQb;
 }
 
 describe('GetMemoryPointHandler', () => {
   let handler: GetMemoryPointHandler;
-  let qb: Qb;
+  let qb: IQb;
   let createQueryBuilder: jest.Mock;
 
   const memoryPointId = 'point-1' as Uuid;
@@ -43,6 +43,18 @@ describe('GetMemoryPointHandler', () => {
   function entity(): { toDto: jest.Mock } {
     return { toDto: jest.fn().mockReturnValue(dto) };
   }
+
+  it('joins the details and user relations so the creator embed can be built', async () => {
+    setup(entity());
+
+    await handler.execute(new GetMemoryPointQuery(memoryPointId));
+
+    expect(qb.leftJoinAndSelect).toHaveBeenCalledWith(
+      'mp.memoryPointDetails',
+      'details',
+    );
+    expect(qb.leftJoinAndSelect).toHaveBeenCalledWith('mp.user', 'user');
+  });
 
   it('public read (no userId) adds the APPROVED status filter', async () => {
     setup(entity());

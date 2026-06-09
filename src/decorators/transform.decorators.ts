@@ -39,6 +39,20 @@ export function Trim(trimNewLines: boolean): PropertyDecorator {
   });
 }
 
+/**
+ * @description apply a runtime default when the incoming value is undefined.
+ * The field decorators' `default` option only feeds Swagger docs; this makes it
+ * effective during validation/transform (e.g. pagination `page`/`take`/`order`
+ * default in when the query param is omitted).
+ * @returns PropertyDecorator
+ * @constructor
+ */
+export function DefaultValue(defaultValue: unknown): PropertyDecorator {
+  return Transform((params): unknown => params.value ?? defaultValue, {
+    toClassOnly: true,
+  });
+}
+
 export function ToBoolean(): PropertyDecorator {
   return Transform(
     (params): unknown => {

@@ -28,32 +28,44 @@ export class MemoryPointDetailsEntity extends AbstractEntity<
   @Column({ type: 'varchar', nullable: true })
   description?: string;
 
-  @Column({ type: 'varchar', name: 'cloud_anchor_id', nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   cloudAnchorId?: string;
 
-  /** GCS object path of the uploaded face image, used as D-ID source. */
-  @Column({ type: 'varchar', name: 'source_photo_url' })
-  sourcePhotoUrl!: string;
+  /**
+   * GCS object path of the uploaded face image, used as D-ID source.
+   * Nullable so an admin can create a metadata-only details row before media
+   * is uploaded; the creator submission flow still validates presence, so the
+   * "ADMIN_REVIEWING+ has sources" invariant holds.
+   */
+  @Column({ type: 'varchar', nullable: true })
+  sourcePhotoUrl?: string | null;
 
   /** GCS object path of the uploaded audio, used as the D-ID script. */
-  @Column({ type: 'varchar', name: 'source_audio_url' })
-  sourceAudioUrl!: string;
+  @Column({ type: 'varchar', nullable: true })
+  sourceAudioUrl?: string | null;
 
   @Column({ type: 'varchar', nullable: true })
   videoUrl?: string;
 
+  /**
+   * Nullable so an admin can create a metadata-only details row (title /
+   * description) on a fresh point before the type is chosen; the creator
+   * submission flow always supplies it.
+   */
   @Column({
     type: 'enum',
     enum: MemoryPointType,
+    nullable: true,
   })
-  type!: MemoryPointType;
+  type?: MemoryPointType | null;
 
-  @Column({ type: 'uuid', name: 'memory_point_id' })
+  @Column({ type: 'uuid' })
   memoryPointId!: Uuid;
 
   @OneToOne(
     () => MemoryPointEntity,
     (memoryPoint) => memoryPoint.memoryPointDetails,
+    { onDelete: 'CASCADE' },
   )
   @JoinColumn({ name: 'memory_point_id' })
   memoryPoint!: Relation<MemoryPointEntity>;

@@ -24,6 +24,7 @@ export class GetMemoryPointHandler
     const queryBuilder = this.memoryPointRepository
       .createQueryBuilder('mp')
       .leftJoinAndSelect('mp.memoryPointDetails', 'details')
+      .leftJoinAndSelect('mp.user', 'user')
       .where('mp.id = :id', { id: memoryPointId });
 
     if (userId) {

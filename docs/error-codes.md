@@ -32,8 +32,8 @@ the failing class-validator rule. The set is open-ended — treat an unknown
 `error.fields.*` code as a generic "invalid field" fallback. Common ones:
 
 `is_not_empty`, `is_string`, `is_email`, `is_enum`, `is_int`, `is_number`,
-`is_boolean`, `is_uuid`, `is_date`, `is_url`, `min_length`, `max_length`,
-`min`, `max`, `matches`.
+`is_boolean`, `is_uuid`, `is_date`, `is_date_after_or_equal`, `is_url`,
+`min_length`, `max_length`, `min`, `max`, `matches`.
 
 Shape — the frontend walks each entry's `constraints` values and looks each code
 up in its own locale files:

@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
 import { PageDto } from '../../../../common/dto/page.dto.ts';
+import { escapeLikePattern } from '../../../../common/utils.ts';
 import { MediaItemDto } from '../../dtos/media-item.dto.ts';
 import { MemoryPointDetailsEntity } from '../../entities/memory-point-details.entity.ts';
 import { GetMediaQuery } from './get-media.query.ts';
@@ -26,7 +27,7 @@ export class GetMediaHandler
 
     if (pageOptionsDto.q) {
       queryBuilder.andWhere('details.title ILIKE :q', {
-        q: `%${pageOptionsDto.q}%`,
+        q: `%${escapeLikePattern(pageOptionsDto.q)}%`,
       });
     }
 
@@ -37,10 +38,10 @@ export class GetMediaHandler
         id: details.id,
         memoryPointId: details.memoryPointId,
         title: details.title ?? null,
-        type: details.type,
+        type: details.type ?? null,
         status: details.memoryPoint.status,
-        photoUrl: details.sourcePhotoUrl,
-        audioUrl: details.sourceAudioUrl,
+        photoUrl: details.sourcePhotoUrl ?? null,
+        audioUrl: details.sourceAudioUrl ?? null,
         videoUrl: details.videoUrl ?? null,
         createdAt: details.createdAt,
       }),
