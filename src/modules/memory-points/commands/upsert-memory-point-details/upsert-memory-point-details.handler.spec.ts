@@ -17,6 +17,7 @@ const noopTransactionalDecorator = (): void => {
 };
 
 jest.unstable_mockModule('typeorm-transactional', () => ({
+  // biome-ignore lint/style/useNamingConvention: mocks the PascalCase @Transactional decorator
   Transactional: () => noopTransactionalDecorator,
 }));
 
@@ -38,7 +39,8 @@ describe('UpsertMemoryPointDetailsHandler', () => {
 
   let exists: jest.Mock<(path: string) => Promise<boolean>>;
 
-  let memoryPointRepo: { createQueryBuilder: jest.Mock };
+  let updateStatus: jest.Mock<() => Promise<unknown>>;
+  let memoryPointRepo: { createQueryBuilder: jest.Mock; update: jest.Mock };
   let detailsRepo: {
     create: jest.Mock;
     upsert: jest.Mock;
@@ -88,7 +90,13 @@ describe('UpsertMemoryPointDetailsHandler', () => {
       .fn<(path: string) => Promise<boolean>>()
       .mockResolvedValue(true);
 
-    memoryPointRepo = { createQueryBuilder: memoryPointCreateQueryBuilder };
+    updateStatus = jest
+      .fn<() => Promise<unknown>>()
+      .mockResolvedValue({ affected: 1 });
+    memoryPointRepo = {
+      createQueryBuilder: memoryPointCreateQueryBuilder,
+      update: updateStatus,
+    };
     detailsRepo = {
       create,
       upsert,
@@ -106,7 +114,7 @@ describe('UpsertMemoryPointDetailsHandler', () => {
   const run = (): ReturnType<typeof handler.execute> =>
     handler.execute(new UpsertMemoryPointDetailsCommand(pointId, userId, dto));
 
-  it('upserts details, keeps the point PENDING and returns the details DTO', async () => {
+  it('upserts details, moves the point to ADMIN_REVIEWING and returns the details DTO', async () => {
     const result = await run();
 
     expect(memoryPointWhere).toHaveBeenCalledWith('memoryPoint.id = :id', {
@@ -126,6 +134,10 @@ describe('UpsertMemoryPointDetailsHandler', () => {
     expect(exists).toHaveBeenCalledWith(dto.sourcePhotoUrl);
     expect(exists).toHaveBeenCalledWith(dto.sourceAudioUrl);
     expect(upsert).toHaveBeenCalledWith(expect.anything(), ['memoryPointId']);
+    expect(updateStatus).toHaveBeenCalledWith(
+      { id: pointId },
+      { status: MemoryPointStatus.ADMIN_REVIEWING },
+    );
     expect(detailsWhere).toHaveBeenCalledWith(
       'details.memoryPointId = :memoryPointId',
       { memoryPointId: pointId },

@@ -85,7 +85,7 @@ export class CreatorMemoryPointController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary:
-      'Upsert memory point details and AI-generation input; the point stays PENDING until an admin picks it up',
+      'Upsert memory point details and AI-generation input; completing the point moves it from PENDING to ADMIN_REVIEWING for admin pickup',
   })
   @ApiUUIDParam('id')
   @ApiResponse({

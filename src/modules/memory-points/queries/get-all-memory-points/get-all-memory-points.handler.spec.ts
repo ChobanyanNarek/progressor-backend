@@ -7,6 +7,7 @@ import { GetAllMemoryPointsQuery } from './get-all-memory-points.query.ts';
 
 interface IQb {
   leftJoinAndSelect: jest.Mock;
+  where: jest.Mock;
   andWhere: jest.Mock;
   orderBy: jest.Mock;
   paginate: jest.Mock;
@@ -23,6 +24,7 @@ const updatedAt = new Date('2024-01-02T00:00:00.000Z');
 function makeQb(items: unknown, meta: unknown): IQb {
   const qb: Partial<IQb> = {};
   qb.leftJoinAndSelect = jest.fn().mockReturnValue(qb);
+  qb.where = jest.fn().mockReturnValue(qb);
   qb.andWhere = jest.fn().mockReturnValue(qb);
   qb.orderBy = jest.fn().mockReturnValue(qb);
   qb.paginate = jest
@@ -72,6 +74,9 @@ describe('GetAllMemoryPointsHandler', () => {
       'mp.memoryPointDetails',
       'details',
     );
+    expect(qb.where).toHaveBeenCalledWith('mp.status != :draftStatus', {
+      draftStatus: MemoryPointStatus.PENDING,
+    });
     expect(qb.paginate).toHaveBeenCalledWith(pageOptionsDto);
     expect(result.meta).toBe(meta);
     expect(result.data[0]).toBeInstanceOf(AdminMemoryPointListItemDto);

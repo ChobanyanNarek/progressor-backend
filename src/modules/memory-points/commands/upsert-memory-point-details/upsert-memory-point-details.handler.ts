@@ -91,6 +91,17 @@ export class UpsertMemoryPointDetailsHandler
       ['memoryPointId'],
     );
 
+    /*
+     * Submitting details completes the point: it now has a face photo, audio
+     * and metadata, so it leaves the creator-only PENDING draft state and enters
+     * the admin review queue. Admin-facing lists surface points from
+     * ADMIN_REVIEWING onward; PENDING stays creator-private.
+     */
+    await this.memoryPointRepository.update(
+      { id: memoryPointId },
+      { status: MemoryPointStatus.ADMIN_REVIEWING },
+    );
+
     const details = await this.memoryPointDetailsRepository
       .createQueryBuilder('details')
       .where('details.memoryPointId = :memoryPointId', { memoryPointId })
