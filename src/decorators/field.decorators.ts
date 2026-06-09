@@ -29,6 +29,7 @@ import { supportedLanguageCount } from '../constants/language-code.ts';
 import type { Constructor } from '../types.ts';
 import { ApiEnumProperty, ApiUUIDProperty } from './property.decorators.ts';
 import {
+  DefaultValue,
   LinkCleanupTransform,
   PhoneNumberSerializer,
   ToArray,
@@ -125,6 +126,7 @@ export function NumberFieldOptional(
   return applyDecorators(
     IsUndefinable(),
     NumberField({ required: false, ...options }),
+    ...(options.default === undefined ? [] : [DefaultValue(options.default)]),
   );
 }
 
@@ -190,6 +192,7 @@ export function StringFieldOptional(
   return applyDecorators(
     IsUndefinable(),
     StringField({ required: false, ...options }),
+    ...(options.default === undefined ? [] : [DefaultValue(options.default)]),
   );
 }
 
@@ -418,6 +421,7 @@ export function EnumFieldOptional<TEnum extends object>(
   return applyDecorators(
     IsUndefinable(),
     EnumField(getEnum, { required: false, ...options }),
+    ...(options.default === undefined ? [] : [DefaultValue(options.default)]),
   );
 }
 

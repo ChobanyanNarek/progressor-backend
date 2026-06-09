@@ -3,8 +3,8 @@ import { NumberFieldOptional } from '../../../decorators/field.decorators.ts';
 
 export class RecentPointsOptionsDto extends BaseDto {
   @NumberFieldOptional({
-    minimum: 1,
-    maximum: 20,
+    min: 1,
+    max: 20,
     default: 5,
     int: true,
   })

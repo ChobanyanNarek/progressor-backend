@@ -13,15 +13,15 @@ export class PageOptionsDto extends BaseDto {
   readonly order!: Order;
 
   @NumberFieldOptional({
-    minimum: 1,
+    min: 1,
     default: 1,
     int: true,
   })
   readonly page!: number;
 
   @NumberFieldOptional({
-    minimum: 1,
-    maximum: 50,
+    min: 1,
+    max: 50,
     default: 10,
     int: true,
   })
