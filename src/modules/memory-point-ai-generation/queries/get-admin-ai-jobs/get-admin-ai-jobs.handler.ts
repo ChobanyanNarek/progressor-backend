@@ -26,7 +26,9 @@ export class GetAdminAiJobsHandler
      */
     const queryBuilder = this.aiGenerationRepository
       .createQueryBuilder('gen')
-      .leftJoinAndSelect('gen.memoryPoint', 'memoryPoint')
+      // Every generation references an existing point (FK NOT NULL) -> inner.
+      .innerJoinAndSelect('gen.memoryPoint', 'memoryPoint')
+      // Details/title may be absent -> left.
       .leftJoinAndSelect('memoryPoint.memoryPointDetails', 'details')
       .orderBy('gen.createdAt', pageOptionsDto.order);
 

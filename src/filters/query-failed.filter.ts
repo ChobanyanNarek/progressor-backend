@@ -34,8 +34,15 @@ export class QueryFailedFilter implements ExceptionFilter<QueryFailedError> {
       ? HttpStatus.CONFLICT
       : HttpStatus.INTERNAL_SERVER_ERROR;
 
+    /*
+     * 5xx is a genuine server failure (error); a 4xx such as a unique-constraint
+     * 409 is a client conflict, not a server fault, so it logs at warn.
+     */
     this.adminLogsService?.record({
-      level: LogLevel.ERROR,
+      level:
+        status >= HttpStatus.INTERNAL_SERVER_ERROR
+          ? LogLevel.ERROR
+          : LogLevel.WARN,
       source: LogSource.API,
       message: 'Database query failed',
       context: { constraint: exception.constraint, status },

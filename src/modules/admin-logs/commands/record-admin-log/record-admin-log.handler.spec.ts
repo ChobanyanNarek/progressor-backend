@@ -1,42 +1,40 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  jest,
-} from '@jest/globals';
-import { Logger } from '@nestjs/common';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { LogLevel } from '../../../../constants/log-level.ts';
 import { LogSource } from '../../../../constants/log-source.ts';
 import type { IAdminLogInput } from '../../interfaces/i-admin-log-input.ts';
 import { RecordAdminLogCommand } from './record-admin-log.command.ts';
-import { RecordAdminLogHandler } from './record-admin-log.handler.ts';
 
-// Swallows the suppressed Logger.error output; returns void.
-const noop = (): void => undefined;
+/*
+ * The handler is decorated with @Transactional({ REQUIRES_NEW }), which needs an
+ * initialized transactional context absent in a plain unit test. Stub the module
+ * to a no-op decorator (and a Propagation placeholder) so the handler logic runs
+ * directly.
+ */
+const noopTransactionalDecorator = (): void => {
+  // no-op @Transactional decorator stub for unit tests
+};
+
+jest.unstable_mockModule('typeorm-transactional', () => ({
+  // biome-ignore lint/style/useNamingConvention: mocks the PascalCase typeorm-transactional exports
+  Transactional: () => noopTransactionalDecorator,
+  // biome-ignore lint/style/useNamingConvention: mocks the PascalCase typeorm-transactional exports
+  Propagation: {},
+}));
+
+const handlerModule = await import('./record-admin-log.handler.ts');
 
 describe('RecordAdminLogHandler', () => {
   const memoryPointId = '11111111-1111-4111-8111-111111111111' as Uuid;
 
   let insert: jest.Mock<(values: unknown) => Promise<void>>;
   let repo: { insert: typeof insert };
-  let loggerError: jest.SpiedFunction<typeof Logger.prototype.error>;
-  let handler: RecordAdminLogHandler;
+  let handler: InstanceType<typeof handlerModule.RecordAdminLogHandler>;
 
   beforeEach(() => {
     insert = jest.fn<(values: unknown) => Promise<void>>().mockResolvedValue();
     repo = { insert };
-    loggerError = jest
-      .spyOn(Logger.prototype, 'error')
-      .mockImplementation(noop);
-
-    handler = new RecordAdminLogHandler(repo as never);
-  });
-
-  afterEach(() => {
-    loggerError.mockRestore();
+    handler = new handlerModule.RecordAdminLogHandler(repo as never);
   });
 
   const input: IAdminLogInput = {
@@ -104,16 +102,10 @@ describe('RecordAdminLogHandler', () => {
     expect(values.context).toBeNull();
   });
 
-  it('does NOT reject when the insert fails, and logs the failure', async () => {
+  it('propagates the rejection when the insert fails (the service swallows it)', async () => {
     const failure = new Error('db down');
     insert.mockRejectedValue(failure);
 
-    // The handler swallows persistence errors so the command never rejects.
-    await expect(run()).resolves.toBeUndefined();
-
-    expect(loggerError).toHaveBeenCalledTimes(1);
-    const [message, stack] = loggerError.mock.calls[0]!;
-    expect(message).toBe('Failed to persist admin log entry');
-    expect(stack).toBe(failure.stack);
+    await expect(run()).rejects.toBe(failure);
   });
 });

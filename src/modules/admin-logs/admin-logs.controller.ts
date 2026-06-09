@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Query,
-  ValidationPipe,
-} from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import type { PageDto } from '../../common/dto/page.dto.ts';
@@ -29,8 +22,7 @@ export class AdminLogsController {
   })
   @ApiPageResponse({ description: 'Admin log entries', type: AdminLogEntryDto })
   getLogs(
-    @Query(new ValidationPipe({ transform: true }))
-    optionsDto: AdminLogOptionsDto,
+    @Query() optionsDto: AdminLogOptionsDto,
   ): Promise<PageDto<AdminLogEntryDto>> {
     return this.adminLogsService.getLogs(optionsDto);
   }

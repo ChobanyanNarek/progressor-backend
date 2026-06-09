@@ -44,14 +44,14 @@ describe('QueryFailedFilter', () => {
     } as unknown as ArgumentsHost;
   });
 
-  it('records an api/error admin log on a DB query failure', () => {
+  it('records a UQ conflict (409) at warn — a client conflict, not a server fault', () => {
     const record = jest.fn();
     const filter = new QueryFailedFilter(reflector, { record } as never);
 
     filter.catch(makeException('UQ_users_email'), host);
 
     expect(record).toHaveBeenCalledWith({
-      level: LogLevel.ERROR,
+      level: LogLevel.WARN,
       source: LogSource.API,
       message: 'Database query failed',
       context: {
@@ -61,7 +61,7 @@ describe('QueryFailedFilter', () => {
     });
   });
 
-  it('passes a non-UQ constraint and 500 status to the admin log', () => {
+  it('records a non-UQ 500 failure at error', () => {
     const record = jest.fn();
     const filter = new QueryFailedFilter(reflector, { record } as never);
 

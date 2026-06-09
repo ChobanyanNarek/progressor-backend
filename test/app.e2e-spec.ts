@@ -296,6 +296,15 @@ describe('Memory points (e2e)', () => {
       expect(response.body.meta).toBeDefined();
       expect(response.body.meta.counts).toBeDefined();
     });
+
+    it('rejects an inverted time window (from > to) with 422', async () => {
+      await request(app.getHttpServer())
+        .get(
+          '/admin/logs?from=2026-02-01T00:00:00.000Z&to=2026-01-01T00:00:00.000Z',
+        )
+        .set(authHeader(adminToken))
+        .expect(HttpStatus.UNPROCESSABLE_ENTITY);
+    });
   });
 
   describe('GET /admin/jobs', () => {

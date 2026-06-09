@@ -6,6 +6,7 @@ import { GetAdminAiJobsHandler } from './get-admin-ai-jobs.handler.ts';
 import { GetAdminAiJobsQuery } from './get-admin-ai-jobs.query.ts';
 
 interface IQb {
+  innerJoinAndSelect: jest.Mock;
   leftJoinAndSelect: jest.Mock;
   andWhere: jest.Mock;
   orderBy: jest.Mock;
@@ -19,6 +20,7 @@ const updatedAt = new Date('2024-01-02T00:00:00.000Z');
 
 function makeQb(items: unknown, meta: unknown): IQb {
   const qb: Partial<IQb> = {};
+  qb.innerJoinAndSelect = jest.fn().mockReturnValue(qb);
   qb.leftJoinAndSelect = jest.fn().mockReturnValue(qb);
   qb.andWhere = jest.fn().mockReturnValue(qb);
   qb.orderBy = jest.fn().mockReturnValue(qb);
@@ -68,13 +70,11 @@ describe('GetAdminAiJobsHandler', () => {
     );
 
     expect(createQueryBuilder).toHaveBeenCalledWith('gen');
-    expect(qb.leftJoinAndSelect).toHaveBeenNthCalledWith(
-      1,
+    expect(qb.innerJoinAndSelect).toHaveBeenCalledWith(
       'gen.memoryPoint',
       'memoryPoint',
     );
-    expect(qb.leftJoinAndSelect).toHaveBeenNthCalledWith(
-      2,
+    expect(qb.leftJoinAndSelect).toHaveBeenCalledWith(
       'memoryPoint.memoryPointDetails',
       'details',
     );

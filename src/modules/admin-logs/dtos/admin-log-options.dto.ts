@@ -6,6 +6,7 @@ import {
   EnumFieldOptional,
   UUIDFieldOptional,
 } from '../../../decorators/field.decorators.ts';
+import { IsDateAfterOrEqual } from '../../../decorators/validator.decorators.ts';
 
 export class AdminLogOptionsDto extends PageOptionsDto {
   @EnumFieldOptional(() => LogLevel)
@@ -22,7 +23,8 @@ export class AdminLogOptionsDto extends PageOptionsDto {
   @DateFieldOptional()
   readonly from?: Date;
 
-  // Inclusive upper bound of the timestamp window (ISO 8601).
+  // Inclusive upper bound of the timestamp window (ISO 8601); must be >= from.
   @DateFieldOptional()
+  @IsDateAfterOrEqual('from')
   readonly to?: Date;
 }

@@ -1,8 +1,8 @@
-import { Logger } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity.js';
+import { Propagation, Transactional } from 'typeorm-transactional';
 
 import { AdminLogEntryEntity } from '../../admin-log-entry.entity.ts';
 import { RecordAdminLogCommand } from './record-admin-log.command.ts';
@@ -11,13 +11,19 @@ import { RecordAdminLogCommand } from './record-admin-log.command.ts';
 export class RecordAdminLogHandler
   implements ICommandHandler<RecordAdminLogCommand, void>
 {
-  private readonly logger = new Logger(RecordAdminLogHandler.name);
-
   constructor(
     @InjectRepository(AdminLogEntryEntity)
     private readonly logRepository: Repository<AdminLogEntryEntity>,
   ) {}
 
+  /*
+   * REQUIRES_NEW: the log write runs in its own transaction, so a diagnostic
+   * entry (e.g. a `did` failure or a DB-error log) still commits even when the
+   * caller's surrounding transaction rolls back. Persistence errors are NOT
+   * swallowed here — they propagate so the fire-and-forget `.catch` in
+   * AdminLogsService.record() reports them without affecting the caller.
+   */
+  @Transactional({ propagation: Propagation.REQUIRES_NEW })
   async execute(command: RecordAdminLogCommand): Promise<void> {
     const { input } = command;
 
@@ -38,17 +44,6 @@ export class RecordAdminLogHandler
         null) as QueryDeepPartialEntity<AdminLogEntryEntity>['context'],
     };
 
-    try {
-      await this.logRepository.insert(values);
-    } catch (error: unknown) {
-      /*
-       * Logging must never break the caller's flow: swallow any persistence
-       * failure and report it through the Nest logger.
-       */
-      this.logger.error(
-        'Failed to persist admin log entry',
-        error instanceof Error ? error.stack : String(error),
-      );
-    }
+    await this.logRepository.insert(values);
   }
 }

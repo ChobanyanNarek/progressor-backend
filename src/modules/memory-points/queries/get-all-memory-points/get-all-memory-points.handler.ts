@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
 import { PageDto } from '../../../../common/dto/page.dto.ts';
+import { escapeLikePattern } from '../../../../common/utils.ts';
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
 import { AdminMemoryPointListItemDto } from '../../dtos/admin-memory-point-list-item.dto.ts';
 import { CreatorSummaryDto } from '../../dtos/creator-summary.dto.ts';
@@ -39,7 +40,7 @@ export class GetAllMemoryPointsHandler
 
     if (pageOptionsDto.q) {
       queryBuilder.andWhere('details.title ILIKE :name', {
-        name: `%${pageOptionsDto.q}%`,
+        name: `%${escapeLikePattern(pageOptionsDto.q)}%`,
       });
     }
 

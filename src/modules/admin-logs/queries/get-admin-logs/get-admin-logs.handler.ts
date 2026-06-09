@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository, SelectQueryBuilder } from 'typeorm';
 
 import { PageDto } from '../../../../common/dto/page.dto.ts';
+import { escapeLikePattern } from '../../../../common/utils.ts';
 import { LogSource } from '../../../../constants/log-source.ts';
 import { AdminLogEntryEntity } from '../../admin-log-entry.entity.ts';
 import { AdminLogEntryDto } from '../../dtos/admin-log-entry.dto.ts';
@@ -103,7 +104,7 @@ export class GetAdminLogsHandler
 
     if (optionsDto.q) {
       queryBuilder.andWhere('log.message ILIKE :q', {
-        q: `%${optionsDto.q}%`,
+        q: `%${escapeLikePattern(optionsDto.q)}%`,
       });
     }
   }

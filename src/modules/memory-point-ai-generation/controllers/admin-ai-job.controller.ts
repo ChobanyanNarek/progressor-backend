@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Query,
-  ValidationPipe,
-} from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import type { PageDto } from '../../../common/dto/page.dto.ts';
@@ -32,8 +25,7 @@ export class AdminAiJobController {
     type: AdminAiJobDto,
   })
   getAll(
-    @Query(new ValidationPipe({ transform: true }))
-    pageOptionsDto: AdminAiJobOptionsDto,
+    @Query() pageOptionsDto: AdminAiJobOptionsDto,
   ): Promise<PageDto<AdminAiJobDto>> {
     return this.aiGenerationService.getAdminJobs(pageOptionsDto);
   }

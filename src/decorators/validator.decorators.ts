@@ -57,6 +57,46 @@ export function IsTmpKey(
   };
 }
 
+/**
+ * Validates that this Date property is greater than or equal to a sibling Date
+ * property (e.g. `to >= from`). Passes when either side is absent — combine with
+ * the field's own optionality to only enforce the bound when both are supplied.
+ */
+export function IsDateAfterOrEqual(
+  siblingProperty: string,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator {
+  return (object, propertyName) => {
+    registerDecorator({
+      propertyName: propertyName as string,
+      name: 'isDateAfterOrEqual',
+      target: object.constructor,
+      constraints: [siblingProperty],
+      options: validationOptions,
+      validator: {
+        validate(value: unknown, args): boolean {
+          if (!args) {
+            return true;
+          }
+
+          const sibling = (args.object as Record<string, unknown>)[
+            args.constraints[0] as string
+          ];
+
+          if (!(value instanceof Date) || !(sibling instanceof Date)) {
+            return true;
+          }
+
+          return value.getTime() >= sibling.getTime();
+        },
+        defaultMessage(): string {
+          return 'error.fields.is_date_after_or_equal';
+        },
+      },
+    });
+  };
+}
+
 export function IsUndefinable(options?: ValidationOptions): PropertyDecorator {
   return ValidateIf((_obj, value) => value !== undefined, options);
 }
