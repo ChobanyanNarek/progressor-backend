@@ -1,12 +1,12 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AdminV1Schema1781004249850 implements MigrationInterface {
-  name = 'AdminV1Schema1781004249850';
+export class AdminV1Schema1781009228285 implements MigrationInterface {
+  name = 'AdminV1Schema1781009228285';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP INDEX "public"."IDX_mpd_title_trgm"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_users_email_trgm"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_users_first_name_trgm"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_users_email_trgm"`);
     await queryRunner.query(
       `CREATE TYPE "public"."admin_log_entries_level_enum" AS ENUM('info', 'warn', 'error')`,
     );
@@ -73,10 +73,10 @@ export class AdminV1Schema1781004249850 implements MigrationInterface {
       `DROP TYPE "public"."admin_log_entries_level_enum"`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_users_first_name_trgm" ON "users" ("first_name") `,
+      `CREATE INDEX "IDX_users_email_trgm" ON "users" ("email") `,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_users_email_trgm" ON "users" ("email") `,
+      `CREATE INDEX "IDX_users_first_name_trgm" ON "users" ("first_name") `,
     );
     await queryRunner.query(
       `CREATE INDEX "IDX_mpd_title_trgm" ON "memory_point_details" ("title") `,
