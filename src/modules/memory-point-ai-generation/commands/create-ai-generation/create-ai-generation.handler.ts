@@ -1,3 +1,4 @@
+import { HttpException } from '@nestjs/common';
 import {
   CommandBus,
   CommandHandler,
@@ -5,6 +6,7 @@ import {
   QueryBus,
 } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
+import { isAxiosError } from 'axios';
 import type { Repository } from 'typeorm';
 
 import { AiGenerationStatus } from '../../../../constants/ai-generation-status.ts';
@@ -16,8 +18,11 @@ import {
   type MemoryPointGenerationSource,
 } from '../../../memory-points/queries/get-memory-point-generation-source/get-memory-point-generation-source.query.ts';
 import type { MemoryPointAiGenerationDto } from '../../dtos/memory-point-ai-generation.dto.ts';
+import { AiGenerationFailedException } from '../../exceptions/ai-generation-failed.exception.ts';
+import { AiGenerationInvalidMediaException } from '../../exceptions/ai-generation-invalid-media.exception.ts';
 import { MemoryPointAiGenerationEntity } from '../../memory-point-ai-generation.entity.ts';
 import { DidService } from '../../services/did.service.ts';
+import { toDidCompatibleImage } from '../../utils/did-source-image.ts';
 import { CreateAiGenerationCommand } from './create-ai-generation.command.ts';
 
 @CommandHandler(CreateAiGenerationCommand)
@@ -66,13 +71,35 @@ export class CreateAiGenerationHandler
     await this.aiGenerationRepository.save(generation);
 
     try {
-      const [signedPhotoUrl, signedAudioUrl] = await Promise.all([
-        this.gcsService.getSignedReadUrl(sourcePhotoUrl),
+      const [photoBuffer, signedAudioUrl] = await Promise.all([
+        this.gcsService.download(sourcePhotoUrl),
         this.gcsService.getSignedReadUrl(sourceAudioUrl),
       ]);
 
+      /*
+       * D-ID can't decode HEIC (the iPhone default the client uploads under a
+       * `.jpg` path), which fails the talk at create time. Normalize to a
+       * supported format and hand D-ID the bytes directly, so the source no
+       * longer depends on whatever format the client happened to upload.
+       *
+       * Follow-up (asset-lifecycle): every (re)attempt uploads a fresh D-ID
+       * /images asset and nothing deletes the previous one — we currently lean
+       * on D-ID's own retention. Track provider-asset cleanup (delete prior
+       * image on retry, or confirm/rely on TTL) in a follow-up ticket.
+       */
+      const {
+        buffer: didImage,
+        contentType,
+        extension,
+      } = await toDidCompatibleImage(photoBuffer);
+      const sourceUrl = await this.didService.uploadImage(
+        didImage,
+        `${generation.id}.${extension}`,
+        contentType,
+      );
+
       const talk = await this.didService.createTalk({
-        sourceUrl: signedPhotoUrl,
+        sourceUrl,
         audioUrl: signedAudioUrl,
         userData: generation.id,
       });
@@ -102,7 +129,23 @@ export class CreateAiGenerationHandler
         }),
       );
 
-      throw error;
+      throw this.toGenerationException(error, errorMessage);
     }
+  }
+
+  /**
+   * A 4xx from D-ID at create time means the media we sent was rejected
+   * (unfetchable / undecodable / invalid source) — a client-recoverable problem,
+   * so surface a 422 with a distinct code. Everything else (D-ID 5xx, network
+   * errors, our own failures) is not client-recoverable and stays a 500.
+   */
+  private toGenerationException(error: unknown, detail: string): HttpException {
+    const status = isAxiosError(error) ? error.response?.status : undefined;
+
+    if (status !== undefined && status >= 400 && status < 500) {
+      return new AiGenerationInvalidMediaException(detail);
+    }
+
+    return new AiGenerationFailedException(detail);
   }
 }

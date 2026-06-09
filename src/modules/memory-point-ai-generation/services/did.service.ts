@@ -1,4 +1,4 @@
-/** biome-ignore-all lint/style/useNamingConvention: <explanation> */
+/** biome-ignore-all lint/style/useNamingConvention: D-ID wire keys are snake_case and must match exactly */
 import { HttpService } from '@nestjs/axios';
 import { Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
@@ -57,6 +57,30 @@ export class DidService {
     );
 
     return this.normalize(response.data);
+  }
+
+  /**
+   * Upload an image to D-ID and return the hosted URL to use as a talk
+   * `source_url`. Used for source images we normalize server-side (e.g. HEIC →
+   * JPEG): we send the bytes rather than a GCS link so D-ID gets a format it can
+   * decode. The caller passes the `contentType` that matches the bytes — D-ID
+   * validates by content, so it must not be mislabeled.
+   */
+  async uploadImage(
+    image: Buffer,
+    filename: string,
+    contentType: string,
+  ): Promise<string> {
+    const form = new FormData();
+    form.append('image', new Blob([image], { type: contentType }), filename);
+
+    const response = await firstValueFrom(
+      this.httpService.post<{ url: string }>(`${this.baseUrl}/images`, form, {
+        headers: this.headers,
+      }),
+    );
+
+    return response.data.url;
   }
 
   async getTalk(talkId: string): Promise<IDidTalk> {

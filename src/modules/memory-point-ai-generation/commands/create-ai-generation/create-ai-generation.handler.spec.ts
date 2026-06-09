@@ -1,9 +1,12 @@
+/** biome-ignore-all lint/style/useNamingConvention: test fixture interface name */
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { AiGenerationStatus } from '../../../../constants/ai-generation-status.ts';
 import { ApplyGenerationResultCommand } from '../../../memory-points/commands/apply-generation-result/apply-generation-result.command.ts';
 import { MarkGenerationStartedCommand } from '../../../memory-points/commands/mark-generation-started/mark-generation-started.command.ts';
 import { GetMemoryPointGenerationSourceQuery } from '../../../memory-points/queries/get-memory-point-generation-source/get-memory-point-generation-source.query.ts';
+import { AiGenerationFailedException } from '../../exceptions/ai-generation-failed.exception.ts';
+import { AiGenerationInvalidMediaException } from '../../exceptions/ai-generation-invalid-media.exception.ts';
 import { CreateAiGenerationCommand } from './create-ai-generation.command.ts';
 import { CreateAiGenerationHandler } from './create-ai-generation.handler.ts';
 
@@ -25,8 +28,10 @@ describe('CreateAiGenerationHandler', () => {
   const generationId = 'gen-1' as Uuid;
   const sourcePhotoUrl = 'gs://bucket/photo.jpg';
   const sourceAudioUrl = 'gs://bucket/audio.mp3';
-  const signedPhotoUrl = 'https://signed/photo';
   const signedAudioUrl = 'https://signed/audio';
+  const didSourceUrl = 's3://d-id-images/source.jpg';
+  // Minimal JPEG magic bytes — passes through normalization untouched.
+  const photoBuffer = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
 
   let handler: CreateAiGenerationHandler;
   let getOne: jest.Mock<() => Promise<FakeGeneration | null>>;
@@ -38,9 +43,19 @@ describe('CreateAiGenerationHandler', () => {
     save: typeof save;
   };
   let createTalk: jest.Mock<() => Promise<{ id: string; status: string }>>;
-  let didService: { createTalk: typeof createTalk };
+  let uploadImage: jest.Mock<
+    (image: Buffer, filename: string) => Promise<string>
+  >;
+  let didService: {
+    createTalk: typeof createTalk;
+    uploadImage: typeof uploadImage;
+  };
   let getSignedReadUrl: jest.Mock<(p: string) => Promise<string>>;
-  let gcsService: { getSignedReadUrl: typeof getSignedReadUrl };
+  let download: jest.Mock<(p: string) => Promise<Buffer>>;
+  let gcsService: {
+    getSignedReadUrl: typeof getSignedReadUrl;
+    download: typeof download;
+  };
   let commandBusExecute: jest.Mock<(command: unknown) => Promise<unknown>>;
   let queryBusExecute: jest.Mock<(query: unknown) => Promise<unknown>>;
 
@@ -77,14 +92,18 @@ describe('CreateAiGenerationHandler', () => {
     createTalk = jest
       .fn<() => Promise<{ id: string; status: string }>>()
       .mockResolvedValue({ id: 'talk-123', status: 'created' });
-    didService = { createTalk };
+    uploadImage = jest
+      .fn<(image: Buffer, filename: string) => Promise<string>>()
+      .mockResolvedValue(didSourceUrl);
+    didService = { createTalk, uploadImage };
 
     getSignedReadUrl = jest
       .fn<(p: string) => Promise<string>>()
-      .mockImplementation((p) =>
-        Promise.resolve(p === sourcePhotoUrl ? signedPhotoUrl : signedAudioUrl),
-      );
-    gcsService = { getSignedReadUrl };
+      .mockResolvedValue(signedAudioUrl);
+    download = jest
+      .fn<(p: string) => Promise<Buffer>>()
+      .mockResolvedValue(photoBuffer);
+    gcsService = { getSignedReadUrl, download };
 
     commandBusExecute = jest.fn<(command: unknown) => Promise<unknown>>();
     queryBusExecute = jest
@@ -167,7 +186,7 @@ describe('CreateAiGenerationHandler', () => {
     expect(existing.attemptNumber).toBe(1);
   });
 
-  it('happy path: signs both urls, creates talk, sets PROCESSING, dispatches MarkGenerationStarted, returns dto', async () => {
+  it('happy path: downloads + uploads source image to D-ID, signs audio, creates talk, sets PROCESSING, returns dto', async () => {
     const created = makeGeneration();
     getOne.mockResolvedValue(null);
     create.mockReturnValue(created);
@@ -176,11 +195,20 @@ describe('CreateAiGenerationHandler', () => {
       new CreateAiGenerationCommand(memoryPointId),
     );
 
-    expect(getSignedReadUrl).toHaveBeenCalledWith(sourcePhotoUrl);
+    // photo is downloaded (for normalization), audio is signed
+    expect(download).toHaveBeenCalledWith(sourcePhotoUrl);
     expect(getSignedReadUrl).toHaveBeenCalledWith(sourceAudioUrl);
+    expect(getSignedReadUrl).not.toHaveBeenCalledWith(sourcePhotoUrl);
+
+    // normalized image bytes uploaded to D-ID with matching name + content type
+    expect(uploadImage).toHaveBeenCalledWith(
+      photoBuffer,
+      `${generationId}.jpg`,
+      'image/jpeg',
+    );
 
     expect(createTalk).toHaveBeenCalledWith({
-      sourceUrl: signedPhotoUrl,
+      sourceUrl: didSourceUrl,
       audioUrl: signedAudioUrl,
       userData: generationId,
     });
@@ -201,7 +229,7 @@ describe('CreateAiGenerationHandler', () => {
     expect(result).toEqual({ id: generationId, memoryPointId });
   });
 
-  it('failure path: createTalk throws -> sets FAILED + errorMessage, dispatches ApplyGenerationResultCommand FAILED, re-throws', async () => {
+  it('failure path: createTalk throws -> FAILED + provider errorMessage, dispatches ApplyGenerationResult, throws coded exception', async () => {
     const created = makeGeneration();
     getOne.mockResolvedValue(null);
     create.mockReturnValue(created);
@@ -209,11 +237,13 @@ describe('CreateAiGenerationHandler', () => {
     const boom = new Error('did exploded');
     createTalk.mockRejectedValue(boom);
 
+    // surfaces a stable error code (ADR-0015), not the raw provider error
     await expect(
       handler.execute(new CreateAiGenerationCommand(memoryPointId)),
-    ).rejects.toThrow('did exploded');
+    ).rejects.toBeInstanceOf(AiGenerationFailedException);
 
     expect(created.status).toBe(AiGenerationStatus.FAILED);
+    // the raw provider detail is still persisted for diagnostics
     expect(created.errorMessage).toBe('did exploded');
 
     const applyCmd = commandBusExecute.mock.calls.find(
@@ -234,19 +264,56 @@ describe('CreateAiGenerationHandler', () => {
     ).toBe(false);
   });
 
-  it('failure path: a gcs signing error is also handled and re-thrown', async () => {
+  it('failure path: a gcs download error is also handled and surfaced as a coded exception', async () => {
     const created = makeGeneration();
     getOne.mockResolvedValue(null);
     create.mockReturnValue(created);
 
-    getSignedReadUrl.mockRejectedValue(new Error('gcs down'));
+    download.mockRejectedValue(new Error('gcs down'));
 
     await expect(
       handler.execute(new CreateAiGenerationCommand(memoryPointId)),
-    ).rejects.toThrow('gcs down');
+    ).rejects.toBeInstanceOf(AiGenerationFailedException);
 
     expect(created.status).toBe(AiGenerationStatus.FAILED);
     expect(created.errorMessage).toBe('gcs down');
+    expect(uploadImage).not.toHaveBeenCalled();
     expect(createTalk).not.toHaveBeenCalled();
+  });
+
+  it('failure path: a D-ID 4xx (bad media) maps to a 422 AiGenerationInvalidMediaException', async () => {
+    const created = makeGeneration();
+    getOne.mockResolvedValue(null);
+    create.mockReturnValue(created);
+
+    // axios error shape: isAxiosError flag + 4xx response status
+    const badMedia = Object.assign(new Error('cannot validate audio file'), {
+      isAxiosError: true,
+      response: { status: 400 },
+    });
+    createTalk.mockRejectedValue(badMedia);
+
+    await expect(
+      handler.execute(new CreateAiGenerationCommand(memoryPointId)),
+    ).rejects.toBeInstanceOf(AiGenerationInvalidMediaException);
+
+    expect(created.status).toBe(AiGenerationStatus.FAILED);
+    expect(created.errorMessage).toBe('cannot validate audio file');
+  });
+
+  it('failure path: a D-ID 5xx stays a 500 AiGenerationFailedException', async () => {
+    const created = makeGeneration();
+    getOne.mockResolvedValue(null);
+    create.mockReturnValue(created);
+
+    const serverError = Object.assign(new Error('did 503'), {
+      isAxiosError: true,
+      response: { status: 503 },
+    });
+    createTalk.mockRejectedValue(serverError);
+
+    await expect(
+      handler.execute(new CreateAiGenerationCommand(memoryPointId)),
+    ).rejects.toBeInstanceOf(AiGenerationFailedException);
   });
 });

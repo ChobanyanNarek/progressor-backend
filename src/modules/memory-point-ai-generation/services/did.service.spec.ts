@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/style/useNamingConvention: D-ID wire keys and HTTP headers are not camelCase */
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { of } from 'rxjs';
 
@@ -74,6 +75,33 @@ describe('DidService', () => {
         error: undefined,
         durationSeconds: 12,
       });
+    });
+  });
+
+  describe('uploadImage', () => {
+    it('POSTs multipart form data to {baseUrl}/images and returns the hosted url', async () => {
+      httpService.post.mockReturnValue(
+        of({ data: { url: 's3://d-id-images/img.jpg', id: 'img-1' } }),
+      );
+
+      const result = await service.uploadImage(
+        Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+        'gen-1.png',
+        'image/png',
+      );
+
+      expect(httpService.post).toHaveBeenCalledTimes(1);
+      const [url, body, config] = httpService.post.mock.calls[0]!;
+      expect(url).toBe('https://api.d-id.com/images');
+      expect(body).toBeInstanceOf(FormData);
+      const image = (body as FormData).get('image');
+      expect(image).toBeInstanceOf(Blob);
+      // the caller-provided content type is bound into the upload, not hard-coded
+      expect((image as Blob).type).toBe('image/png');
+      expect(config).toEqual({
+        headers: { Authorization: 'Basic api-key-123' },
+      });
+      expect(result).toBe('s3://d-id-images/img.jpg');
     });
   });
 
