@@ -16,8 +16,10 @@ import {
   type MemoryPointGenerationSource,
 } from '../../../memory-points/queries/get-memory-point-generation-source/get-memory-point-generation-source.query.ts';
 import type { MemoryPointAiGenerationDto } from '../../dtos/memory-point-ai-generation.dto.ts';
+import { AiGenerationFailedException } from '../../exceptions/ai-generation-failed.exception.ts';
 import { MemoryPointAiGenerationEntity } from '../../memory-point-ai-generation.entity.ts';
 import { DidService } from '../../services/did.service.ts';
+import { toDidCompatibleImage } from '../../utils/did-source-image.ts';
 import { CreateAiGenerationCommand } from './create-ai-generation.command.ts';
 
 @CommandHandler(CreateAiGenerationCommand)
@@ -66,13 +68,25 @@ export class CreateAiGenerationHandler
     await this.aiGenerationRepository.save(generation);
 
     try {
-      const [signedPhotoUrl, signedAudioUrl] = await Promise.all([
-        this.gcsService.getSignedReadUrl(sourcePhotoUrl),
+      const [photoBuffer, signedAudioUrl] = await Promise.all([
+        this.gcsService.download(sourcePhotoUrl),
         this.gcsService.getSignedReadUrl(sourceAudioUrl),
       ]);
 
+      /*
+       * D-ID can't decode HEIC (the iPhone default the client uploads under a
+       * `.jpg` path), which fails the talk at create time. Normalize to a
+       * supported format and hand D-ID the bytes directly, so the source no
+       * longer depends on whatever format the client happened to upload.
+       */
+      const didImage = await toDidCompatibleImage(photoBuffer);
+      const sourceUrl = await this.didService.uploadImage(
+        didImage,
+        `${generation.id}.jpg`,
+      );
+
       const talk = await this.didService.createTalk({
-        sourceUrl: signedPhotoUrl,
+        sourceUrl,
         audioUrl: signedAudioUrl,
         userData: generation.id,
       });
@@ -102,7 +116,7 @@ export class CreateAiGenerationHandler
         }),
       );
 
-      throw error;
+      throw new AiGenerationFailedException(errorMessage);
     }
   }
 }

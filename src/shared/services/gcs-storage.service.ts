@@ -112,6 +112,16 @@ export class GcsStorageService {
     return url;
   }
 
+  /** Download an object's full contents into memory as a Buffer. */
+  async download(objectPath: string): Promise<Buffer> {
+    const [contents] = await this.storage
+      .bucket(this.bucketName)
+      .file(objectPath)
+      .download();
+
+    return contents;
+  }
+
   /** Whether an object exists at the given path. */
   async exists(objectPath: string): Promise<boolean> {
     const [isPresent] = await this.storage
