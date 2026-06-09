@@ -51,7 +51,10 @@ export class GetAllMemoryPointsHandler
     /*
      * photoUrl is a GCS object path (private bucket) — a raw path 404s in the
      * browser, so sign each into a short-lived read URL the thumbnail can load.
-     * One signed read per row, run concurrently across the page.
+     * One signed read per row, run concurrently across the page. The page size
+     * is bounded — PageOptionsDto.take is capped at max 50 — so this fans out at
+     * most 50 concurrent signBlob calls; no extra concurrency limiter needed. If
+     * that cap is ever raised, add bounded concurrency / batching here.
      */
     const data = await Promise.all(
       items.map(async (item) =>

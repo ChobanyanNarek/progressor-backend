@@ -60,6 +60,17 @@ export class GetMemoryPointHandler
      * (each is an independent IAM signBlob round-trip). videoUrl is always
      * exposed; the source URLs only when the admin opted into them above, so
      * non-admin responses keep omitting those keys rather than gaining nulls.
+     *
+     * We mutate the DTO in place here (rather than building via Dto.create({...})
+     * like get-all / get-media) deliberately: the URLs are produced by toDto(),
+     * which is synchronous and cannot await the signer, so signing has to happen
+     * after construction (ADR-0008). Do NOT "normalize" this to a builder — there
+     * is no entity-free way to rebuild the nested MemoryPointDetailsDto here.
+     *
+     * Signing videoUrl unconditionally is safe: the only writer of
+     * details.videoUrl is apply-generation-result.handler, which stores the GCS
+     * object path `generations/<mp>/<gen>/result.mp4` — never a full URL. (The
+     * expiring full D-ID URL lives on a different column, generation.resultVideoUrl.)
      */
     const details = dto.memoryPointDetails;
 
