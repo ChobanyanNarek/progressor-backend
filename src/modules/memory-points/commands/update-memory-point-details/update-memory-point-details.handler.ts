@@ -2,6 +2,9 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
+import { LogLevel } from '../../../../constants/log-level.ts';
+import { LogSource } from '../../../../constants/log-source.ts';
+import { AdminLogsService } from '../../../admin-logs/admin-logs.service.ts';
 import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
 import { MemoryPointDetailsEntity } from '../../entities/memory-point-details.entity.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
@@ -16,6 +19,7 @@ export class UpdateMemoryPointDetailsHandler
     private readonly memoryPointRepository: Repository<MemoryPointEntity>,
     @InjectRepository(MemoryPointDetailsEntity)
     private readonly detailsRepository: Repository<MemoryPointDetailsEntity>,
+    private readonly adminLogsService: AdminLogsService,
   ) {}
 
   /**
@@ -72,6 +76,8 @@ export class UpdateMemoryPointDetailsHandler
         .where('memory_point_id = :memoryPointId', { memoryPointId })
         .execute();
 
+      this.recordDetailsUpdated(memoryPointId);
+
       return;
     }
 
@@ -86,5 +92,16 @@ export class UpdateMemoryPointDetailsHandler
       .insert()
       .values({ ...metadata, memoryPointId })
       .execute();
+
+    this.recordDetailsUpdated(memoryPointId);
+  }
+
+  private recordDetailsUpdated(memoryPointId: Uuid): void {
+    this.adminLogsService.record({
+      level: LogLevel.INFO,
+      source: LogSource.API,
+      message: 'Memory point details updated',
+      memoryPointId,
+    });
   }
 }

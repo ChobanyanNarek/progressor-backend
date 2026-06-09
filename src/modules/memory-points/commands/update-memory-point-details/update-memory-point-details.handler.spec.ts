@@ -37,6 +37,7 @@ describe('UpdateMemoryPointDetailsHandler', () => {
 
   let memoryPointRepo: { createQueryBuilder: jest.Mock };
   let detailsRepo: { createQueryBuilder: jest.Mock };
+  let record: jest.Mock;
 
   /**
    * @param point  what the memory-point lookup resolves to.
@@ -63,9 +64,12 @@ describe('UpdateMemoryPointDetailsHandler', () => {
         .mockReturnValue(detailsWriteChain),
     };
 
+    record = jest.fn();
+
     handler = new UpdateMemoryPointDetailsHandler(
       memoryPointRepo as never,
       detailsRepo as never,
+      { record } as never,
     );
   }
 
@@ -84,6 +88,7 @@ describe('UpdateMemoryPointDetailsHandler', () => {
 
     // Must short-circuit before touching the details repository.
     expect(detailsRepo.createQueryBuilder).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
   });
 
   it('UPDATEs the existing details row with only the defined metadata fields', async () => {
@@ -107,6 +112,9 @@ describe('UpdateMemoryPointDetailsHandler', () => {
       { memoryPointId: pointId },
     );
     expect(detailsWriteChain.execute).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({ memoryPointId: pointId }),
+    );
   });
 
   it('skips the UPDATE entirely when no metadata fields are provided', async () => {
@@ -118,6 +126,8 @@ describe('UpdateMemoryPointDetailsHandler', () => {
     expect(detailsRepo.createQueryBuilder).toHaveBeenCalledTimes(1); // lookup only
     expect(detailsWriteChain.update).not.toHaveBeenCalled();
     expect(detailsWriteChain.insert).not.toHaveBeenCalled();
+    // No mutation occurred → no audit entry.
+    expect(record).not.toHaveBeenCalled();
   });
 
   it('INSERTs a new details row (with memoryPointId) when none exists (regression: upsert on absent row)', async () => {
@@ -140,5 +150,8 @@ describe('UpdateMemoryPointDetailsHandler', () => {
       memoryPointId: pointId,
     });
     expect(detailsWriteChain.execute).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({ memoryPointId: pointId }),
+    );
   });
 });

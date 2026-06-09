@@ -8,13 +8,15 @@ describe('DeleteMemoryPointHandler', () => {
   let handler: DeleteMemoryPointHandler;
   let del: jest.Mock<() => Promise<unknown>>;
   let repo: { delete: jest.Mock };
+  let record: jest.Mock;
 
   const pointId = 'point-1' as Uuid;
 
   beforeEach(() => {
     del = jest.fn<() => Promise<unknown>>().mockResolvedValue({ affected: 1 });
     repo = { delete: del };
-    handler = new DeleteMemoryPointHandler(repo as never);
+    record = jest.fn();
+    handler = new DeleteMemoryPointHandler(repo as never, { record } as never);
   });
 
   it('deletes the memory point by id and resolves on success', async () => {
@@ -24,6 +26,9 @@ describe('DeleteMemoryPointHandler', () => {
 
     expect(del).toHaveBeenCalledTimes(1);
     expect(del).toHaveBeenCalledWith({ id: pointId });
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({ memoryPointId: pointId }),
+    );
   });
 
   it('throws MemoryPointNotFoundException when nothing was deleted', async () => {
@@ -32,5 +37,7 @@ describe('DeleteMemoryPointHandler', () => {
     await expect(
       handler.execute(new DeleteMemoryPointCommand(pointId)),
     ).rejects.toBeInstanceOf(MemoryPointNotFoundException);
+
+    expect(record).not.toHaveBeenCalled();
   });
 });

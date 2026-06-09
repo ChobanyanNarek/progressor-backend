@@ -12,6 +12,7 @@ describe('UpdateMemoryPointStatusHandler', () => {
   let set: jest.Mock;
   let update: jest.Mock;
   let repo: { createQueryBuilder: jest.Mock };
+  let record: jest.Mock;
 
   const pointId = 'point-1' as Uuid;
 
@@ -23,7 +24,13 @@ describe('UpdateMemoryPointStatusHandler', () => {
     set = jest.fn().mockReturnValue({ where });
     update = jest.fn().mockReturnValue({ set });
     repo = { createQueryBuilder: jest.fn().mockReturnValue({ update }) };
-    handler = new UpdateMemoryPointStatusHandler(repo as never);
+    record = jest.fn();
+    handler = new UpdateMemoryPointStatusHandler(
+      repo as never,
+      {
+        record,
+      } as never,
+    );
   });
 
   it('updates the memory point status via the query builder', async () => {
@@ -36,6 +43,12 @@ describe('UpdateMemoryPointStatusHandler', () => {
     expect(set).toHaveBeenCalledWith({ status: MemoryPointStatus.APPROVED });
     expect(where).toHaveBeenCalledWith('id = :id', { id: pointId });
     expect(execute).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        memoryPointId: pointId,
+        context: { status: MemoryPointStatus.APPROVED },
+      }),
+    );
   });
 
   it('throws MemoryPointNotFoundException when nothing was updated', async () => {
@@ -46,5 +59,7 @@ describe('UpdateMemoryPointStatusHandler', () => {
         new UpdateMemoryPointStatusCommand(pointId, MemoryPointStatus.APPROVED),
       ),
     ).rejects.toBeInstanceOf(MemoryPointNotFoundException);
+
+    expect(record).not.toHaveBeenCalled();
   });
 });
