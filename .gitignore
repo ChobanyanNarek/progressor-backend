@@ -107,3 +107,6 @@ scripts/perf/results/
 
 # Local-only FE handoff (kept on disk, not tracked)
 docs/handoff/
+
+# Local-only PRD (kept on disk, not tracked)
+docs/PRD.md
