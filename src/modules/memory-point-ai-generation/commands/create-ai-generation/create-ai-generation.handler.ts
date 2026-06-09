@@ -1,3 +1,4 @@
+import { HttpException } from '@nestjs/common';
 import {
   CommandBus,
   CommandHandler,
@@ -5,6 +6,7 @@ import {
   QueryBus,
 } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
+import { isAxiosError } from 'axios';
 import type { Repository } from 'typeorm';
 
 import { AiGenerationStatus } from '../../../../constants/ai-generation-status.ts';
@@ -17,6 +19,7 @@ import {
 } from '../../../memory-points/queries/get-memory-point-generation-source/get-memory-point-generation-source.query.ts';
 import type { MemoryPointAiGenerationDto } from '../../dtos/memory-point-ai-generation.dto.ts';
 import { AiGenerationFailedException } from '../../exceptions/ai-generation-failed.exception.ts';
+import { AiGenerationInvalidMediaException } from '../../exceptions/ai-generation-invalid-media.exception.ts';
 import { MemoryPointAiGenerationEntity } from '../../memory-point-ai-generation.entity.ts';
 import { DidService } from '../../services/did.service.ts';
 import { toDidCompatibleImage } from '../../utils/did-source-image.ts';
@@ -78,11 +81,21 @@ export class CreateAiGenerationHandler
        * `.jpg` path), which fails the talk at create time. Normalize to a
        * supported format and hand D-ID the bytes directly, so the source no
        * longer depends on whatever format the client happened to upload.
+       *
+       * Follow-up (asset-lifecycle): every (re)attempt uploads a fresh D-ID
+       * /images asset and nothing deletes the previous one — we currently lean
+       * on D-ID's own retention. Track provider-asset cleanup (delete prior
+       * image on retry, or confirm/rely on TTL) in a follow-up ticket.
        */
-      const didImage = await toDidCompatibleImage(photoBuffer);
+      const {
+        buffer: didImage,
+        contentType,
+        extension,
+      } = await toDidCompatibleImage(photoBuffer);
       const sourceUrl = await this.didService.uploadImage(
         didImage,
-        `${generation.id}.jpg`,
+        `${generation.id}.${extension}`,
+        contentType,
       );
 
       const talk = await this.didService.createTalk({
@@ -116,7 +129,23 @@ export class CreateAiGenerationHandler
         }),
       );
 
-      throw new AiGenerationFailedException(errorMessage);
+      throw this.toGenerationException(error, errorMessage);
     }
+  }
+
+  /**
+   * A 4xx from D-ID at create time means the media we sent was rejected
+   * (unfetchable / undecodable / invalid source) — a client-recoverable problem,
+   * so surface a 422 with a distinct code. Everything else (D-ID 5xx, network
+   * errors, our own failures) is not client-recoverable and stays a 500.
+   */
+  private toGenerationException(error: unknown, detail: string): HttpException {
+    const status = isAxiosError(error) ? error.response?.status : undefined;
+
+    if (status !== undefined && status >= 400 && status < 500) {
+      return new AiGenerationInvalidMediaException(detail);
+    }
+
+    return new AiGenerationFailedException(detail);
   }
 }

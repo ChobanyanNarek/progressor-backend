@@ -85,15 +85,19 @@ describe('DidService', () => {
       );
 
       const result = await service.uploadImage(
-        Buffer.from([0xff, 0xd8, 0xff]),
-        'gen-1.jpg',
+        Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+        'gen-1.png',
+        'image/png',
       );
 
       expect(httpService.post).toHaveBeenCalledTimes(1);
       const [url, body, config] = httpService.post.mock.calls[0]!;
       expect(url).toBe('https://api.d-id.com/images');
       expect(body).toBeInstanceOf(FormData);
-      expect((body as FormData).has('image')).toBe(true);
+      const image = (body as FormData).get('image');
+      expect(image).toBeInstanceOf(Blob);
+      // the caller-provided content type is bound into the upload, not hard-coded
+      expect((image as Blob).type).toBe('image/png');
       expect(config).toEqual({
         headers: { Authorization: 'Basic api-key-123' },
       });

@@ -6,6 +6,7 @@ import { ApplyGenerationResultCommand } from '../../../memory-points/commands/ap
 import { MarkGenerationStartedCommand } from '../../../memory-points/commands/mark-generation-started/mark-generation-started.command.ts';
 import { GetMemoryPointGenerationSourceQuery } from '../../../memory-points/queries/get-memory-point-generation-source/get-memory-point-generation-source.query.ts';
 import { AiGenerationFailedException } from '../../exceptions/ai-generation-failed.exception.ts';
+import { AiGenerationInvalidMediaException } from '../../exceptions/ai-generation-invalid-media.exception.ts';
 import { CreateAiGenerationCommand } from './create-ai-generation.command.ts';
 import { CreateAiGenerationHandler } from './create-ai-generation.handler.ts';
 
@@ -199,10 +200,11 @@ describe('CreateAiGenerationHandler', () => {
     expect(getSignedReadUrl).toHaveBeenCalledWith(sourceAudioUrl);
     expect(getSignedReadUrl).not.toHaveBeenCalledWith(sourcePhotoUrl);
 
-    // normalized image bytes uploaded to D-ID under the generation id
+    // normalized image bytes uploaded to D-ID with matching name + content type
     expect(uploadImage).toHaveBeenCalledWith(
       photoBuffer,
       `${generationId}.jpg`,
+      'image/jpeg',
     );
 
     expect(createTalk).toHaveBeenCalledWith({
@@ -277,5 +279,41 @@ describe('CreateAiGenerationHandler', () => {
     expect(created.errorMessage).toBe('gcs down');
     expect(uploadImage).not.toHaveBeenCalled();
     expect(createTalk).not.toHaveBeenCalled();
+  });
+
+  it('failure path: a D-ID 4xx (bad media) maps to a 422 AiGenerationInvalidMediaException', async () => {
+    const created = makeGeneration();
+    getOne.mockResolvedValue(null);
+    create.mockReturnValue(created);
+
+    // axios error shape: isAxiosError flag + 4xx response status
+    const badMedia = Object.assign(new Error('cannot validate audio file'), {
+      isAxiosError: true,
+      response: { status: 400 },
+    });
+    createTalk.mockRejectedValue(badMedia);
+
+    await expect(
+      handler.execute(new CreateAiGenerationCommand(memoryPointId)),
+    ).rejects.toBeInstanceOf(AiGenerationInvalidMediaException);
+
+    expect(created.status).toBe(AiGenerationStatus.FAILED);
+    expect(created.errorMessage).toBe('cannot validate audio file');
+  });
+
+  it('failure path: a D-ID 5xx stays a 500 AiGenerationFailedException', async () => {
+    const created = makeGeneration();
+    getOne.mockResolvedValue(null);
+    create.mockReturnValue(created);
+
+    const serverError = Object.assign(new Error('did 503'), {
+      isAxiosError: true,
+      response: { status: 503 },
+    });
+    createTalk.mockRejectedValue(serverError);
+
+    await expect(
+      handler.execute(new CreateAiGenerationCommand(memoryPointId)),
+    ).rejects.toBeInstanceOf(AiGenerationFailedException);
   });
 });

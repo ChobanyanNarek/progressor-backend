@@ -23,7 +23,8 @@ This page is the contract: the list of codes the frontend must handle. The
 | `error.memoryPointSourceNotUploaded` | 403 | Photo/audio not uploaded before saving details |
 | `error.userExists` | 409 | A user with that email already exists (create/edit) |
 | `error.unique.email` | 409 | Email already in use (DB unique constraint) |
-| `error.aiGenerationFailed` | 500 | Starting the AI video generation failed (provider rejected the request, undecodable source media, network error); the generation row is marked `FAILED` |
+| `error.aiGenerationFailed` | 500 | Starting the AI video generation failed for a non-recoverable reason (provider 5xx, network error, internal error); the generation row is marked `FAILED` |
+| `error.aiGenerationInvalidMedia` | 422 | The provider rejected the source media at create time (4xx — unfetchable/undecodable/invalid photo or audio); client can re-upload valid media. Row marked `FAILED` |
 
 ## Validation field codes (`error.fields.*`)
 

@@ -63,20 +63,85 @@ export function detectImageFormat(buffer: Buffer): DetectedImageFormat {
   return 'unknown';
 }
 
-/**
- * Return a D-ID-compatible image buffer for the given source bytes.
- *
- * HEIC/HEIF is transcoded to JPEG (D-ID can't decode it); JPEG/PNG/WebP are
- * already supported and pass through untouched. `heic-convert` is used rather
- * than `sharp` because the bundled `sharp` binary has no libheif decoder.
- */
-export async function toDidCompatibleImage(buffer: Buffer): Promise<Buffer> {
-  if (detectImageFormat(buffer) !== 'heic') {
-    return buffer;
-  }
+/** A D-ID-ready image plus the MIME type / extension that match its bytes. */
+export interface INormalizedDidImage {
+  buffer: Buffer;
+  contentType: string;
+  extension: string;
+}
 
-  // A Node Buffer is a Uint8Array, which is what heic-convert expects.
-  const jpeg = await convert({ buffer, format: 'JPEG', quality: 0.9 });
+const PASSTHROUGH: Record<
+  'jpeg' | 'png' | 'webp',
+  { contentType: string; extension: string }
+> = {
+  jpeg: { contentType: 'image/jpeg', extension: 'jpg' },
+  png: { contentType: 'image/png', extension: 'png' },
+  webp: { contentType: 'image/webp', extension: 'webp' },
+};
+
+/**
+ * JPEG quality for the HEIC transcode. 0.9 keeps faces crisp enough for D-ID's
+ * face detector while roughly halving size vs lossless; D-ID re-encodes the
+ * frame anyway, so there is no point shipping a larger near-lossless JPEG.
+ */
+const JPEG_QUALITY = 0.9;
+
+/** Whether the buffer starts with an ISO-BMFF `ftyp` box (HEIF, MP4, …). */
+function hasFtypBox(buffer: Buffer): boolean {
+  return buffer.length >= 12 && buffer.toString('ascii', 4, 8) === 'ftyp';
+}
+
+async function transcodeToJpeg(buffer: Buffer): Promise<Buffer> {
+  /*
+   * heic-convert is libheif compiled to WASM and decodes **synchronously** — it
+   * blocks the event loop for the duration of the decode. That is acceptable on
+   * the admin-only generate-video path (low volume, one image per request).
+   * Follow-up (asset-pipeline): offload to a worker thread if this ever leaves
+   * the admin path or starts handling large/concurrent images.
+   *
+   * A Node Buffer is a Uint8Array, which is what heic-convert expects.
+   */
+  const jpeg = await convert({ buffer, format: 'JPEG', quality: JPEG_QUALITY });
 
   return Buffer.from(jpeg);
+}
+
+/**
+ * Return a D-ID-compatible image (bytes + matching MIME/extension) for the given
+ * source bytes.
+ *
+ * - JPEG / PNG / WebP are already supported and pass through untouched, tagged
+ *   with their real type so the `/images` upload isn't mislabeled.
+ * - HEIC/HEIF is transcoded to JPEG — D-ID can't decode it and 500s otherwise.
+ *   `heic-convert` is used rather than `sharp` because the bundled `sharp`
+ *   binary has no libheif decoder.
+ * - Any other `ftyp`-boxed container (a HEIF variant whose major brand we don't
+ *   recognize) is *attempted* as HEIC and falls back to pass-through if it turns
+ *   out not to be decodable, so an unlisted brand can't silently 500 at D-ID.
+ */
+export async function toDidCompatibleImage(
+  buffer: Buffer,
+): Promise<INormalizedDidImage> {
+  const format = detectImageFormat(buffer);
+
+  if (format === 'jpeg' || format === 'png' || format === 'webp') {
+    return { buffer, ...PASSTHROUGH[format] };
+  }
+
+  if (format === 'heic' || hasFtypBox(buffer)) {
+    try {
+      return {
+        buffer: await transcodeToJpeg(buffer),
+        contentType: 'image/jpeg',
+        extension: 'jpg',
+      };
+    } catch {
+      /*
+       * Not actually decodable as HEIF — hand the original bytes to D-ID and
+       * let it make the final call rather than failing closed here.
+       */
+    }
+  }
+
+  return { buffer, contentType: 'application/octet-stream', extension: 'bin' };
 }

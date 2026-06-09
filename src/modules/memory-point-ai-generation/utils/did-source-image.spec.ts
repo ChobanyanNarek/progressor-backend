@@ -52,15 +52,24 @@ describe('detectImageFormat', () => {
 });
 
 describe('toDidCompatibleImage', () => {
-  it('passes a JPEG through untouched (no transcode)', async () => {
+  it('passes a JPEG through untouched, tagged image/jpeg', async () => {
     const result = await toDidCompatibleImage(jpeg);
 
-    expect(result).toBe(jpeg);
+    expect(result.buffer).toBe(jpeg);
+    expect(result.contentType).toBe('image/jpeg');
+    expect(result.extension).toBe('jpg');
   });
 
-  it('passes PNG and WebP through untouched', async () => {
-    expect(await toDidCompatibleImage(png)).toBe(png);
-    expect(await toDidCompatibleImage(webp)).toBe(webp);
+  it('passes PNG and WebP through untouched with their real type', async () => {
+    const pngResult = await toDidCompatibleImage(png);
+    expect(pngResult.buffer).toBe(png);
+    expect(pngResult.contentType).toBe('image/png');
+    expect(pngResult.extension).toBe('png');
+
+    const webpResult = await toDidCompatibleImage(webp);
+    expect(webpResult.buffer).toBe(webp);
+    expect(webpResult.contentType).toBe('image/webp');
+    expect(webpResult.extension).toBe('webp');
   });
 
   it('transcodes a real HEIC file to JPEG', async () => {
@@ -69,7 +78,42 @@ describe('toDidCompatibleImage', () => {
 
     const result = await toDidCompatibleImage(heicBuffer);
 
-    expect(detectImageFormat(result)).toBe('jpeg');
-    expect(result).not.toBe(heicBuffer);
+    expect(detectImageFormat(result.buffer)).toBe('jpeg');
+    expect(result.contentType).toBe('image/jpeg');
+    expect(result.extension).toBe('jpg');
+    expect(result.buffer).not.toBe(heicBuffer);
+  });
+
+  it('attempts transcode on an ftyp brand outside the known list (not silent pass-through)', async () => {
+    /*
+     * An uncovered HEIF brand sniffs as 'unknown', but unlike a non-image blob
+     * it must still be *attempted* as HEIC so an unlisted brand can't silently
+     * 500 at D-ID. This fabricated file has an ftyp box but isn't decodable, so
+     * the attempt throws and we fall back to the original bytes — proving the
+     * branch runs (a real decodable brand would come back as JPEG instead).
+     */
+    const uncoveredBrand = Buffer.concat([
+      Buffer.from([0x00, 0x00, 0x00, 0x18]),
+      Buffer.from('ftypqt  ', 'ascii'),
+      Buffer.alloc(16),
+    ]);
+
+    expect(detectImageFormat(uncoveredBrand)).toBe('unknown');
+
+    const result = await toDidCompatibleImage(uncoveredBrand);
+
+    // fell back to the original bytes rather than failing closed
+    expect(result.buffer).toBe(uncoveredBrand);
+    expect(result.contentType).toBe('application/octet-stream');
+    expect(result.extension).toBe('bin');
+  });
+
+  it('passes a plain non-image blob through as octet-stream', async () => {
+    const blob = Buffer.from([0x00, 0x01, 0x02, 0x03]);
+
+    const result = await toDidCompatibleImage(blob);
+
+    expect(result.buffer).toBe(blob);
+    expect(result.contentType).toBe('application/octet-stream');
   });
 });
