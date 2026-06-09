@@ -49,7 +49,18 @@ export class UpsertMemoryPointDetailsHandler
       throw new MemoryPointNotFoundException();
     }
 
-    if (memoryPoint.status !== MemoryPointStatus.PENDING) {
+    /*
+     * Creator may submit details on a fresh draft (PENDING) and may re-submit a
+     * REJECTED point to fix and resend it for review. Once the point is in
+     * ADMIN_REVIEWING or further (GENERATING / AI_REVIEWING / APPROVED) it is
+     * frozen to the creator. A successful (re)submit (re-)enters ADMIN_REVIEWING.
+     */
+    const creatorEditableStatuses = [
+      MemoryPointStatus.PENDING,
+      MemoryPointStatus.REJECTED,
+    ];
+
+    if (!creatorEditableStatuses.includes(memoryPoint.status)) {
       throw new MemoryPointNotEditableException();
     }
 
