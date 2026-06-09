@@ -62,6 +62,10 @@ describe('Memory points (e2e)', () => {
       .overrideProvider(GcsStorageService)
       .useValue({
         getSignedWriteUrl: () => Promise.resolve('https://example.test/upload'),
+        getSignedReadUrl: (path: string) =>
+          Promise.resolve(`https://example.test/read/${path}`),
+        getSignedReadUrlOrNull: (path: string | null | undefined) =>
+          Promise.resolve(path ? `https://example.test/read/${path}` : null),
         exists: () => Promise.resolve(true),
         deletePrefix: () => Promise.resolve(),
       })
@@ -268,7 +272,7 @@ describe('Memory points (e2e)', () => {
         .expect(403);
     });
 
-    it('returns the standard envelope with per-source counts for admin', async () => {
+    it('returns the standard paginated envelope for admin', async () => {
       const response = await request(app.getHttpServer())
         .get('/admin/logs')
         .set(authHeader(adminToken))
@@ -276,14 +280,13 @@ describe('Memory points (e2e)', () => {
 
       expect(Array.isArray(response.body.data)).toBe(true);
       expect(response.body.meta).toBeDefined();
-
-      const counts = response.body.meta.counts as Record<string, number>;
-      expect(counts).toBeDefined();
-
-      // Empty table -> every source count is present and zero.
-      for (const key of ['api', 'ar', 'did', 'maps', 'auth']) {
-        expect(counts[key]).toBe(0);
-      }
+      /*
+       * Per-source counts were removed in the admin-logs refactor; the response
+       * is the standard PageDto meta envelope.
+       */
+      expect(typeof response.body.meta.itemCount).toBe('number');
+      expect(typeof response.body.meta.page).toBe('number');
+      expect(typeof response.body.meta.take).toBe('number');
     });
 
     it('passes through level/source/take filters and keeps the envelope', async () => {
@@ -294,7 +297,8 @@ describe('Memory points (e2e)', () => {
 
       expect(Array.isArray(response.body.data)).toBe(true);
       expect(response.body.meta).toBeDefined();
-      expect(response.body.meta.counts).toBeDefined();
+      // `take=5` from the query string is reflected in the envelope.
+      expect(response.body.meta.take).toBe(5);
     });
 
     it('rejects an inverted time window (from > to) with 422', async () => {
