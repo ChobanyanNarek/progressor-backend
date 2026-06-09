@@ -28,10 +28,21 @@ export class CreateMemoryPointHandler
     } = createMemoryPointDto;
 
     /*
-     * Duplicate proximity check: reject if any existing point lies within the
-     * configured radius, unless the caller explicitly opts out with force: true.
-     * getRawOne lets us read both the id and the computed distance column in a
-     * single round-trip without TypeORM trying to hydrate a partial entity.
+     * Duplicate proximity check: reject if a *live* existing point lies within
+     * the configured radius, unless the caller opts out with force: true.
+     * getRawOne reads the id + computed distance in one round-trip without
+     * TypeORM hydrating a partial entity.
+     *
+     * REJECTED points are excluded — a dead point must not block a legitimate
+     * re-creation at the same spot. Abandoned PENDING drafts are handled
+     * separately by CleanupStaleDraftsHandler, so they age out rather than
+     * permanently blocking the location.
+     *
+     * NOTE: this is a check-then-insert with a race window — two concurrent
+     * creates at the same coordinates can both pass the check and insert. The
+     * durable fix is a PostGIS exclusion constraint (EXCLUDE USING gist on a
+     * buffered geography), which needs a generated migration; tracked as a
+     * follow-up. For the test version the read-side check is acceptable.
      */
     if (!shouldForceCreate) {
       const radiusMeters = this.apiConfigService.duplicateRadiusMeters;
@@ -46,6 +57,9 @@ export class CreateMemoryPointHandler
           'distance',
         )
         .where(`ST_DWithin(mp.location::geography, ${userPoint}, :dupRadius)`)
+        .andWhere('mp.status != :excludedStatus', {
+          excludedStatus: MemoryPointStatus.REJECTED,
+        })
         .setParameters({
           dupLng: longitude,
           dupLat: latitude,

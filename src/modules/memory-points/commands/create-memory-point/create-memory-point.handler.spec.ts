@@ -48,6 +48,7 @@ function makeRepository(duplicateRaw?: { id: Uuid; distance: string }): {
   dupQb.select = jest.fn().mockReturnValue(dupQb);
   dupQb.addSelect = jest.fn().mockReturnValue(dupQb);
   dupQb.where = jest.fn().mockReturnValue(dupQb);
+  dupQb.andWhere = jest.fn().mockReturnValue(dupQb);
   dupQb.setParameters = jest.fn().mockReturnValue(dupQb);
   dupQb.orderBy = jest.fn().mockReturnValue(dupQb);
   dupQb.getRawOne = getRawOne;
@@ -194,6 +195,35 @@ describe('CreateMemoryPointHandler', () => {
         id: POINT_ID,
         status: MemoryPointStatus.PENDING,
       });
+    });
+  });
+
+  describe('duplicate-check status filter', () => {
+    it('excludes REJECTED points so a nearby rejected point does not block', async () => {
+      // No live duplicate is returned; assert the query filters REJECTED out.
+      const repo = makeRepository();
+      const handler = new CreateMemoryPointHandler(
+        repo as never,
+        makeApiConfigService() as never,
+      );
+
+      await handler.execute(
+        new CreateMemoryPointCommand(USER_ID, {
+          latitude: 40.1872,
+          longitude: 44.5152,
+        }),
+      );
+
+      // First createQueryBuilder call is the duplicate-proximity probe.
+      const dupQb = repo.createQueryBuilder.mock.results[0]!.value as {
+        andWhere: jest.Mock;
+      };
+      expect(dupQb.andWhere).toHaveBeenCalledWith(
+        'mp.status != :excludedStatus',
+        {
+          excludedStatus: MemoryPointStatus.REJECTED,
+        },
+      );
     });
   });
 

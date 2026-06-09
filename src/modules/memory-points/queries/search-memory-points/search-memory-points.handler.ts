@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
 import { PageDto } from '../../../../common/dto/page.dto.ts';
+import { escapeLikePattern } from '../../../../common/utils.ts';
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
 import { SearchMemoryPointDto } from '../../dtos/search-memory-point.dto.ts';
 import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
@@ -24,12 +25,12 @@ export class SearchMemoryPointsHandler
     const { pageOptionsDto } = query;
 
     /*
-     * LIKE wildcards in user input could accidentally match everything (`%`) or
-     * turn into a full-text operator. Mirror the escaping used in the nearby
-     * handler: no special escaping is applied there either, and the project does
-     * not expose raw regex. The ILIKE param already wraps in `%…%` so a literal
-     * `%` in the query string is harmless (worst case: broader matches).
+     * Escape LIKE metacharacters (% _ \) in the user term so they match
+     * literally — otherwise a `%` matches everything and `_` any character.
+     * A missing term lists the APPROVED set (wrapped in `%…%` → `%%`).
      */
+    const escapedTerm = `%${escapeLikePattern(pageOptionsDto.q ?? '')}%`;
+
     const queryBuilder = this.memoryPointRepository
       .createQueryBuilder('mp')
       .leftJoinAndSelect('mp.memoryPointDetails', 'details')
@@ -38,8 +39,12 @@ export class SearchMemoryPointsHandler
        * NOTE(TICKET-07): when the publication lifecycle lands, also constrain
        * `mp.publicationState = ACTIVE` so archived/inactive points stay hidden.
        */
-      .andWhere('details.title ILIKE :q', { q: `%${pageOptionsDto.q}%` })
-      .orderBy('details.title', pageOptionsDto.order);
+      .andWhere(String.raw`details.title ILIKE :q ESCAPE '\'`, {
+        q: escapedTerm,
+      })
+      .orderBy('details.title', pageOptionsDto.order)
+      // Stable tiebreaker so pagination is deterministic across duplicate titles.
+      .addOrderBy('mp.id', 'ASC');
 
     const [items, pageMetaDto] = await queryBuilder.paginate(pageOptionsDto);
 

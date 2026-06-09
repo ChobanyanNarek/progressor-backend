@@ -123,8 +123,7 @@ export class CreatorMemoryPointController {
     return this.memoryPointService.updateMemoryPointLocation(
       id,
       updateMemoryPointLocationDto,
-      false,
-      user.id,
+      { kind: 'creator', userId: user.id },
     );
   }
 

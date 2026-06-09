@@ -12,7 +12,10 @@ import { CreateMemoryPointCommand } from './commands/create-memory-point/create-
 import { CreateUploadUrlCommand } from './commands/create-upload-url/create-upload-url.command.ts';
 import { DeleteMemoryPointCommand } from './commands/delete-memory-point/delete-memory-point.command.ts';
 import { UpdateMemoryPointDetailsCommand } from './commands/update-memory-point-details/update-memory-point-details.command.ts';
-import { UpdateMemoryPointLocationCommand } from './commands/update-memory-point-location/update-memory-point-location.command.ts';
+import {
+  type LocationActor,
+  UpdateMemoryPointLocationCommand,
+} from './commands/update-memory-point-location/update-memory-point-location.command.ts';
 import { UpdateMemoryPointStatusCommand } from './commands/update-memory-point-status/update-memory-point-status.command.ts';
 import { UpsertMemoryPointDetailsCommand } from './commands/upsert-memory-point-details/upsert-memory-point-details.command.ts';
 import type { AdminMemoryPointListItemDto } from './dtos/admin-memory-point-list-item.dto.ts';
@@ -127,16 +130,14 @@ export class MemoryPointService {
   updateMemoryPointLocation(
     memoryPointId: Uuid,
     dto: UpdateMemoryPointLocationDto,
-    shouldSkipOwnershipCheck: boolean,
-    userId?: Uuid,
+    actor: LocationActor,
   ): Promise<void> {
     return this.commandBus.execute<UpdateMemoryPointLocationCommand>(
       new UpdateMemoryPointLocationCommand(
         memoryPointId,
         dto.latitude,
         dto.longitude,
-        shouldSkipOwnershipCheck,
-        userId,
+        actor,
       ),
     );
   }

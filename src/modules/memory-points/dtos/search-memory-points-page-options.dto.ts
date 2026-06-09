@@ -1,17 +1,10 @@
 import { PageOptionsDto } from '../../../common/dto/page-options.dto.ts';
-import { StringField } from '../../../decorators/field.decorators.ts';
 
-/** Page-options for the name-search endpoint. Inherits `order`, `page`, `take`. */
-export class SearchMemoryPointsPageOptionsDto extends PageOptionsDto {
-  /**
-   * Required search term — at least one character. Matched against
-   * memory_point_details.title using case-insensitive substring search (ILIKE).
-   *
-   * Narrows the inherited optional `q` to required. The `= ''` initializer
-   * satisfies `useDefineForClassFields` (avoids TS2612 overwriting the base
-   * field with `undefined`); a missing `q` then fails `@StringField` minLength,
-   * so the term is effectively mandatory.
-   */
-  @StringField({ minLength: 1 })
-  override readonly q: string = '';
-}
+/**
+ * Page-options for the name-search endpoint. Inherits `q`, `order`, `page`,
+ * `take` from {@link PageOptionsDto}. `q` stays optional here — an empty term
+ * lists the APPROVED set (paginated); the handler treats a missing `q` as a
+ * match-all rather than 500-ing. A dedicated alias keeps the search endpoint's
+ * request slot distinct from the nearby endpoint (awesome-nest/unique-endpoint-dtos).
+ */
+export class SearchMemoryPointsPageOptionsDto extends PageOptionsDto {}

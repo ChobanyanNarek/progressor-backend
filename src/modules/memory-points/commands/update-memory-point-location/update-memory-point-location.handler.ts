@@ -8,6 +8,8 @@ import { MemoryPointNotEditableException } from '../../exceptions/memory-point-n
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
 import { UpdateMemoryPointLocationCommand } from './update-memory-point-location.command.ts';
 
+const LOCATION_EXPR = `ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)`;
+
 @CommandHandler(UpdateMemoryPointLocationCommand)
 export class UpdateMemoryPointLocationHandler
   implements ICommandHandler<UpdateMemoryPointLocationCommand, void>
@@ -18,48 +20,65 @@ export class UpdateMemoryPointLocationHandler
   ) {}
 
   async execute(command: UpdateMemoryPointLocationCommand): Promise<void> {
-    const {
-      memoryPointId,
-      latitude,
-      longitude,
-      shouldSkipOwnershipCheck,
-      userId,
-    } = command;
+    const { memoryPointId, latitude, longitude, actor } = command;
 
-    /*
-     * Creator path: validate ownership and editability before applying the
-     * coordinate update. Mirrors the guard in upsert-memory-point-details.handler.ts
-     * (L48-54) — must own the point AND it must still be in PENDING state.
-     * Admin path: skips both checks so any point (any status) can be repositioned.
-     */
-    if (!shouldSkipOwnershipCheck) {
-      const point = await this.memoryPointRepository
-        .createQueryBuilder('mp')
-        .select(['mp.id', 'mp.userId', 'mp.status'])
-        .where('mp.id = :id', { id: memoryPointId })
-        .getOne();
+    if (actor.kind === 'admin') {
+      // Admin may reposition any point in any status.
+      const result = await this.memoryPointRepository
+        .createQueryBuilder()
+        .update()
+        .set({ location: () => LOCATION_EXPR })
+        .where('id = :id', { id: memoryPointId })
+        .setParameters({ longitude, latitude })
+        .execute();
 
-      if (!point || point.userId !== userId) {
+      if (result.affected === 0) {
         throw new MemoryPointNotFoundException();
       }
 
-      if (point.status !== MemoryPointStatus.PENDING) {
-        throw new MemoryPointNotEditableException();
-      }
+      return;
     }
 
+    /*
+     * Creator path. Re-assert ownership AND PENDING state inside the UPDATE
+     * WHERE so the guard is atomic — a separate SELECT-then-UPDATE would have a
+     * TOCTOU window (status could flip between the read and the write). On a
+     * zero-row update we run one classification read to preserve the distinct
+     * NotFound (no such owned point) vs NotEditable (owned but past PENDING)
+     * codes the client relies on.
+     */
     const result = await this.memoryPointRepository
       .createQueryBuilder()
       .update()
-      .set({
-        location: () => `ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)`,
-      })
+      .set({ location: () => LOCATION_EXPR })
       .where('id = :id', { id: memoryPointId })
+      .andWhere('user_id = :userId', { userId: actor.userId })
+      .andWhere('status = :status', { status: MemoryPointStatus.PENDING })
       .setParameters({ longitude, latitude })
       .execute();
 
     if (result.affected === 0) {
+      await this.throwCreatorFailure(memoryPointId, actor.userId);
+    }
+  }
+
+  /** Classify why the guarded update matched no row. Always throws. */
+  private async throwCreatorFailure(
+    memoryPointId: Uuid,
+    userId: Uuid,
+  ): Promise<never> {
+    const owned = await this.memoryPointRepository
+      .createQueryBuilder('mp')
+      .select(['mp.id', 'mp.status'])
+      .where('mp.id = :id', { id: memoryPointId })
+      .andWhere('mp.userId = :userId', { userId })
+      .getOne();
+
+    if (!owned) {
       throw new MemoryPointNotFoundException();
     }
+
+    // Owned but not PENDING.
+    throw new MemoryPointNotEditableException();
   }
 }

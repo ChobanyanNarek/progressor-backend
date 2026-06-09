@@ -410,4 +410,120 @@ describe('Memory points (e2e)', () => {
       expect(body.memoryPointDetails.description).toBe('updated');
     });
   });
+
+  describe('POST /creator/memory-points — duplicate detection', () => {
+    const coords = { latitude: 12.34, longitude: 56.78 };
+    let firstId: string;
+
+    it('creates the first point at the coordinates', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/creator/memory-points')
+        .set(authHeader(creatorToken))
+        .send(coords)
+        .expect(201);
+
+      firstId = response.body.id;
+    });
+
+    it('rejects a second point at the same spot with 409 + nearestId/distanceMeters', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/creator/memory-points')
+        .set(authHeader(creatorToken))
+        .send(coords)
+        .expect(409);
+
+      expect(response.body.message).toBe('error.duplicateMemoryPoint');
+      expect(response.body.nearestId).toBe(firstId);
+      expect(typeof response.body.distanceMeters).toBe('number');
+    });
+
+    it('allows the duplicate when force: true', async () => {
+      await request(app.getHttpServer())
+        .post('/creator/memory-points')
+        .set(authHeader(creatorToken))
+        .send({ ...coords, force: true })
+        .expect(201);
+    });
+  });
+
+  describe('PATCH memory-point location', () => {
+    const unknownId = '00000000-0000-4000-8000-000000000000';
+    let pendingId: string;
+    let nonPendingId: string;
+
+    it('admin repositions any point (204)', async () => {
+      const created = await request(app.getHttpServer())
+        .post('/creator/memory-points')
+        .set(authHeader(creatorToken))
+        .send({ latitude: 33, longitude: 33 })
+        .expect(201);
+      pendingId = created.body.id;
+
+      await request(app.getHttpServer())
+        .patch(`/admin/memory-points/${pendingId}/location`)
+        .set(authHeader(adminToken))
+        .send({ latitude: 34, longitude: 34 })
+        .expect(204);
+    });
+
+    it('creator repositions own PENDING point (204)', async () => {
+      await request(app.getHttpServer())
+        .patch(`/creator/memory-points/${pendingId}/location`)
+        .set(authHeader(creatorToken))
+        .send({ latitude: 35, longitude: 35 })
+        .expect(204);
+    });
+
+    it('rejects a creator moving an unknown / unowned point with 404', async () => {
+      await request(app.getHttpServer())
+        .patch(`/creator/memory-points/${unknownId}/location`)
+        .set(authHeader(creatorToken))
+        .send({ latitude: 36, longitude: 36 })
+        .expect(404);
+    });
+
+    it('rejects a creator moving a non-PENDING point with 403', async () => {
+      const created = await request(app.getHttpServer())
+        .post('/creator/memory-points')
+        .set(authHeader(creatorToken))
+        .send({ latitude: 37, longitude: 37 })
+        .expect(201);
+      nonPendingId = created.body.id;
+
+      // Admin advances it out of PENDING.
+      await request(app.getHttpServer())
+        .patch(`/admin/memory-points/${nonPendingId}/status`)
+        .set(authHeader(adminToken))
+        .send({ status: 'ADMIN_REVIEWING' })
+        .expect(204);
+
+      await request(app.getHttpServer())
+        .patch(`/creator/memory-points/${nonPendingId}/location`)
+        .set(authHeader(creatorToken))
+        .send({ latitude: 38, longitude: 38 })
+        .expect(403);
+    });
+  });
+
+  describe('GET /memory-points/search', () => {
+    it('returns a PageDto of APPROVED matches regardless of location', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/memory-points/search?q=zzz-no-such-title&take=10')
+        .expect(200);
+
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.meta).toBeDefined();
+      // No APPROVED point in the e2e flow → empty page, but valid envelope.
+      expect(response.body.data).toHaveLength(0);
+    });
+
+    it('treats a missing q as match-all and still returns a valid envelope', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/memory-points/search?take=10')
+        .expect(200);
+
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.meta).toBeDefined();
+    });
+  });
 });

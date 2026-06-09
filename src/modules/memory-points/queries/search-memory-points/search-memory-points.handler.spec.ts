@@ -35,6 +35,7 @@ describe('SearchMemoryPointsHandler', () => {
     andWhere = jest.fn().mockReturnValue(qb);
     qb.andWhere = andWhere;
     qb.orderBy = jest.fn().mockReturnValue(qb);
+    qb.addOrderBy = jest.fn().mockReturnValue(qb);
     paginate = jest
       .fn<() => Promise<unknown>>()
       .mockResolvedValue([rows, { itemCount: rows.length }]);
@@ -66,7 +67,7 @@ describe('SearchMemoryPointsHandler', () => {
       expect(result.data[0]).toBeInstanceOf(SearchMemoryPointDto);
     });
 
-    it('applies an ILIKE filter with wildcard-wrapped query term', async () => {
+    it('applies an escaped ILIKE filter with wildcard-wrapped query term', async () => {
       const opts = {
         q: 'grandma',
         order: 'ASC',
@@ -76,9 +77,31 @@ describe('SearchMemoryPointsHandler', () => {
 
       await handler.execute(new SearchMemoryPointsQuery(opts));
 
-      expect(andWhere).toHaveBeenCalledWith('details.title ILIKE :q', {
-        q: '%grandma%',
-      });
+      expect(andWhere).toHaveBeenCalledWith(
+        String.raw`details.title ILIKE :q ESCAPE '\'`,
+        {
+          q: '%grandma%',
+        },
+      );
+    });
+
+    it('escapes LIKE metacharacters in the search term', async () => {
+      const opts = {
+        q: '50%_x',
+        order: 'ASC',
+        page: 1,
+        take: 10,
+      } as unknown as SearchMemoryPointsPageOptionsDto;
+
+      await handler.execute(new SearchMemoryPointsQuery(opts));
+
+      // % and _ are backslash-escaped so they match literally, not as wildcards.
+      expect(andWhere).toHaveBeenCalledWith(
+        String.raw`details.title ILIKE :q ESCAPE '\'`,
+        {
+          q: String.raw`%50\%\_x%`,
+        },
+      );
     });
   });
 
@@ -120,6 +143,7 @@ describe('SearchMemoryPointsHandler', () => {
       qb.where = where;
       qb.andWhere = jest.fn().mockReturnValue(qb);
       qb.orderBy = jest.fn().mockReturnValue(qb);
+      qb.addOrderBy = jest.fn().mockReturnValue(qb);
       qb.paginate = jest
         .fn<() => Promise<unknown>>()
         .mockResolvedValue([[approvedPoint], { itemCount: 1 }]);

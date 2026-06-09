@@ -124,7 +124,7 @@ export class AdminMemoryPointController {
     return this.memoryPointService.updateMemoryPointLocation(
       id,
       updateMemoryPointLocationDto,
-      true,
+      { kind: 'admin' },
     );
   }
 
