@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 
+import type { PageDto } from '../../../common/dto/page.dto.ts';
 import type { RoleType } from '../../../constants/role-type.ts';
 import { CloudTasksService } from '../../../shared/services/cloud-tasks.service.ts';
 import { CreateAiGenerationCommand } from '../commands/create-ai-generation/create-ai-generation.command.ts';
 import { ProcessDidWebhookCommand } from '../commands/process-did-webhook/process-did-webhook.command.ts';
+import type { AdminAiJobDto } from '../dtos/admin-ai-job.dto.ts';
+import type { AdminAiJobOptionsDto } from '../dtos/admin-ai-job-options.dto.ts';
 import type { AiGenerationStatusResponseDto } from '../dtos/ai-generation-status.dto.ts';
 import type { MemoryPointAiGenerationDto } from '../dtos/memory-point-ai-generation.dto.ts';
+import { GetAdminAiJobsQuery } from '../queries/get-admin-ai-jobs/get-admin-ai-jobs.query.ts';
 import { GetAiGenerationStatusQuery } from '../queries/get-ai-generation-status/get-ai-generation-status.query.ts';
 
 @Injectable()
@@ -48,5 +52,13 @@ export class MemoryPointAiGenerationService {
       GetAiGenerationStatusQuery,
       AiGenerationStatusResponseDto
     >(new GetAiGenerationStatusQuery(memoryPointId, userId, role));
+  }
+
+  getAdminJobs(
+    pageOptionsDto: AdminAiJobOptionsDto,
+  ): Promise<PageDto<AdminAiJobDto>> {
+    return this.queryBus.execute<GetAdminAiJobsQuery, PageDto<AdminAiJobDto>>(
+      new GetAdminAiJobsQuery(pageOptionsDto),
+    );
   }
 }

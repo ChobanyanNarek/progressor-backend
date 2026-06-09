@@ -3,7 +3,7 @@ import {
   Entity,
   Index,
   JoinColumn,
-  OneToOne,
+  ManyToOne,
   type Relation,
 } from 'typeorm';
 
@@ -16,11 +16,14 @@ import { MemoryPointAiGenerationDto } from './dtos/memory-point-ai-generation.dt
 @Entity({ name: 'memory_point_ai_generations' })
 @UseDto(MemoryPointAiGenerationDto)
 export class MemoryPointAiGenerationEntity extends AbstractEntity<MemoryPointAiGenerationDto> {
-  @Index({ unique: true })
+  @Index('UQ_mpag_memory_point_id', { unique: true })
   @Column({ type: 'uuid', name: 'memory_point_id' })
   memoryPointId!: Uuid;
 
-  @Index({ unique: true, where: '"did_talk_id" IS NOT NULL' })
+  @Index('UQ_mpag_did_talk_id', {
+    unique: true,
+    where: '"did_talk_id" IS NOT NULL',
+  })
   @Column({ type: 'varchar', nullable: true })
   didTalkId?: string;
 
@@ -46,9 +49,18 @@ export class MemoryPointAiGenerationEntity extends AbstractEntity<MemoryPointAiG
   @Column({ type: 'int', default: 1 })
   attemptNumber!: number;
 
-  @OneToOne(() => MemoryPointEntity, {
+  /**
+   * Modelled as ManyToOne + a unique index (`UQ_mpag_memory_point_id`) rather
+   * than OneToOne: uniqueness is enforced by the index (one generation per
+   * point), and ManyToOne avoids the OneToOne-implied unique *constraint* that
+   * TypeORM would otherwise try to add on top of the existing unique index.
+   */
+  @ManyToOne(() => MemoryPointEntity, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'memory_point_id' })
+  @JoinColumn({
+    name: 'memory_point_id',
+    foreignKeyConstraintName: 'FK_mpag_memory_point',
+  })
   memoryPoint!: Relation<MemoryPointEntity>;
 }
