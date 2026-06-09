@@ -2,7 +2,7 @@ import type { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
 import { Storage } from '@google-cloud/storage';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { ApiConfigService } from './api-config.service.ts';
 
@@ -10,6 +10,8 @@ const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
 @Injectable()
 export class GcsStorageService {
+  private readonly logger = new Logger(GcsStorageService.name);
+
   private readonly storage: Storage;
 
   private readonly bucketName: string;
@@ -81,6 +83,30 @@ export class GcsStorageService {
       });
 
     return url;
+  }
+
+  /**
+   * Read-URL signer for response mapping: object paths are stored in the DB, but
+   * the bucket is private, so a raw path 404s in the browser — callers must hand
+   * the client a signed URL instead. Null/empty paths (media not uploaded yet)
+   * pass through as null, and a signing failure degrades to null (that one asset
+   * won't load) rather than failing the whole list/detail response.
+   */
+  async getSignedReadUrlOrNull(
+    objectPath: string | null | undefined,
+    ttlMs: number = FIFTEEN_MINUTES_MS,
+  ): Promise<string | null> {
+    if (!objectPath) {
+      return null;
+    }
+
+    try {
+      return await this.getSignedReadUrl(objectPath, ttlMs);
+    } catch (error) {
+      this.logger.error(`Failed to sign read URL for ${objectPath}`, error);
+
+      return null;
+    }
   }
 
   /**

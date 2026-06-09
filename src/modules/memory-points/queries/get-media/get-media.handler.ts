@@ -1,4 +1,3 @@
-import { Logger } from '@nestjs/common';
 import { type IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
@@ -14,8 +13,6 @@ import { GetMediaQuery } from './get-media.query.ts';
 export class GetMediaHandler
   implements IQueryHandler<GetMediaQuery, PageDto<MediaItemDto>>
 {
-  private readonly logger = new Logger(GetMediaHandler.name);
-
   constructor(
     @InjectRepository(MemoryPointDetailsEntity)
     private readonly detailsRepository: Repository<MemoryPointDetailsEntity>,
@@ -41,13 +38,14 @@ export class GetMediaHandler
     const data = await Promise.all(
       items.map(async (details) => {
         /*
-         * Sign the three object paths concurrently — each is an IAM signBlob
-         * round-trip, so serial awaits would triple the latency per row.
+         * Columns store GCS object paths, not URLs — the bucket is private, so a
+         * raw path 404s in the browser. Sign the three concurrently (each is an
+         * IAM signBlob round-trip; serial awaits would triple per-row latency).
          */
         const [photoUrl, audioUrl, videoUrl] = await Promise.all([
-          this.signObjectPath(details.sourcePhotoUrl),
-          this.signObjectPath(details.sourceAudioUrl),
-          this.signObjectPath(details.videoUrl),
+          this.gcsService.getSignedReadUrlOrNull(details.sourcePhotoUrl),
+          this.gcsService.getSignedReadUrlOrNull(details.sourceAudioUrl),
+          this.gcsService.getSignedReadUrlOrNull(details.videoUrl),
         ]);
 
         return MediaItemDto.create({
@@ -65,29 +63,5 @@ export class GetMediaHandler
     );
 
     return PageDto.create({ data, meta });
-  }
-
-  /**
-   * The columns store GCS *object paths*, not URLs — the bucket is private, so a
-   * raw path 404s in the browser. Hand the client a short-lived signed read URL
-   * it can actually load; pass through null/undefined (media not uploaded yet).
-   *
-   * A signing failure degrades to null (that one asset won't load) rather than
-   * 500-ing the whole gallery — one bad object path shouldn't blank the page.
-   */
-  private async signObjectPath(
-    objectPath: string | null | undefined,
-  ): Promise<string | null> {
-    if (!objectPath) {
-      return null;
-    }
-
-    try {
-      return await this.gcsService.getSignedReadUrl(objectPath);
-    } catch (error) {
-      this.logger.error(`Failed to sign read URL for ${objectPath}`, error);
-
-      return null;
-    }
   }
 }
