@@ -4,13 +4,16 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { MemoryPointAiGenerationModule } from '../memory-point-ai-generation/memory-point-ai-generation.module.ts';
 import { ApplyGenerationResultHandler } from './commands/apply-generation-result/apply-generation-result.handler.ts';
+import { ArchiveMemoryPointHandler } from './commands/archive-memory-point/archive-memory-point.handler.ts';
 import { CleanupStaleDraftsHandler } from './commands/cleanup-stale-drafts/cleanup-stale-drafts.handler.ts';
 import { CreateMemoryPointHandler } from './commands/create-memory-point/create-memory-point.handler.ts';
 import { CreateUploadUrlHandler } from './commands/create-upload-url/create-upload-url.handler.ts';
+import { DeactivateMemoryPointHandler } from './commands/deactivate-memory-point/deactivate-memory-point.handler.ts';
 import { DeleteMemoryPointHandler } from './commands/delete-memory-point/delete-memory-point.handler.ts';
 import { MarkGenerationStartedHandler } from './commands/mark-generation-started/mark-generation-started.handler.ts';
 import { UpdateMemoryPointDetailsHandler } from './commands/update-memory-point-details/update-memory-point-details.handler.ts';
 import { UpdateMemoryPointStatusHandler } from './commands/update-memory-point-status/update-memory-point-status.handler.ts';
+import { UpdatePublicationStateHandler } from './commands/update-publication-state/update-publication-state.handler.ts';
 import { UpsertMemoryPointDetailsHandler } from './commands/upsert-memory-point-details/upsert-memory-point-details.handler.ts';
 import { AdminMemoryPointController } from './controllers/admin-memory-point.controller.ts';
 import { CreatorMemoryPointController } from './controllers/creator-memory-point.controller.ts';
@@ -31,6 +34,9 @@ import { GetRecentMemoryPointsHandler } from './queries/get-recent-memory-points
 const commandHandlers = [
   CreateMemoryPointHandler,
   UpdateMemoryPointStatusHandler,
+  UpdatePublicationStateHandler,
+  ArchiveMemoryPointHandler,
+  DeactivateMemoryPointHandler,
   UpdateMemoryPointDetailsHandler,
   UpsertMemoryPointDetailsHandler,
   DeleteMemoryPointHandler,

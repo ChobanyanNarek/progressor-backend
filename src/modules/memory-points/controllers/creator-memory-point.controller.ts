@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Query,
   ValidationPipe,
@@ -138,5 +139,20 @@ export class CreatorMemoryPointController {
     @AuthUser() user: UserEntity,
   ): Promise<CreatorMemoryPointDto> {
     return this.memoryPointService.getMemoryPoint(id, user.id, user.role);
+  }
+
+  @Patch(':id/deactivate')
+  @Auth([RoleType.CREATOR])
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary:
+      'Deactivate (hide) an owned memory point — must be ACTIVE to deactivate',
+  })
+  @ApiUUIDParam('id')
+  deactivate(
+    @UUIDParam('id') id: Uuid,
+    @AuthUser() user: UserEntity,
+  ): Promise<void> {
+    return this.memoryPointService.deactivateMemoryPoint(id, user.id);
   }
 }

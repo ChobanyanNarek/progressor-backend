@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import { PublicationState } from '../../../../constants/publication-state.ts';
 import { RoleType } from '../../../../constants/role-type.ts';
 import type { GcsStorageService } from '../../../../shared/services/gcs-storage.service.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
@@ -80,19 +81,22 @@ describe('GetMemoryPointHandler', () => {
     expect(qb.leftJoinAndSelect).toHaveBeenCalledWith('mp.user', 'user');
   });
 
-  it('public read (no userId) adds the APPROVED status filter', async () => {
+  it('public read (no userId) adds the APPROVED status filter and ACTIVE publicationState filter', async () => {
     setup(entity());
 
     await handler.execute(new GetMemoryPointQuery(memoryPointId));
 
     expect(qb.where).toHaveBeenCalledWith('mp.id = :id', { id: memoryPointId });
-    expect(qb.andWhere).toHaveBeenCalledTimes(1);
+    expect(qb.andWhere).toHaveBeenCalledTimes(2);
     expect(qb.andWhere).toHaveBeenCalledWith('mp.status = :status', {
       status: MemoryPointStatus.APPROVED,
     });
+    expect(qb.andWhere).toHaveBeenCalledWith('mp.publicationState = :pub', {
+      pub: PublicationState.ACTIVE,
+    });
   });
 
-  it('CREATOR role with userId adds the ownership filter (and no status filter)', async () => {
+  it('CREATOR role with userId adds the ownership filter (and no status/publicationState filter)', async () => {
     setup(entity());
 
     await handler.execute(
@@ -108,7 +112,7 @@ describe('GetMemoryPointHandler', () => {
     expect(statusCall).toBeUndefined();
   });
 
-  it('ADMIN role with userId adds NEITHER an ownership NOR a status filter', async () => {
+  it('ADMIN role with userId adds NEITHER an ownership NOR a status/publicationState filter', async () => {
     setup(entity());
 
     await handler.execute(
