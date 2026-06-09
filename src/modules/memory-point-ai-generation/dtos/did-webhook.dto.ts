@@ -1,4 +1,4 @@
-/** biome-ignore-all lint/style/useNamingConvention: <explanation> */
+/** biome-ignore-all lint/style/useNamingConvention: D-ID wire keys are snake_case and must match exactly */
 import { Allow } from 'class-validator';
 
 import { BaseDto } from '../../../common/dto/base.dto.ts';
@@ -62,6 +62,10 @@ export class DidWebhookDto extends BaseDto {
 
   @Allow()
   webhook?: string;
+
+  /** S3 URL of the in-progress/failed render; D-ID sends it on every webhook. */
+  @Allow()
+  pending_url?: string;
 
   @Allow()
   object?: string;
