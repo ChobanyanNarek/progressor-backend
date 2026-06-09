@@ -29,7 +29,7 @@ export class UpdateMemoryPointDetailsHandler
    * uploads media). A bogus memory point id still 404s.
    */
   async execute(command: UpdateMemoryPointDetailsCommand): Promise<void> {
-    const { memoryPointId, dto } = command;
+    const { memoryPointId, dto, actorId } = command;
 
     const memoryPoint = await this.memoryPointRepository
       .createQueryBuilder('mp')
@@ -76,7 +76,7 @@ export class UpdateMemoryPointDetailsHandler
         .where('memory_point_id = :memoryPointId', { memoryPointId })
         .execute();
 
-      this.recordDetailsUpdated(memoryPointId);
+      this.recordDetailsUpdated(memoryPointId, actorId);
 
       return;
     }
@@ -93,15 +93,16 @@ export class UpdateMemoryPointDetailsHandler
       .values({ ...metadata, memoryPointId })
       .execute();
 
-    this.recordDetailsUpdated(memoryPointId);
+    this.recordDetailsUpdated(memoryPointId, actorId);
   }
 
-  private recordDetailsUpdated(memoryPointId: Uuid): void {
+  private recordDetailsUpdated(memoryPointId: Uuid, actorId: Uuid): void {
     this.adminLogsService.record({
       level: LogLevel.INFO,
       source: LogSource.API,
       message: 'Memory point details updated',
       memoryPointId,
+      context: { actorId },
     });
   }
 }

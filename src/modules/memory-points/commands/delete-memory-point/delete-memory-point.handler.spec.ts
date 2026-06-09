@@ -11,6 +11,7 @@ describe('DeleteMemoryPointHandler', () => {
   let record: jest.Mock;
 
   const pointId = 'point-1' as Uuid;
+  const actorId = 'admin-1' as Uuid;
 
   beforeEach(() => {
     del = jest.fn<() => Promise<unknown>>().mockResolvedValue({ affected: 1 });
@@ -21,13 +22,16 @@ describe('DeleteMemoryPointHandler', () => {
 
   it('deletes the memory point by id and resolves on success', async () => {
     await expect(
-      handler.execute(new DeleteMemoryPointCommand(pointId)),
+      handler.execute(new DeleteMemoryPointCommand(pointId, actorId)),
     ).resolves.toBeUndefined();
 
     expect(del).toHaveBeenCalledTimes(1);
     expect(del).toHaveBeenCalledWith({ id: pointId });
     expect(record).toHaveBeenCalledWith(
-      expect.objectContaining({ memoryPointId: pointId }),
+      expect.objectContaining({
+        memoryPointId: pointId,
+        context: { actorId },
+      }),
     );
   });
 
@@ -35,7 +39,7 @@ describe('DeleteMemoryPointHandler', () => {
     del.mockResolvedValue({ affected: 0 });
 
     await expect(
-      handler.execute(new DeleteMemoryPointCommand(pointId)),
+      handler.execute(new DeleteMemoryPointCommand(pointId, actorId)),
     ).rejects.toBeInstanceOf(MemoryPointNotFoundException);
 
     expect(record).not.toHaveBeenCalled();

@@ -15,6 +15,7 @@ import { DataSource } from 'typeorm';
 import { initializeTransactionalContext } from 'typeorm-transactional';
 
 import { AppModule } from '../src/app.module.ts';
+import { AccountStatus } from '../src/constants/account-status.ts';
 import { RoleType } from '../src/constants/role-type.ts';
 import { UserEntity } from '../src/modules/user/user.entity.ts';
 import { GcsStorageService } from '../src/shared/services/gcs-storage.service.ts';
@@ -408,6 +409,50 @@ describe('Memory points (e2e)', () => {
       expect(body.memoryPointDetails.title).toBe('Admin set title');
       expect(body.memoryPointDetails.type).toBe('GRAVE');
       expect(body.memoryPointDetails.description).toBe('updated');
+    });
+  });
+
+  describe('DISABLED account enforcement (ticket 01)', () => {
+    const disabledUser = {
+      email: 'disabled-creator@e2e.test',
+      password: 'Sup3rSecret!',
+    };
+    let tokenBeforeDisable: string;
+
+    beforeAll(async () => {
+      const userRepository = app.get(DataSource).getRepository(UserEntity);
+      await userRepository.save(
+        userRepository.create({
+          firstName: 'Disabled',
+          lastName: 'Creator',
+          email: disabledUser.email,
+          password: disabledUser.password,
+          role: RoleType.CREATOR,
+        }),
+      );
+
+      // Mint a token while the account is still ACTIVE, then deactivate it.
+      tokenBeforeDisable = await login(disabledUser);
+      await userRepository.update(
+        { email: disabledUser.email },
+        { status: AccountStatus.DISABLED },
+      );
+    });
+
+    it('refuses login for a DISABLED account with 403 error.accountDisabled', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send(disabledUser)
+        .expect(403);
+
+      expect(response.body.message).toBe('error.accountDisabled');
+    });
+
+    it('rejects a pre-issued token for a now-DISABLED user with 401', async () => {
+      await request(app.getHttpServer())
+        .get('/creator/memory-points/mine?page=1&take=10')
+        .set(authHeader(tokenBeforeDisable))
+        .expect(401);
     });
   });
 });

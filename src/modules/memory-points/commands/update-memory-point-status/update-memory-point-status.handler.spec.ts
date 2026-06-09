@@ -15,6 +15,7 @@ describe('UpdateMemoryPointStatusHandler', () => {
   let record: jest.Mock;
 
   const pointId = 'point-1' as Uuid;
+  const actorId = 'admin-1' as Uuid;
 
   beforeEach(() => {
     execute = jest
@@ -36,7 +37,11 @@ describe('UpdateMemoryPointStatusHandler', () => {
   it('updates the memory point status via the query builder', async () => {
     await expect(
       handler.execute(
-        new UpdateMemoryPointStatusCommand(pointId, MemoryPointStatus.APPROVED),
+        new UpdateMemoryPointStatusCommand(
+          pointId,
+          MemoryPointStatus.APPROVED,
+          actorId,
+        ),
       ),
     ).resolves.toBeUndefined();
 
@@ -46,7 +51,7 @@ describe('UpdateMemoryPointStatusHandler', () => {
     expect(record).toHaveBeenCalledWith(
       expect.objectContaining({
         memoryPointId: pointId,
-        context: { status: MemoryPointStatus.APPROVED },
+        context: { actorId, status: MemoryPointStatus.APPROVED },
       }),
     );
   });
@@ -56,7 +61,11 @@ describe('UpdateMemoryPointStatusHandler', () => {
 
     await expect(
       handler.execute(
-        new UpdateMemoryPointStatusCommand(pointId, MemoryPointStatus.APPROVED),
+        new UpdateMemoryPointStatusCommand(
+          pointId,
+          MemoryPointStatus.APPROVED,
+          actorId,
+        ),
       ),
     ).rejects.toBeInstanceOf(MemoryPointNotFoundException);
 

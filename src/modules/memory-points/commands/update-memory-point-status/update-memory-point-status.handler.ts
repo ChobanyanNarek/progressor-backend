@@ -20,7 +20,7 @@ export class UpdateMemoryPointStatusHandler
   ) {}
 
   async execute(command: UpdateMemoryPointStatusCommand): Promise<void> {
-    const { memoryPointId, status } = command;
+    const { memoryPointId, status, actorId } = command;
 
     const result = await this.memoryPointRepository
       .createQueryBuilder()
@@ -38,7 +38,7 @@ export class UpdateMemoryPointStatusHandler
       source: LogSource.API,
       message: 'Memory point status updated',
       memoryPointId,
-      context: { status },
+      context: { actorId, status },
     });
   }
 }

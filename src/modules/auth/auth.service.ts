@@ -93,11 +93,22 @@ export class AuthService {
   }
 
   private recordLoginFailure(email: string, reason: string): void {
+    /*
+     * The email is attacker-controllable on the unauthenticated login path, so
+     * we log it for audit value (which account was targeted) but truncate to a
+     * sane bound to keep a flood of junk attempts from bloating the audit table.
+     *
+     * NOTE: login rate-limiting is NOT yet enforced — ThrottlerModule is
+     * configured (app.module.ts) but no global `APP_GUARD: ThrottlerGuard` is
+     * registered, so /auth/login is currently unthrottled. Wiring the global
+     * throttler guard is a separate, app-wide follow-up.
+     */
+    const MAX_EMAIL_LEN = 320; // RFC 5321 max address length.
     this.adminLogsService.record({
       level: LogLevel.WARN,
       source: LogSource.AUTH,
       message: `Login failed: ${reason}`,
-      context: { email },
+      context: { email: email.slice(0, MAX_EMAIL_LEN) },
     });
   }
 }

@@ -20,7 +20,7 @@ export class DeleteMemoryPointHandler
   ) {}
 
   async execute(command: DeleteMemoryPointCommand): Promise<void> {
-    const { memoryPointId } = command;
+    const { memoryPointId, actorId } = command;
 
     const result = await this.memoryPointRepository.delete({
       id: memoryPointId,
@@ -35,6 +35,7 @@ export class DeleteMemoryPointHandler
       source: LogSource.API,
       message: 'Memory point deleted',
       memoryPointId,
+      context: { actorId },
     });
   }
 }
