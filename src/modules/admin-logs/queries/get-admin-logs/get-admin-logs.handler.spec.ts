@@ -14,11 +14,7 @@ import { GetAdminLogsQuery } from './get-admin-logs.query.ts';
 interface IQbDouble {
   andWhere: jest.Mock;
   orderBy: jest.Mock;
-  select: jest.Mock;
-  addSelect: jest.Mock;
-  groupBy: jest.Mock;
   paginate: jest.Mock;
-  getRawMany: jest.Mock;
 }
 
 describe('GetAdminLogsHandler', () => {
@@ -37,36 +33,18 @@ describe('GetAdminLogsHandler', () => {
   });
 
   let handler: GetAdminLogsHandler;
-  let listQb: IQbDouble;
-  let countsQb: IQbDouble;
+  let qb: IQbDouble;
   let createQueryBuilder: jest.Mock;
 
-  const makeQb = (): IQbDouble => {
-    const qb = {} as IQbDouble;
+  beforeEach(() => {
+    qb = {} as IQbDouble;
     qb.andWhere = jest.fn().mockReturnValue(qb);
     qb.orderBy = jest.fn().mockReturnValue(qb);
-    qb.select = jest.fn().mockReturnValue(qb);
-    qb.addSelect = jest.fn().mockReturnValue(qb);
-    qb.groupBy = jest.fn().mockReturnValue(qb);
     qb.paginate = jest
       .fn<() => Promise<unknown>>()
       .mockResolvedValue([[logRow], pageMeta]);
-    qb.getRawMany = jest.fn<() => Promise<unknown>>().mockResolvedValue([
-      { source: LogSource.API, count: '5' },
-      { source: LogSource.DID, count: '2' },
-    ]);
 
-    return qb;
-  };
-
-  beforeEach(() => {
-    listQb = makeQb();
-    countsQb = makeQb();
-    // First createQueryBuilder() call -> list query, second -> counts query.
-    createQueryBuilder = jest
-      .fn()
-      .mockReturnValueOnce(listQb)
-      .mockReturnValueOnce(countsQb);
+    createQueryBuilder = jest.fn().mockReturnValue(qb);
 
     handler = new GetAdminLogsHandler({ createQueryBuilder } as never);
   });
@@ -96,87 +74,55 @@ describe('GetAdminLogsHandler', () => {
   it('orders by the timestamp column using the requested page order', async () => {
     await run({ order: Order.ASC });
 
-    expect(listQb.orderBy).toHaveBeenCalledWith('log.timestamp', Order.ASC);
+    expect(qb.orderBy).toHaveBeenCalledWith('log.timestamp', Order.ASC);
   });
 
-  it('paginates the list query with the options dto', async () => {
+  it('paginates with the options dto', async () => {
     await run({});
 
-    expect(listQb.paginate).toHaveBeenCalledTimes(1);
+    expect(qb.paginate).toHaveBeenCalledTimes(1);
   });
 
-  it('builds zero-filled per-source counts on meta.counts', async () => {
-    const result = await run({});
-
-    expect(
-      (result.meta as unknown as { counts: Record<string, number> }).counts,
-    ).toEqual({
-      api: 5,
-      ar: 0,
-      did: 2,
-      maps: 0,
-      auth: 0,
-    });
-  });
-
-  it('uses the page itemCount on the merged meta', async () => {
+  it('carries the page itemCount on the meta', async () => {
     const result = await run({});
 
     expect(result.meta.itemCount).toBe(1);
   });
 
-  it('applies the level filter on both list and counts queries', async () => {
+  it('applies the level filter', async () => {
     await run({ level: LogLevel.WARN });
 
-    expect(listQb.andWhere).toHaveBeenCalledWith('log.level = :level', {
-      level: LogLevel.WARN,
-    });
-    expect(countsQb.andWhere).toHaveBeenCalledWith('log.level = :level', {
+    expect(qb.andWhere).toHaveBeenCalledWith('log.level = :level', {
       level: LogLevel.WARN,
     });
   });
 
-  it('applies the source filter on the list query only (counts stay cross-source)', async () => {
+  it('applies the source filter', async () => {
     await run({ source: LogSource.AUTH });
 
-    expect(listQb.andWhere).toHaveBeenCalledWith('log.source = :source', {
-      source: LogSource.AUTH,
-    });
-    expect(countsQb.andWhere).not.toHaveBeenCalledWith('log.source = :source', {
+    expect(qb.andWhere).toHaveBeenCalledWith('log.source = :source', {
       source: LogSource.AUTH,
     });
   });
 
-  it('applies the from/to time window on both queries', async () => {
+  it('applies the from/to time window', async () => {
     const from = new Date('2026-01-01T00:00:00.000Z');
     const to = new Date('2026-01-31T23:59:59.000Z');
 
     await run({ from, to });
 
-    expect(listQb.andWhere).toHaveBeenCalledWith('log.timestamp >= :from', {
+    expect(qb.andWhere).toHaveBeenCalledWith('log.timestamp >= :from', {
       from,
     });
-    expect(listQb.andWhere).toHaveBeenCalledWith('log.timestamp <= :to', {
-      to,
-    });
-    expect(countsQb.andWhere).toHaveBeenCalledWith('log.timestamp >= :from', {
-      from,
-    });
-    expect(countsQb.andWhere).toHaveBeenCalledWith('log.timestamp <= :to', {
-      to,
-    });
+    expect(qb.andWhere).toHaveBeenCalledWith('log.timestamp <= :to', { to });
   });
 
-  it('applies the memoryPointId filter on both list and counts queries', async () => {
+  it('applies the memoryPointId filter', async () => {
     const memoryPointId = '22222222-2222-4222-8222-222222222222' as Uuid;
 
     await run({ memoryPointId });
 
-    expect(listQb.andWhere).toHaveBeenCalledWith(
-      'log.memoryPointId = :memoryPointId',
-      { memoryPointId },
-    );
-    expect(countsQb.andWhere).toHaveBeenCalledWith(
+    expect(qb.andWhere).toHaveBeenCalledWith(
       'log.memoryPointId = :memoryPointId',
       { memoryPointId },
     );
@@ -185,7 +131,7 @@ describe('GetAdminLogsHandler', () => {
   it('applies a case-insensitive ILIKE message filter when q is present', async () => {
     await run({ q: 'render' });
 
-    expect(listQb.andWhere).toHaveBeenCalledWith('log.message ILIKE :q', {
+    expect(qb.andWhere).toHaveBeenCalledWith('log.message ILIKE :q', {
       q: '%render%',
     });
   });
@@ -193,7 +139,6 @@ describe('GetAdminLogsHandler', () => {
   it('skips all optional filters when none are provided', async () => {
     await run({});
 
-    expect(listQb.andWhere).not.toHaveBeenCalled();
-    expect(countsQb.andWhere).not.toHaveBeenCalled();
+    expect(qb.andWhere).not.toHaveBeenCalled();
   });
 });

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { LogLevel } from '../../../../constants/log-level.ts';
 import { LogSource } from '../../../../constants/log-source.ts';
-import type { IAdminLogInput } from '../../interfaces/i-admin-log-input.ts';
+import type { AdminLogInputDto } from '../../dtos/admin-log-input.dto.ts';
 import { RecordAdminLogCommand } from './record-admin-log.command.ts';
 
 /*
@@ -37,7 +37,7 @@ describe('RecordAdminLogHandler', () => {
     handler = new handlerModule.RecordAdminLogHandler(repo as never);
   });
 
-  const input: IAdminLogInput = {
+  const input: AdminLogInputDto = {
     level: LogLevel.ERROR,
     source: LogSource.DID,
     memoryPointId,
@@ -45,7 +45,7 @@ describe('RecordAdminLogHandler', () => {
     context: { generationId: 'gen-1', talkStatus: 'error' },
   };
 
-  const run = (logInput: IAdminLogInput = input): Promise<void> =>
+  const run = (logInput: AdminLogInputDto = input): Promise<void> =>
     handler.execute(new RecordAdminLogCommand(logInput));
 
   it('maps the input onto the entity columns and inserts once', async () => {
@@ -81,7 +81,14 @@ describe('RecordAdminLogHandler', () => {
   it('uses the provided timestamp when one is supplied', async () => {
     const timestamp = new Date('2026-01-03T10:00:00.000Z');
 
-    await run({ ...input, timestamp });
+    await run({
+      level: input.level,
+      source: input.source,
+      memoryPointId: input.memoryPointId,
+      message: input.message,
+      context: input.context,
+      timestamp,
+    });
 
     const values = insert.mock.calls[0]![0] as { timestamp: Date };
     expect(values.timestamp).toBe(timestamp);

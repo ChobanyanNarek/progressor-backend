@@ -13,7 +13,7 @@ export class RecordAdminLogHandler
 {
   constructor(
     @InjectRepository(AdminLogEntryEntity)
-    private readonly logRepository: Repository<AdminLogEntryEntity>,
+    private readonly adminLogEntryRepository: Repository<AdminLogEntryEntity>,
   ) {}
 
   /*
@@ -44,6 +44,6 @@ export class RecordAdminLogHandler
         null) as QueryDeepPartialEntity<AdminLogEntryEntity>['context'],
     };
 
-    await this.logRepository.insert(values);
+    await this.adminLogEntryRepository.insert(values);
   }
 }

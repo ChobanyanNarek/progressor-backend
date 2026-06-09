@@ -87,15 +87,4 @@ describe('QueryFailedFilter', () => {
     expect(status).toHaveBeenCalledWith(HttpStatus.CONFLICT);
     expect(json).toHaveBeenCalledTimes(1);
   });
-
-  it('does NOT break catch() when no admin logs service is provided', () => {
-    const filter = new QueryFailedFilter(reflector);
-
-    expect(() => {
-      filter.catch(makeException('UQ_users_email'), host);
-    }).not.toThrow();
-
-    expect(status).toHaveBeenCalledWith(HttpStatus.CONFLICT);
-    expect(json).toHaveBeenCalledTimes(1);
-  });
 });

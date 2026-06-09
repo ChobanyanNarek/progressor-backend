@@ -17,9 +17,7 @@ export class AdminLogsController {
   @Get()
   @Auth([RoleType.ADMIN])
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'List admin logs with filters and per-source counts',
-  })
+  @ApiOperation({ summary: 'List admin logs with filters' })
   @ApiPageResponse({ description: 'Admin log entries', type: AdminLogEntryDto })
   getLogs(
     @Query() optionsDto: AdminLogOptionsDto,

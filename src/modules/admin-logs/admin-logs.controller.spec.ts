@@ -15,7 +15,7 @@ describe('AdminLogsController', () => {
   let page: PageDto<AdminLogEntryDto>;
 
   beforeEach(() => {
-    const meta = { itemCount: 1, counts: { api: 1 } } as never;
+    const meta = { itemCount: 1 } as never;
     const entity = Object.assign(new AdminLogEntryEntity(), {
       id: '11111111-1111-4111-8111-111111111111' as Uuid,
       createdAt: new Date('2026-01-01T00:00:00.000Z'),

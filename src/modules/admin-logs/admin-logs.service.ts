@@ -4,8 +4,8 @@ import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import type { PageDto } from '../../common/dto/page.dto.ts';
 import { RecordAdminLogCommand } from './commands/record-admin-log/record-admin-log.command.ts';
 import type { AdminLogEntryDto } from './dtos/admin-log-entry.dto.ts';
+import type { AdminLogInputDto } from './dtos/admin-log-input.dto.ts';
 import type { AdminLogOptionsDto } from './dtos/admin-log-options.dto.ts';
-import type { IAdminLogInput } from './interfaces/i-admin-log-input.ts';
 import { GetAdminLogsQuery } from './queries/get-admin-logs/get-admin-logs.query.ts';
 
 @Injectable()
@@ -30,7 +30,7 @@ export class AdminLogsService {
    * CQRS command (ADR-0007) and runs detached; the handler swallows persistence
    * errors, and the extra `.catch` guards against a dispatch-time rejection.
    */
-  record(input: IAdminLogInput): void {
+  record(input: AdminLogInputDto): void {
     void this.commandBus
       .execute(new RecordAdminLogCommand(input))
       .catch((error: unknown) => {

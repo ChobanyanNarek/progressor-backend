@@ -4,7 +4,7 @@ import { LogLevel } from '../../constants/log-level.ts';
 import { LogSource } from '../../constants/log-source.ts';
 import { AdminLogsService } from './admin-logs.service.ts';
 import { RecordAdminLogCommand } from './commands/record-admin-log/record-admin-log.command.ts';
-import type { IAdminLogInput } from './interfaces/i-admin-log-input.ts';
+import type { AdminLogInputDto } from './dtos/admin-log-input.dto.ts';
 
 describe('AdminLogsService', () => {
   let execute: jest.Mock<(command: unknown) => Promise<void>>;
@@ -22,7 +22,7 @@ describe('AdminLogsService', () => {
   });
 
   describe('record', () => {
-    const input: IAdminLogInput = {
+    const input: AdminLogInputDto = {
       level: LogLevel.ERROR,
       source: LogSource.DID,
       message: 'D-ID video generation failed',

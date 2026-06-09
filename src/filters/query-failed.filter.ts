@@ -13,14 +13,9 @@ import { constraintErrors } from './constraint-errors.ts';
 
 @Catch(QueryFailedError)
 export class QueryFailedFilter implements ExceptionFilter<QueryFailedError> {
-  /**
-   * `adminLogsService` is optional so the filter still constructs without it
-   * (unit tests, safety). When present, DB query failures are emitted as
-   * `api`/`error` admin log entries.
-   */
   constructor(
     public reflector: Reflector,
-    private readonly adminLogsService?: AdminLogsService,
+    private readonly adminLogsService: AdminLogsService,
   ) {}
 
   catch(
@@ -38,7 +33,7 @@ export class QueryFailedFilter implements ExceptionFilter<QueryFailedError> {
      * 5xx is a genuine server failure (error); a 4xx such as a unique-constraint
      * 409 is a client conflict, not a server fault, so it logs at warn.
      */
-    this.adminLogsService?.record({
+    this.adminLogsService.record({
       level:
         status >= HttpStatus.INTERNAL_SERVER_ERROR
           ? LogLevel.ERROR
