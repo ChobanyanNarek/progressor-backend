@@ -20,6 +20,7 @@ import {
 } from 'typeorm-transactional';
 
 import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.module.ts';
+import { AdminLogsModule } from './modules/admin-logs/admin-logs.module.ts';
 import { AdminMediaModule } from './modules/admin-media/admin-media.module.ts';
 import { AuthModule } from './modules/auth/auth.module.ts';
 import { HealthCheckerModule } from './modules/health-checker/health-checker.module.ts';
@@ -36,6 +37,7 @@ import { SharedModule } from './shared/shared.module.ts';
     MemoryPointModule,
     MemoryPointAiGenerationModule,
     AdminDashboardModule,
+    AdminLogsModule,
     AdminMediaModule,
     ScheduleModule.forRoot(),
     ClsModule.forRoot({

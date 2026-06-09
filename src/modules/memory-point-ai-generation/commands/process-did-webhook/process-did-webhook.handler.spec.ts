@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { of } from 'rxjs';
 
 import { AiGenerationStatus } from '../../../../constants/ai-generation-status.ts';
+import { LogLevel } from '../../../../constants/log-level.ts';
+import { LogSource } from '../../../../constants/log-source.ts';
 import { ApplyGenerationResultCommand } from '../../../memory-points/commands/apply-generation-result/apply-generation-result.command.ts';
 import { ProcessDidWebhookCommand } from './process-did-webhook.command.ts';
 import { ProcessDidWebhookHandler } from './process-did-webhook.handler.ts';
 
-interface FakeGeneration {
+interface IFakeGeneration {
   id: Uuid;
   memoryPointId: Uuid;
   status: AiGenerationStatus;
@@ -23,7 +25,7 @@ describe('ProcessDidWebhookHandler', () => {
   const memoryPointId = 'point-1' as Uuid;
   const generationId = 'gen-1' as Uuid;
 
-  interface DidTalk {
+  interface IDidTalk {
     id: string;
     status: string;
     resultUrl?: string;
@@ -32,22 +34,24 @@ describe('ProcessDidWebhookHandler', () => {
   }
 
   let handler: ProcessDidWebhookHandler;
-  let getOne: jest.Mock<() => Promise<FakeGeneration | null>>;
-  let save: jest.Mock<(e: FakeGeneration) => Promise<FakeGeneration>>;
+  let getOne: jest.Mock<() => Promise<IFakeGeneration | null>>;
+  let save: jest.Mock<(e: IFakeGeneration) => Promise<IFakeGeneration>>;
   let repo: { createQueryBuilder: jest.Mock; save: typeof save };
-  let getTalk: jest.Mock<() => Promise<DidTalk>>;
+  let getTalk: jest.Mock<() => Promise<IDidTalk>>;
   let didService: { getTalk: typeof getTalk };
   let uploadStream: jest.Mock<(path: string) => Promise<string>>;
   let gcsService: { uploadStream: typeof uploadStream };
   let commandBusExecute: jest.Mock<(command: unknown) => Promise<unknown>>;
   let httpGet: jest.Mock;
   let httpService: { get: jest.Mock };
+  let record: jest.Mock;
+  let adminLogsService: { record: jest.Mock };
 
   const readableLike = { __isStream: true };
 
   const makeGeneration = (
-    overrides: Partial<FakeGeneration> = {},
-  ): FakeGeneration => ({
+    overrides: Partial<IFakeGeneration> = {},
+  ): IFakeGeneration => ({
     id: generationId,
     memoryPointId,
     status: AiGenerationStatus.PROCESSING,
@@ -58,9 +62,9 @@ describe('ProcessDidWebhookHandler', () => {
   });
 
   beforeEach(() => {
-    getOne = jest.fn<() => Promise<FakeGeneration | null>>();
+    getOne = jest.fn<() => Promise<IFakeGeneration | null>>();
     save = jest
-      .fn<(e: FakeGeneration) => Promise<FakeGeneration>>()
+      .fn<(e: IFakeGeneration) => Promise<IFakeGeneration>>()
       .mockImplementation((e) => Promise.resolve(e));
     repo = {
       createQueryBuilder: jest.fn(() => ({
@@ -70,7 +74,7 @@ describe('ProcessDidWebhookHandler', () => {
       save,
     };
 
-    getTalk = jest.fn<() => Promise<DidTalk>>();
+    getTalk = jest.fn<() => Promise<IDidTalk>>();
     didService = { getTalk };
 
     uploadStream = jest
@@ -83,12 +87,16 @@ describe('ProcessDidWebhookHandler', () => {
     httpGet = jest.fn().mockReturnValue(of({ data: readableLike }));
     httpService = { get: httpGet };
 
+    record = jest.fn();
+    adminLogsService = { record };
+
     handler = new ProcessDidWebhookHandler(
       repo as never,
       didService as never,
       gcsService as never,
       { execute: commandBusExecute } as never,
       httpService as never,
+      adminLogsService as never,
     );
   });
 
@@ -153,6 +161,14 @@ describe('ProcessDidWebhookHandler', () => {
       status: AiGenerationStatus.COMPLETED,
       videoUrl: expectedPath,
     });
+
+    expect(record).toHaveBeenCalledWith({
+      level: LogLevel.INFO,
+      source: LogSource.DID,
+      memoryPointId,
+      message: 'D-ID video generation completed',
+      context: { generationId, didTalkId: talkId },
+    });
   });
 
   it('done without durationSeconds: does not set durationSeconds', async () => {
@@ -196,6 +212,14 @@ describe('ProcessDidWebhookHandler', () => {
     expect(cmd.payload).toEqual({
       status: AiGenerationStatus.FAILED,
       errorMessage: expectedMsg,
+    });
+
+    expect(record).toHaveBeenCalledWith({
+      level: LogLevel.ERROR,
+      source: LogSource.DID,
+      memoryPointId,
+      message: 'D-ID video generation failed',
+      context: { generationId, didTalkId: talkId, talkStatus: 'error' },
     });
   });
 
