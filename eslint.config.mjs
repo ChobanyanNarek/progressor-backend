@@ -26,6 +26,8 @@ export default tseslint.config(
       '**/*.d.ts',
       // Standalone tooling scripts (k6, SQL seeds) outside the TS project.
       'scripts/**',
+      // E2E DB bootstrap: plain-node infra helper, not part of the TS project.
+      'test/ensure-e2e-db.mjs',
     ],
   },
   eslint.configs.recommended,

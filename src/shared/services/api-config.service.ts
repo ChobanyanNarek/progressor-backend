@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -112,12 +113,19 @@ export class ApiConfigService {
   }
 
   get postgresConfig(): TypeOrmModuleOptions {
+    /*
+     * Derive the module directory from its URL rather than `import.meta.dirname`
+     * (cleaner, but undefined under jest's ESM runtime). `import.meta.url` is
+     * populated everywhere: Node, Vite, Bun and jest.
+     */
+    // eslint-disable-next-line unicorn/prefer-import-meta-properties
+    const dirname = path.dirname(fileURLToPath(import.meta.url));
     const entities = [
-      path.join(import.meta.dirname, `../../modules/**/*.entity{.ts,.js}`),
-      path.join(import.meta.dirname, `../../modules/**/*.view-entity{.ts,.js}`),
+      path.join(dirname, `../../modules/**/*.entity{.ts,.js}`),
+      path.join(dirname, `../../modules/**/*.view-entity{.ts,.js}`),
     ];
     const migrations = [
-      path.join(import.meta.dirname, `../../database/migrations/*{.ts,.js}`),
+      path.join(dirname, `../../database/migrations/*{.ts,.js}`),
     ];
 
     return {

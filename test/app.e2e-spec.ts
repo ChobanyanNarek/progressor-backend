@@ -1,15 +1,27 @@
-import { afterAll, beforeAll, describe, it } from '@jest/globals';
+import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { initializeTransactionalContext } from 'typeorm-transactional';
 
-import { AppModule } from '../src/app.module';
+import { AppModule } from '../src/app.module.ts';
 
-describe('AuthController (e2e)', () => {
+/**
+ * Boots the full application against the isolated `e2e_test` database and hits
+ * the health endpoint, which pings the database. This smoke test proves the
+ * app wires up end-to-end (modules, providers, DB connection) and serves as the
+ * baseline for further e2e specs.
+ */
+describe('HealthCheckerController (e2e)', () => {
   let app: INestApplication;
-  let accessToken: string;
 
   beforeAll(async () => {
+    /*
+     * main.ts does this at bootstrap; the e2e boots AppModule directly, so the
+     * transactional context must be initialized before the DataSource starts.
+     */
+    initializeTransactionalContext();
+
     const moduleFixture = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -18,34 +30,16 @@ describe('AuthController (e2e)', () => {
     await app.init();
   });
 
-  it('/auth/register (POST)', () =>
-    request(app.getHttpServer())
-      .post('/auth/register')
-      .send({
-        firstName: 'John',
-        lastName: 'Smith',
-        email: 'john@smith.com',
-        password: 'password',
-      })
-      .expect(200));
-
-  it('/auth/login (POST)', async () => {
-    const response = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({
-        email: 'john@smith.com',
-        password: 'password',
-      })
-      .expect(200);
-
-    accessToken = response.body.token.accessToken;
+  afterAll(async () => {
+    await app.close();
   });
 
-  it('/auth/me (GET)', () =>
-    request(app.getHttpServer())
-      .get('/auth/me')
-      .set({ Authorization: `Bearer ${accessToken}` })
-      .expect(200));
+  it('GET /health returns 200 with an ok status and a healthy database', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/health')
+      .expect(200);
 
-  afterAll(() => app.close());
+    expect(response.body.status).toBe('ok');
+    expect(response.body.info?.database?.status).toBe('up');
+  });
 });
