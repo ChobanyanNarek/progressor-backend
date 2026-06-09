@@ -51,6 +51,7 @@
       "correctness": {
         "noConstAssign": "error",
         "noConstantCondition": "error",
+        "useHookAtTopLevel": "off",
         "noEmptyCharacterClassInRegex": "error",
         "noEmptyPattern": "error",
         "noGlobalObjectCalls": "error",

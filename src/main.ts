@@ -93,12 +93,14 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   const port = configService.appConfig.port;
 
   /*
-   * Vite plugin binds the server in dev mode (PROD===false); in all other runtimes import.meta.env is undefined.
-   * biome-ignore lint/style/useNamingConvention: PROD is Vite's injected env key
+   * Vite plugin binds the server in dev mode (PROD===false); in all other
+   * runtimes import.meta.env is undefined.
    */
-  const viteEnv = (
-    import.meta as unknown as { env?: { DEV?: boolean; PROD?: boolean } }
-  ).env;
+  interface IViteImportMeta {
+    // biome-ignore lint/style/useNamingConvention: PROD/DEV are Vite's injected env keys
+    env?: { DEV?: boolean; PROD?: boolean };
+  }
+  const viteEnv = (import.meta as unknown as IViteImportMeta).env;
 
   if (!viteEnv?.DEV) {
     await app.listen(port, '0.0.0.0');

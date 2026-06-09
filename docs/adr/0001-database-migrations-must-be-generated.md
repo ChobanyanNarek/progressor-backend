@@ -107,6 +107,18 @@ alter DDL:
 - Bad: no review, no rollback, unsafe for production; silent destructive schema
   changes. Categorically rejected.
 
+## Notes
+
+- **Indexes not expressible in entity metadata** (e.g. `pg_trgm` GIN
+  `gin_trgm_ops` search indexes) would otherwise make `migration:generate`
+  perpetually want to drop them, breaking the clean-drift check. Declare them on
+  the entity with the shared `UNMANAGED_INDEX` (`synchronize: false`) helper
+  (`src/database/unmanaged-index.options.ts`) so the generator neither creates
+  nor drops them; the index itself is still created by a generated migration's
+  reviewed SQL. The same applies to custom-named constraints/FKs — pin the name
+  on the entity (`@Index('UQ_…')`, `@JoinColumn({ foreignKeyConstraintName })`)
+  so the entity matches the live DB and the diff stays clean.
+
 ## Links
 
 - Project guide: [`CLAUDE.md`](../../CLAUDE.md) (Database migrations section)

@@ -9,13 +9,8 @@ import { AdminLogEntryDto } from '../../dtos/admin-log-entry.dto.ts';
 import type { AdminLogOptionsDto } from '../../dtos/admin-log-options.dto.ts';
 import { AdminLogSourceCountsDto } from '../../dtos/admin-log-source-counts.dto.ts';
 import { AdminLogsPageMetaDto } from '../../dtos/admin-logs-page-meta.dto.ts';
+import type { ISourceCountRow } from '../../interfaces/i-source-count-row.ts';
 import { GetAdminLogsQuery } from './get-admin-logs.query.ts';
-
-/** One row of the grouped `source -> count` aggregate. */
-interface ISourceCountRow {
-  source: LogSource;
-  count: string;
-}
 
 @QueryHandler(GetAdminLogsQuery)
 export class GetAdminLogsHandler
