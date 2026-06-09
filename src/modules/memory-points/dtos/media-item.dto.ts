@@ -4,7 +4,7 @@ import { MemoryPointType } from '../../../constants/memory-point-type.ts';
 import {
   DateField,
   EnumField,
-  StringField,
+  EnumFieldOptional,
   StringFieldOptional,
   UUIDField,
 } from '../../../decorators/field.decorators.ts';
@@ -20,19 +20,19 @@ export class MediaItemDto extends BaseDto {
   @StringFieldOptional({ nullable: true })
   title!: string | null;
 
-  @EnumField(() => MemoryPointType)
-  type!: MemoryPointType;
+  @EnumFieldOptional(() => MemoryPointType, { nullable: true })
+  type?: MemoryPointType | null;
 
   @EnumField(() => MemoryPointStatus)
   status!: MemoryPointStatus;
 
-  /** GCS object path of the source photo. */
-  @StringField()
-  photoUrl!: string;
+  /** GCS object path of the source photo; null until media is uploaded. */
+  @StringFieldOptional({ nullable: true })
+  photoUrl!: string | null;
 
-  /** GCS object path of the source audio. */
-  @StringField()
-  audioUrl!: string;
+  /** GCS object path of the source audio; null until media is uploaded. */
+  @StringFieldOptional({ nullable: true })
+  audioUrl!: string | null;
 
   @StringFieldOptional({ nullable: true })
   videoUrl!: string | null;

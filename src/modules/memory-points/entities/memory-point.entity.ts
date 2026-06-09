@@ -52,9 +52,13 @@ export class MemoryPointEntity extends AbstractEntity<
   })
   memoryPointDetails?: Relation<MemoryPointDetailsEntity>;
 
+  /*
+   * Optional in the type: only populated when a query explicitly joins it
+   * (the `user_id` FK column is always set; the relation object is lazy).
+   */
   @ManyToOne(() => UserEntity, (user) => user.memoryPoints, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'user_id' })
-  user!: Relation<UserEntity>;
+  user?: Relation<UserEntity>;
 }

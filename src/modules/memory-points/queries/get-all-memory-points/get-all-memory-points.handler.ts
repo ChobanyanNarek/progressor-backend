@@ -5,6 +5,7 @@ import type { Repository } from 'typeorm';
 import { PageDto } from '../../../../common/dto/page.dto.ts';
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
 import { AdminMemoryPointListItemDto } from '../../dtos/admin-memory-point-list-item.dto.ts';
+import { CreatorSummaryDto } from '../../dtos/creator-summary.dto.ts';
 import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
 import { GetAllMemoryPointsQuery } from './get-all-memory-points.query.ts';
 
@@ -26,6 +27,7 @@ export class GetAllMemoryPointsHandler
     const queryBuilder = this.memoryPointRepository
       .createQueryBuilder('mp')
       .leftJoinAndSelect('mp.memoryPointDetails', 'details')
+      .leftJoinAndSelect('mp.user', 'user')
       /*
        * PENDING points are creator-private drafts (details not yet submitted).
        * Admin only sees points from ADMIN_REVIEWING onward, once completed.
@@ -47,10 +49,22 @@ export class GetAllMemoryPointsHandler
       data: items.map((item) =>
         AdminMemoryPointListItemDto.create({
           id: item.id,
+          userId: item.userId,
           location: item.location,
           status: item.status,
+          type: item.memoryPointDetails?.type ?? undefined,
           title: item.memoryPointDetails?.title,
           description: item.memoryPointDetails?.description,
+          photoUrl: item.memoryPointDetails?.sourcePhotoUrl ?? null,
+          creator: item.user
+            ? CreatorSummaryDto.create({
+                id: item.user.id,
+                firstName: item.user.firstName,
+                lastName: item.user.lastName,
+                email: item.user.email,
+                avatar: item.user.avatar,
+              })
+            : null,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt,
         }),
