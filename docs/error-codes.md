@@ -24,6 +24,9 @@ This page is the contract: the list of codes the frontend must handle. The
 | `error.memoryPointSourceNotUploaded` | 403 | A provided photo/audio path is invalid or the file is not in storage (creator submit) |
 | `error.memoryPointContentRequired` | 422 | Creator submit has a title but no content at all — none of source photo, source audio or description |
 | `error.memoryPointNotReadyForGeneration` | 422 | Admin triggered generation while required fields are missing; response carries a `missingFields` array (subset of `sourcePhotoUrl`, `sourceAudioUrl`, `title`, `description`) |
+| `error.memoryPointNotOwned` | 403 | Caller does not own the memory point |
+| `error.invalidStatusTransition` | 400 | Requested review-pipeline status transition is not allowed |
+| `error.invalidPublicationStateTransition` | 400 | Requested publication-state transition is not allowed |
 | `error.userExists` | 409 | A user with that email already exists (create/edit) |
 | `error.unique.email` | 409 | Email already in use (DB unique constraint) |
 | `error.aiGenerationFailed` | 500 | Starting the AI video generation failed for a non-recoverable reason (provider 5xx, network error, internal error); the generation row is marked `FAILED` |

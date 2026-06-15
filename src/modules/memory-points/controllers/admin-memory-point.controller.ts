@@ -32,6 +32,7 @@ import { RequestAdminUploadUrlDto } from '../dtos/request-admin-upload-url.dto.t
 import { UpdateMemoryPointDetailsDto } from '../dtos/update-memory-point-details.dto.ts';
 import { UpdateMemoryPointLocationDto } from '../dtos/update-memory-point-location.dto.ts';
 import { UpdateMemoryPointStatusDto } from '../dtos/update-memory-point-status.dto.ts';
+import { UpdatePublicationStateDto } from '../dtos/update-publication-state.dto.ts';
 import { MemoryPointService } from '../memory-point.service.ts';
 
 @Controller('admin/memory-points')
@@ -88,10 +89,40 @@ export class AdminMemoryPointController {
     );
   }
 
+  @Patch(':id/publication-state')
+  @Auth([RoleType.ADMIN])
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary:
+      'Set publication state (ACTIVE / INACTIVE / ARCHIVED) on a memory point',
+  })
+  @ApiUUIDParam('id')
+  updatePublicationState(
+    @UUIDParam('id') id: Uuid,
+    @Body() updatePublicationStateDto: UpdatePublicationStateDto,
+  ): Promise<void> {
+    return this.memoryPointService.updatePublicationState(
+      id,
+      updatePublicationStateDto.publicationState,
+    );
+  }
+
+  @Patch(':id/archive')
+  @Auth([RoleType.ADMIN])
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary:
+      'Soft-archive a memory point (sets publicationState=ARCHIVED and stamps deletedAt)',
+  })
+  @ApiUUIDParam('id')
+  archive(@UUIDParam('id') id: Uuid): Promise<void> {
+    return this.memoryPointService.archiveMemoryPoint(id);
+  }
+
   @Delete(':id')
   @Auth([RoleType.ADMIN])
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a memory point' })
+  @ApiOperation({ summary: 'Hard-delete a memory point (permanent removal)' })
   @ApiUUIDParam('id')
   delete(
     @UUIDParam('id') id: Uuid,

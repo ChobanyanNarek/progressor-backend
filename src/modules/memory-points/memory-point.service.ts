@@ -4,13 +4,16 @@ import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import type { PageDto } from '../../common/dto/page.dto.ts';
 import type { PageOptionsDto } from '../../common/dto/page-options.dto.ts';
 import type { MemoryPointStatus } from '../../constants/memory-point-status.ts';
+import type { PublicationState } from '../../constants/publication-state.ts';
 import type { RoleType } from '../../constants/role-type.ts';
 import type { AiGenerationStatusResponseDto } from '../memory-point-ai-generation/dtos/ai-generation-status.dto.ts';
 import type { MemoryPointAiGenerationDto } from '../memory-point-ai-generation/dtos/memory-point-ai-generation.dto.ts';
 import { MemoryPointAiGenerationService } from '../memory-point-ai-generation/services/memory-point-ai-generation.service.ts';
+import { ArchiveMemoryPointCommand } from './commands/archive-memory-point/archive-memory-point.command.ts';
 import { CreateAdminUploadUrlCommand } from './commands/create-admin-upload-url/create-admin-upload-url.command.ts';
 import { CreateMemoryPointCommand } from './commands/create-memory-point/create-memory-point.command.ts';
 import { CreateUploadUrlCommand } from './commands/create-upload-url/create-upload-url.command.ts';
+import { DeactivateMemoryPointCommand } from './commands/deactivate-memory-point/deactivate-memory-point.command.ts';
 import { DeleteMemoryPointCommand } from './commands/delete-memory-point/delete-memory-point.command.ts';
 import { UpdateMemoryPointDetailsCommand } from './commands/update-memory-point-details/update-memory-point-details.command.ts';
 import {
@@ -18,6 +21,7 @@ import {
   UpdateMemoryPointLocationCommand,
 } from './commands/update-memory-point-location/update-memory-point-location.command.ts';
 import { UpdateMemoryPointStatusCommand } from './commands/update-memory-point-status/update-memory-point-status.command.ts';
+import { UpdatePublicationStateCommand } from './commands/update-publication-state/update-publication-state.command.ts';
 import { UpsertMemoryPointDetailsCommand } from './commands/upsert-memory-point-details/upsert-memory-point-details.command.ts';
 import type { AdminMemoryPointListItemDto } from './dtos/admin-memory-point-list-item.dto.ts';
 import type { AdminMemoryPointUploadUrlsDto } from './dtos/admin-memory-point-upload-urls.dto.ts';
@@ -162,6 +166,27 @@ export class MemoryPointService {
   ): Promise<void> {
     return this.commandBus.execute<UpdateMemoryPointDetailsCommand>(
       new UpdateMemoryPointDetailsCommand(memoryPointId, dto, actorId),
+    );
+  }
+
+  updatePublicationState(
+    memoryPointId: Uuid,
+    publicationState: PublicationState,
+  ): Promise<void> {
+    return this.commandBus.execute<UpdatePublicationStateCommand>(
+      new UpdatePublicationStateCommand(memoryPointId, publicationState),
+    );
+  }
+
+  archiveMemoryPoint(memoryPointId: Uuid): Promise<void> {
+    return this.commandBus.execute<ArchiveMemoryPointCommand>(
+      new ArchiveMemoryPointCommand(memoryPointId),
+    );
+  }
+
+  deactivateMemoryPoint(memoryPointId: Uuid, userId: Uuid): Promise<void> {
+    return this.commandBus.execute<DeactivateMemoryPointCommand>(
+      new DeactivateMemoryPointCommand(memoryPointId, userId),
     );
   }
 

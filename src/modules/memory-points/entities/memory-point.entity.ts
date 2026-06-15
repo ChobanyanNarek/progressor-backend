@@ -1,5 +1,6 @@
 import {
   Column,
+  DeleteDateColumn,
   Entity,
   Index,
   JoinColumn,
@@ -10,6 +11,7 @@ import {
 
 import { AbstractEntity } from '../../../common/abstract.entity.ts';
 import { MemoryPointStatus } from '../../../constants/memory-point-status.ts';
+import { PublicationState } from '../../../constants/publication-state.ts';
 import { UseDto } from '../../../decorators/use-dto.decorator.ts';
 import { UserEntity } from '../../user/user.entity.ts';
 import { GeoPointDto } from '../dtos/geo-point.dto.ts';
@@ -22,6 +24,8 @@ import { MemoryPointDetailsEntity } from './memory-point-details.entity.ts';
 @Index(['createdAt'])
 // status: dashboard per-status counts and status-filtered lists.
 @Index(['status'])
+// publicationState: combined with status in all public visibility reads.
+@Index(['publicationState'])
 @UseDto(MemoryPointDto)
 export class MemoryPointEntity extends AbstractEntity<
   MemoryPointDto,
@@ -42,6 +46,31 @@ export class MemoryPointEntity extends AbstractEntity<
     default: MemoryPointStatus.PENDING,
   })
   status!: MemoryPointStatus;
+
+  /*
+   * Independent visibility axis — never overloads the review-pipeline `status`.
+   * ACTIVE: visible to public (requires status=APPROVED).
+   * INACTIVE: hidden from public, creator-reversible.
+   * ARCHIVED: terminal; admin can reactivate to INACTIVE or ACTIVE explicitly.
+   */
+  @Column({
+    type: 'enum',
+    enum: PublicationState,
+    default: PublicationState.ACTIVE,
+    name: 'publication_state',
+  })
+  publicationState!: PublicationState;
+
+  /*
+   * Soft-delete timestamp; TypeORM auto-excludes soft-deleted rows from all
+   * query-builder reads unless .withDeleted() is explicitly added.
+   */
+  @DeleteDateColumn({
+    type: 'timestamptz',
+    name: 'deleted_at',
+    nullable: true,
+  })
+  deletedAt?: Date | null;
 
   @Column({ type: 'uuid' })
   userId!: Uuid;
