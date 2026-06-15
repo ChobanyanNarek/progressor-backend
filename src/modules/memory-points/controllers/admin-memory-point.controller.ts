@@ -30,6 +30,7 @@ import { AdminMemoryPointUploadUrlsDto } from '../dtos/admin-memory-point-upload
 import { MemoryPointDto } from '../dtos/memory-point.dto.ts';
 import { RequestAdminUploadUrlDto } from '../dtos/request-admin-upload-url.dto.ts';
 import { UpdateMemoryPointDetailsDto } from '../dtos/update-memory-point-details.dto.ts';
+import { UpdateMemoryPointLocationDto } from '../dtos/update-memory-point-location.dto.ts';
 import { UpdateMemoryPointStatusDto } from '../dtos/update-memory-point-status.dto.ts';
 import { MemoryPointService } from '../memory-point.service.ts';
 
@@ -137,6 +138,24 @@ export class AdminMemoryPointController {
     return this.memoryPointService.createAdminUploadUrls(
       id,
       requestUploadUrlDto,
+    );
+  }
+
+  @Patch(':id/location')
+  @Auth([RoleType.ADMIN])
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Reposition a memory point to new coordinates (any status)',
+  })
+  @ApiUUIDParam('id')
+  updateLocation(
+    @UUIDParam('id') id: Uuid,
+    @Body() updateMemoryPointLocationDto: UpdateMemoryPointLocationDto,
+  ): Promise<void> {
+    return this.memoryPointService.updateMemoryPointLocation(
+      id,
+      updateMemoryPointLocationDto,
+      { kind: 'admin' },
     );
   }
 
