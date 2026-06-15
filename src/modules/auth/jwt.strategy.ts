@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
+import { AccountStatus } from '../../constants/account-status.ts';
 import type { RoleType } from '../../constants/role-type.ts';
 import { TokenType } from '../../constants/token-type.ts';
 import { ApiConfigService } from '../../shared/services/api-config.service.ts';
@@ -35,6 +36,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
 
     if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    /*
+     * Reject tokens minted before the account was disabled. Use the generic 401
+     * here (not the explicit accountDisabled code) so a bare token holder can't
+     * probe account state; the login path returns the 403 code.
+     */
+    if (user.status === AccountStatus.DISABLED) {
       throw new UnauthorizedException();
     }
 

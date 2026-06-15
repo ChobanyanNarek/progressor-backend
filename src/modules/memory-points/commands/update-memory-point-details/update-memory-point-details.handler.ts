@@ -2,6 +2,9 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
+import { LogLevel } from '../../../../constants/log-level.ts';
+import { LogSource } from '../../../../constants/log-source.ts';
+import { AdminLogsService } from '../../../admin-logs/admin-logs.service.ts';
 import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
 import { MemoryPointDetailsEntity } from '../../entities/memory-point-details.entity.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
@@ -16,6 +19,7 @@ export class UpdateMemoryPointDetailsHandler
     private readonly memoryPointRepository: Repository<MemoryPointEntity>,
     @InjectRepository(MemoryPointDetailsEntity)
     private readonly detailsRepository: Repository<MemoryPointDetailsEntity>,
+    private readonly adminLogsService: AdminLogsService,
   ) {}
 
   /**
@@ -25,7 +29,7 @@ export class UpdateMemoryPointDetailsHandler
    * uploads media). A bogus memory point id still 404s.
    */
   async execute(command: UpdateMemoryPointDetailsCommand): Promise<void> {
-    const { memoryPointId, dto } = command;
+    const { memoryPointId, dto, actorId } = command;
 
     const memoryPoint = await this.memoryPointRepository
       .createQueryBuilder('mp')
@@ -72,6 +76,8 @@ export class UpdateMemoryPointDetailsHandler
         .where('memory_point_id = :memoryPointId', { memoryPointId })
         .execute();
 
+      this.recordDetailsUpdated(memoryPointId, actorId);
+
       return;
     }
 
@@ -86,5 +92,17 @@ export class UpdateMemoryPointDetailsHandler
       .insert()
       .values({ ...metadata, memoryPointId })
       .execute();
+
+    this.recordDetailsUpdated(memoryPointId, actorId);
+  }
+
+  private recordDetailsUpdated(memoryPointId: Uuid, actorId: Uuid): void {
+    this.adminLogsService.record({
+      level: LogLevel.INFO,
+      source: LogSource.API,
+      message: 'Memory point details updated',
+      memoryPointId,
+      context: { actorId },
+    });
   }
 }

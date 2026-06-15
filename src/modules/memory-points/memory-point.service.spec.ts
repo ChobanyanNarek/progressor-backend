@@ -28,6 +28,7 @@ describe('MemoryPointService', () => {
   let service: MemoryPointService;
 
   const pointId = 'point-1' as Uuid;
+  const actorId = 'admin-1' as Uuid;
   const userId = 'user-1' as Uuid;
 
   beforeEach(() => {
@@ -150,7 +151,7 @@ describe('MemoryPointService', () => {
 
   describe('updateStatus', () => {
     it('dispatches UpdateMemoryPointStatusCommand', async () => {
-      await service.updateStatus(pointId, MemoryPointStatus.APPROVED);
+      await service.updateStatus(pointId, MemoryPointStatus.APPROVED, actorId);
 
       expect(commandBus.execute).toHaveBeenCalledTimes(1);
       const command = commandBus.execute.mock
@@ -158,6 +159,7 @@ describe('MemoryPointService', () => {
       expect(command).toBeInstanceOf(UpdateMemoryPointStatusCommand);
       expect(command.memoryPointId).toBe(pointId);
       expect(command.status).toBe(MemoryPointStatus.APPROVED);
+      expect(command.actorId).toBe(actorId);
     });
   });
 
@@ -165,7 +167,7 @@ describe('MemoryPointService', () => {
     it('dispatches UpdateMemoryPointDetailsCommand', async () => {
       const dto = { title: 'x' } as never;
 
-      await service.updateDetails(pointId, dto);
+      await service.updateDetails(pointId, dto, actorId);
 
       expect(commandBus.execute).toHaveBeenCalledTimes(1);
       const command = commandBus.execute.mock
@@ -173,18 +175,20 @@ describe('MemoryPointService', () => {
       expect(command).toBeInstanceOf(UpdateMemoryPointDetailsCommand);
       expect(command.memoryPointId).toBe(pointId);
       expect(command.dto).toBe(dto);
+      expect(command.actorId).toBe(actorId);
     });
   });
 
   describe('deleteMemoryPoint', () => {
     it('dispatches DeleteMemoryPointCommand', async () => {
-      await service.deleteMemoryPoint(pointId);
+      await service.deleteMemoryPoint(pointId, actorId);
 
       expect(commandBus.execute).toHaveBeenCalledTimes(1);
       const command = commandBus.execute.mock
         .calls[0]![0] as DeleteMemoryPointCommand;
       expect(command).toBeInstanceOf(DeleteMemoryPointCommand);
       expect(command.memoryPointId).toBe(pointId);
+      expect(command.actorId).toBe(actorId);
     });
   });
 

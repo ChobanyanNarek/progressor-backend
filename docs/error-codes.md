@@ -14,6 +14,7 @@ This page is the contract: the list of codes the frontend must handle. The
 |---|---|---|
 | `error.userNotFound` | 404 | No user matches the id/email |
 | `error.invalidCredentials` | 401 | Wrong password on a known account |
+| `error.accountDisabled` | 403 | Account is DISABLED; login refused (pre-existing tokens are rejected with a bare 401) |
 | `error.invalidTmpKey` | 422 | Temporary upload key is invalid/expired |
 | `error.fileNotImage` | 422 | Uploaded file is not a valid image |
 | `error.phoneNumber` | 422 | Phone number failed validation |

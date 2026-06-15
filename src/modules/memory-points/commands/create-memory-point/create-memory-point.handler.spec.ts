@@ -67,15 +67,22 @@ function makeApiConfigService(): { duplicateRadiusMeters: number } {
   return { duplicateRadiusMeters: DUPLICATE_RADIUS };
 }
 
+function makeAdminLogsService(): { record: jest.Mock } {
+  return { record: jest.fn() };
+}
+
 describe('CreateMemoryPointHandler', () => {
   describe('when no nearby point exists', () => {
     let handler: CreateMemoryPointHandler;
+    let record: jest.Mock;
 
     beforeEach(() => {
       const repo = makeRepository();
+      record = jest.fn();
       handler = new CreateMemoryPointHandler(
         repo as never,
         makeApiConfigService() as never,
+        { record } as never,
       );
     });
 
@@ -91,6 +98,9 @@ describe('CreateMemoryPointHandler', () => {
         id: POINT_ID,
         status: MemoryPointStatus.PENDING,
       });
+      expect(record).toHaveBeenCalledWith(
+        expect.objectContaining({ memoryPointId: POINT_ID }),
+      );
     });
   });
 
@@ -102,6 +112,7 @@ describe('CreateMemoryPointHandler', () => {
       handler = new CreateMemoryPointHandler(
         repo as never,
         makeApiConfigService() as never,
+        makeAdminLogsService() as never,
       );
     });
 
@@ -152,6 +163,7 @@ describe('CreateMemoryPointHandler', () => {
       handler = new CreateMemoryPointHandler(
         { createQueryBuilder } as never,
         makeApiConfigService() as never,
+        makeAdminLogsService() as never,
       );
     });
 
@@ -180,6 +192,7 @@ describe('CreateMemoryPointHandler', () => {
       handler = new CreateMemoryPointHandler(
         repo as never,
         makeApiConfigService() as never,
+        makeAdminLogsService() as never,
       );
     });
 
@@ -205,6 +218,7 @@ describe('CreateMemoryPointHandler', () => {
       const handler = new CreateMemoryPointHandler(
         repo as never,
         makeApiConfigService() as never,
+        makeAdminLogsService() as never,
       );
 
       await handler.execute(
@@ -262,6 +276,7 @@ describe('CreateMemoryPointHandler', () => {
       handler = new CreateMemoryPointHandler(
         { createQueryBuilder } as never,
         makeApiConfigService() as never,
+        makeAdminLogsService() as never,
       );
     });
 
