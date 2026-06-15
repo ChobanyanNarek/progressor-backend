@@ -77,11 +77,13 @@ export class AdminMemoryPointController {
   @ApiUUIDParam('id')
   updateStatus(
     @UUIDParam('id') id: Uuid,
+    @AuthUser() user: UserEntity,
     @Body() updateMemoryPointStatusDto: UpdateMemoryPointStatusDto,
   ): Promise<void> {
     return this.memoryPointService.updateStatus(
       id,
       updateMemoryPointStatusDto.status,
+      user.id,
     );
   }
 
@@ -90,8 +92,11 @@ export class AdminMemoryPointController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a memory point' })
   @ApiUUIDParam('id')
-  delete(@UUIDParam('id') id: Uuid): Promise<void> {
-    return this.memoryPointService.deleteMemoryPoint(id);
+  delete(
+    @UUIDParam('id') id: Uuid,
+    @AuthUser() user: UserEntity,
+  ): Promise<void> {
+    return this.memoryPointService.deleteMemoryPoint(id, user.id);
   }
 
   @Patch(':id/details')
@@ -103,11 +108,13 @@ export class AdminMemoryPointController {
   @ApiUUIDParam('id')
   updateDetails(
     @UUIDParam('id') id: Uuid,
+    @AuthUser() user: UserEntity,
     @Body() updateMemoryPointDetailsDto: UpdateMemoryPointDetailsDto,
   ): Promise<void> {
     return this.memoryPointService.updateDetails(
       id,
       updateMemoryPointDetailsDto,
+      user.id,
     );
   }
 

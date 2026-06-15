@@ -8,6 +8,7 @@ import { UpdateMemoryPointDetailsCommand } from './update-memory-point-details.c
 import { UpdateMemoryPointDetailsHandler } from './update-memory-point-details.handler.ts';
 
 const pointId = 'point-1' as Uuid;
+const actorId = 'admin-1' as Uuid;
 
 /** Chainable QueryBuilder stub whose terminal `getOne`/`execute` is overridable. */
 function makeChain(terminal: {
@@ -39,6 +40,7 @@ describe('UpdateMemoryPointDetailsHandler', () => {
 
   let memoryPointRepo: { createQueryBuilder: jest.Mock };
   let detailsRepo: { createQueryBuilder: jest.Mock };
+  let record: jest.Mock;
 
   /** An editable point — admin edits are allowed in this status. */
   const editablePoint = {
@@ -71,9 +73,12 @@ describe('UpdateMemoryPointDetailsHandler', () => {
         .mockReturnValue(detailsWriteChain),
     };
 
+    record = jest.fn();
+
     handler = new UpdateMemoryPointDetailsHandler(
       memoryPointRepo as never,
       detailsRepo as never,
+      { record } as never,
     );
   }
 
@@ -86,12 +91,13 @@ describe('UpdateMemoryPointDetailsHandler', () => {
 
     await expect(
       handler.execute(
-        new UpdateMemoryPointDetailsCommand(pointId, { title: 'x' }),
+        new UpdateMemoryPointDetailsCommand(pointId, { title: 'x' }, actorId),
       ),
     ).rejects.toBeInstanceOf(MemoryPointNotFoundException);
 
     // Must short-circuit before touching the details repository.
     expect(detailsRepo.createQueryBuilder).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -106,7 +112,7 @@ describe('UpdateMemoryPointDetailsHandler', () => {
 
       await expect(
         handler.execute(
-          new UpdateMemoryPointDetailsCommand(pointId, { title: 'x' }),
+          new UpdateMemoryPointDetailsCommand(pointId, { title: 'x' }, actorId),
         ),
       ).rejects.toBeInstanceOf(MemoryPointNotEditableException);
 
@@ -122,7 +128,7 @@ describe('UpdateMemoryPointDetailsHandler', () => {
     );
 
     await handler.execute(
-      new UpdateMemoryPointDetailsCommand(pointId, { title: 'New' }),
+      new UpdateMemoryPointDetailsCommand(pointId, { title: 'New' }, actorId),
     );
 
     expect(detailsWriteChain.update).toHaveBeenCalledTimes(1);
@@ -132,10 +138,11 @@ describe('UpdateMemoryPointDetailsHandler', () => {
     setup(editablePoint, { id: 'details-1' });
 
     await handler.execute(
-      new UpdateMemoryPointDetailsCommand(pointId, {
-        title: 'New title',
-        type: MemoryPointType.MEMORIAL,
-      }),
+      new UpdateMemoryPointDetailsCommand(
+        pointId,
+        { title: 'New title', type: MemoryPointType.MEMORIAL },
+        actorId,
+      ),
     );
 
     expect(detailsWriteChain.update).toHaveBeenCalledTimes(1);
@@ -149,16 +156,26 @@ describe('UpdateMemoryPointDetailsHandler', () => {
       { memoryPointId: pointId },
     );
     expect(detailsWriteChain.execute).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        memoryPointId: pointId,
+        context: { actorId },
+      }),
+    );
   });
 
   it('persists replacement source media paths', async () => {
     setup(editablePoint, { id: 'details-1' });
 
     await handler.execute(
-      new UpdateMemoryPointDetailsCommand(pointId, {
-        sourcePhotoUrl: 'memory-points/point-1/photo/new.jpg',
-        sourceAudioUrl: 'memory-points/point-1/audio/new.mp3',
-      }),
+      new UpdateMemoryPointDetailsCommand(
+        pointId,
+        {
+          sourcePhotoUrl: 'memory-points/point-1/photo/new.jpg',
+          sourceAudioUrl: 'memory-points/point-1/audio/new.mp3',
+        },
+        actorId,
+      ),
     );
 
     expect(detailsWriteChain.set).toHaveBeenCalledWith({
@@ -170,23 +187,27 @@ describe('UpdateMemoryPointDetailsHandler', () => {
   it('skips the UPDATE entirely when no fields are provided', async () => {
     setup(editablePoint, { id: 'details-1' });
 
-    await handler.execute(new UpdateMemoryPointDetailsCommand(pointId, {}));
+    await handler.execute(
+      new UpdateMemoryPointDetailsCommand(pointId, {}, actorId),
+    );
 
     // No write builder is created when there is nothing to set.
     expect(detailsRepo.createQueryBuilder).toHaveBeenCalledTimes(1); // lookup only
     expect(detailsWriteChain.update).not.toHaveBeenCalled();
     expect(detailsWriteChain.insert).not.toHaveBeenCalled();
+    // No mutation occurred → no audit entry.
+    expect(record).not.toHaveBeenCalled();
   });
 
   it('INSERTs a new details row (with memoryPointId) when none exists (regression: upsert on absent row)', async () => {
     setup(editablePoint, null);
 
     await handler.execute(
-      new UpdateMemoryPointDetailsCommand(pointId, {
-        title: 'Fresh',
-        description: 'Desc',
-        type: MemoryPointType.MEMORIAL,
-      }),
+      new UpdateMemoryPointDetailsCommand(
+        pointId,
+        { title: 'Fresh', description: 'Desc', type: MemoryPointType.MEMORIAL },
+        actorId,
+      ),
     );
 
     expect(detailsWriteChain.insert).toHaveBeenCalledTimes(1);
@@ -198,5 +219,11 @@ describe('UpdateMemoryPointDetailsHandler', () => {
       memoryPointId: pointId,
     });
     expect(detailsWriteChain.execute).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        memoryPointId: pointId,
+        context: { actorId },
+      }),
+    );
   });
 });

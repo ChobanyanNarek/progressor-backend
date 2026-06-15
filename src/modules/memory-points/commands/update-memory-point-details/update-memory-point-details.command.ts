@@ -6,6 +6,8 @@ export class UpdateMemoryPointDetailsCommand extends Command<void> {
   constructor(
     public readonly memoryPointId: Uuid,
     public readonly dto: UpdateMemoryPointDetailsDto,
+    /** Admin who performed the edit (audit trail). */
+    public readonly actorId: Uuid,
   ) {
     super();
   }
