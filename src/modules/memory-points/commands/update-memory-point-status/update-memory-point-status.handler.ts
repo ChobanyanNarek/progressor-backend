@@ -2,7 +2,10 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
+import { LogLevel } from '../../../../constants/log-level.ts';
+import { LogSource } from '../../../../constants/log-source.ts';
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import { AdminLogsService } from '../../../admin-logs/admin-logs.service.ts';
 import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
 import { InvalidStatusTransitionException } from '../../exceptions/invalid-status-transition.exception.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
@@ -42,10 +45,11 @@ export class UpdateMemoryPointStatusHandler
   constructor(
     @InjectRepository(MemoryPointEntity)
     private readonly memoryPointRepository: Repository<MemoryPointEntity>,
+    private readonly adminLogsService: AdminLogsService,
   ) {}
 
   async execute(command: UpdateMemoryPointStatusCommand): Promise<void> {
-    const { memoryPointId, status } = command;
+    const { memoryPointId, status, actorId } = command;
 
     const point = await this.memoryPointRepository
       .createQueryBuilder('mp')
@@ -67,5 +71,13 @@ export class UpdateMemoryPointStatusHandler
       .set({ status })
       .where('id = :id', { id: memoryPointId })
       .execute();
+
+    this.adminLogsService.record({
+      level: LogLevel.INFO,
+      source: LogSource.API,
+      message: 'Memory point status updated',
+      memoryPointId,
+      context: { actorId, status },
+    });
   }
 }

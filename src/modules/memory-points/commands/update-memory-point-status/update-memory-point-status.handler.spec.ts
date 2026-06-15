@@ -40,12 +40,14 @@ function makeUpdateQb(): IQb {
 
 describe('UpdateMemoryPointStatusHandler', () => {
   const pointId = 'point-1' as Uuid;
+  const actorId = 'admin-1' as Uuid;
 
   function setup(existingStatus: MemoryPointStatus | null): {
     handler: UpdateMemoryPointStatusHandler;
     readQb: IQb;
     updateQb: IQb;
     createQueryBuilder: jest.Mock;
+    record: jest.Mock;
   } {
     const readQb = makeReadQb(
       existingStatus === null ? null : { id: pointId, status: existingStatus },
@@ -59,24 +61,55 @@ describe('UpdateMemoryPointStatusHandler', () => {
       return callCount === 1 ? readQb : updateQb;
     });
 
-    const handler = new UpdateMemoryPointStatusHandler({
-      createQueryBuilder,
-    } as never);
+    const record = jest.fn();
+    const handler = new UpdateMemoryPointStatusHandler(
+      { createQueryBuilder } as never,
+      { record } as never,
+    );
 
-    return { handler, readQb, updateQb, createQueryBuilder };
+    return { handler, readQb, updateQb, createQueryBuilder, record };
   }
 
+  it('updates the status via the query builder and records an audit log', async () => {
+    const { handler, updateQb, record } = setup(MemoryPointStatus.AI_REVIEWING);
+
+    await expect(
+      handler.execute(
+        new UpdateMemoryPointStatusCommand(
+          pointId,
+          MemoryPointStatus.APPROVED,
+          actorId,
+        ),
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(updateQb.set).toHaveBeenCalledWith({
+      status: MemoryPointStatus.APPROVED,
+    });
+    expect(updateQb.where).toHaveBeenCalledWith('id = :id', { id: pointId });
+    expect(updateQb.execute).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        memoryPointId: pointId,
+        context: { actorId, status: MemoryPointStatus.APPROVED },
+      }),
+    );
+  });
+
   it('throws MemoryPointNotFoundException when point does not exist', async () => {
-    const { handler } = setup(null);
+    const { handler, record } = setup(null);
 
     await expect(
       handler.execute(
         new UpdateMemoryPointStatusCommand(
           pointId,
           MemoryPointStatus.ADMIN_REVIEWING,
+          actorId,
         ),
       ),
     ).rejects.toBeInstanceOf(MemoryPointNotFoundException);
+
+    expect(record).not.toHaveBeenCalled();
   });
 
   describe('legal transitions', () => {
@@ -94,7 +127,9 @@ describe('UpdateMemoryPointStatusHandler', () => {
       const { handler, updateQb } = setup(from);
 
       await expect(
-        handler.execute(new UpdateMemoryPointStatusCommand(pointId, to)),
+        handler.execute(
+          new UpdateMemoryPointStatusCommand(pointId, to, actorId),
+        ),
       ).resolves.toBeUndefined();
 
       expect(updateQb.set).toHaveBeenCalledWith({ status: to });
@@ -118,7 +153,9 @@ describe('UpdateMemoryPointStatusHandler', () => {
         const { handler } = setup(from);
 
         await expect(
-          handler.execute(new UpdateMemoryPointStatusCommand(pointId, to)),
+          handler.execute(
+            new UpdateMemoryPointStatusCommand(pointId, to, actorId),
+          ),
         ).rejects.toBeInstanceOf(InvalidStatusTransitionException);
       },
     );

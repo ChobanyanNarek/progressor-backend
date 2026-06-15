@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { AdminLogsModule } from '../admin-logs/admin-logs.module.ts';
 import { MemoryPointAiGenerationModule } from '../memory-point-ai-generation/memory-point-ai-generation.module.ts';
 import { ApplyGenerationResultHandler } from './commands/apply-generation-result/apply-generation-result.handler.ts';
 import { ArchiveMemoryPointHandler } from './commands/archive-memory-point/archive-memory-point.handler.ts';
@@ -62,6 +63,7 @@ const queryHandlers = [
     CqrsModule,
     TypeOrmModule.forFeature([MemoryPointEntity, MemoryPointDetailsEntity]),
     MemoryPointAiGenerationModule,
+    AdminLogsModule,
   ],
   controllers: [
     MemoryPointController,

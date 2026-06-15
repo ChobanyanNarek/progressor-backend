@@ -6,6 +6,7 @@ import { UpdateMemoryPointDetailsCommand } from './update-memory-point-details.c
 import { UpdateMemoryPointDetailsHandler } from './update-memory-point-details.handler.ts';
 
 const pointId = 'point-1' as Uuid;
+const actorId = 'admin-1' as Uuid;
 
 /** Chainable QueryBuilder stub whose terminal `getOne`/`execute` is overridable. */
 function makeChain(terminal: {
@@ -37,6 +38,7 @@ describe('UpdateMemoryPointDetailsHandler', () => {
 
   let memoryPointRepo: { createQueryBuilder: jest.Mock };
   let detailsRepo: { createQueryBuilder: jest.Mock };
+  let record: jest.Mock;
 
   /**
    * @param point  what the memory-point lookup resolves to.
@@ -63,9 +65,12 @@ describe('UpdateMemoryPointDetailsHandler', () => {
         .mockReturnValue(detailsWriteChain),
     };
 
+    record = jest.fn();
+
     handler = new UpdateMemoryPointDetailsHandler(
       memoryPointRepo as never,
       detailsRepo as never,
+      { record } as never,
     );
   }
 
@@ -78,22 +83,24 @@ describe('UpdateMemoryPointDetailsHandler', () => {
 
     await expect(
       handler.execute(
-        new UpdateMemoryPointDetailsCommand(pointId, { title: 'x' }),
+        new UpdateMemoryPointDetailsCommand(pointId, { title: 'x' }, actorId),
       ),
     ).rejects.toBeInstanceOf(MemoryPointNotFoundException);
 
     // Must short-circuit before touching the details repository.
     expect(detailsRepo.createQueryBuilder).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
   });
 
   it('UPDATEs the existing details row with only the defined metadata fields', async () => {
     setup({ id: pointId }, { id: 'details-1' });
 
     await handler.execute(
-      new UpdateMemoryPointDetailsCommand(pointId, {
-        title: 'New title',
-        type: MemoryPointType.MEMORIAL,
-      }),
+      new UpdateMemoryPointDetailsCommand(
+        pointId,
+        { title: 'New title', type: MemoryPointType.MEMORIAL },
+        actorId,
+      ),
     );
 
     expect(detailsWriteChain.update).toHaveBeenCalledTimes(1);
@@ -107,28 +114,38 @@ describe('UpdateMemoryPointDetailsHandler', () => {
       { memoryPointId: pointId },
     );
     expect(detailsWriteChain.execute).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        memoryPointId: pointId,
+        context: { actorId },
+      }),
+    );
   });
 
   it('skips the UPDATE entirely when no metadata fields are provided', async () => {
     setup({ id: pointId }, { id: 'details-1' });
 
-    await handler.execute(new UpdateMemoryPointDetailsCommand(pointId, {}));
+    await handler.execute(
+      new UpdateMemoryPointDetailsCommand(pointId, {}, actorId),
+    );
 
     // No write builder is created when there is nothing to set.
     expect(detailsRepo.createQueryBuilder).toHaveBeenCalledTimes(1); // lookup only
     expect(detailsWriteChain.update).not.toHaveBeenCalled();
     expect(detailsWriteChain.insert).not.toHaveBeenCalled();
+    // No mutation occurred → no audit entry.
+    expect(record).not.toHaveBeenCalled();
   });
 
   it('INSERTs a new details row (with memoryPointId) when none exists (regression: upsert on absent row)', async () => {
     setup({ id: pointId }, null);
 
     await handler.execute(
-      new UpdateMemoryPointDetailsCommand(pointId, {
-        title: 'Fresh',
-        description: 'Desc',
-        type: MemoryPointType.MEMORIAL,
-      }),
+      new UpdateMemoryPointDetailsCommand(
+        pointId,
+        { title: 'Fresh', description: 'Desc', type: MemoryPointType.MEMORIAL },
+        actorId,
+      ),
     );
 
     expect(detailsWriteChain.insert).toHaveBeenCalledTimes(1);
@@ -140,5 +157,11 @@ describe('UpdateMemoryPointDetailsHandler', () => {
       memoryPointId: pointId,
     });
     expect(detailsWriteChain.execute).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        memoryPointId: pointId,
+        context: { actorId },
+      }),
+    );
   });
 });

@@ -17,6 +17,7 @@ describe('CreateMemoryPointHandler', () => {
   let repository: {
     createQueryBuilder: jest.Mock;
   };
+  let record: jest.Mock;
 
   const userId = 'user-1' as Uuid;
   const pointId = 'point-1' as Uuid;
@@ -43,8 +44,14 @@ describe('CreateMemoryPointHandler', () => {
       .mockReturnValueOnce({ where });
 
     repository = { createQueryBuilder };
+    record = jest.fn();
 
-    handler = new CreateMemoryPointHandler(repository as never);
+    handler = new CreateMemoryPointHandler(
+      repository as never,
+      {
+        record,
+      } as never,
+    );
   });
 
   it('inserts a PENDING memory point with the PostGIS point and returns its DTO', async () => {
@@ -69,6 +76,9 @@ describe('CreateMemoryPointHandler', () => {
     expect(where).toHaveBeenCalledWith('memoryPoint.id = :id', { id: pointId });
     expect(getOneOrFail).toHaveBeenCalled();
     expect(result).toEqual({ id: pointId, status: MemoryPointStatus.PENDING });
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({ memoryPointId: pointId }),
+    );
   });
 
   it('builds the location as a ST_SetSRID/ST_MakePoint expression', async () => {
