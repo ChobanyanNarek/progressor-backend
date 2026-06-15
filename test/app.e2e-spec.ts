@@ -342,11 +342,6 @@ describe('Memory points (e2e)', () => {
     });
   });
 
-  /**
-   * Creates a point and submits its details so it lands in ADMIN_REVIEWING.
-   * `overrides` lets a test omit a field (e.g. description) to exercise the
-   * generation-readiness gate. Returns the new point id.
-   */
   /** Creates a bare PENDING point and returns its id. */
   const createPoint = async (lat: number, lng: number): Promise<string> => {
     const created = await request(app.getHttpServer())
@@ -358,6 +353,11 @@ describe('Memory points (e2e)', () => {
     return created.body.id as string;
   };
 
+  /**
+   * Creates a point and submits its details so it lands in ADMIN_REVIEWING.
+   * `overrides` lets a test omit a field (e.g. description) to exercise the
+   * generation-readiness gate. Returns the new point id.
+   */
   const submitPoint = async (
     lat: number,
     lng: number,

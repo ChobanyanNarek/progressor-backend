@@ -4,18 +4,15 @@ import type { Repository } from 'typeorm';
 
 import { MemoryPointDetailsEntity } from '../../entities/memory-point-details.entity.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
-import { MemoryPointNotReadyForGenerationException } from '../../exceptions/memory-point-not-ready-for-generation.exception.ts';
-import {
-  GetMemoryPointGenerationSourceQuery,
-  type MemoryPointGenerationSource,
-} from './get-memory-point-generation-source.query.ts';
+import type { IMemoryPointGenerationFields } from '../../utils/generation-readiness.ts';
+import { GetMemoryPointGenerationSourceQuery } from './get-memory-point-generation-source.query.ts';
 
 @QueryHandler(GetMemoryPointGenerationSourceQuery)
 export class GetMemoryPointGenerationSourceHandler
   implements
     IQueryHandler<
       GetMemoryPointGenerationSourceQuery,
-      MemoryPointGenerationSource
+      IMemoryPointGenerationFields
     >
 {
   constructor(
@@ -23,9 +20,14 @@ export class GetMemoryPointGenerationSourceHandler
     private readonly detailsRepository: Repository<MemoryPointDetailsEntity>,
   ) {}
 
+  /**
+   * Pure read: returns the generation-relevant fields (any may be null). The
+   * readiness check + `missingFields` contract live in the generate command so
+   * this query stays free of business rules. A missing details row still 404s.
+   */
   async execute(
     query: GetMemoryPointGenerationSourceQuery,
-  ): Promise<MemoryPointGenerationSource> {
+  ): Promise<IMemoryPointGenerationFields> {
     const details = await this.detailsRepository
       .createQueryBuilder('details')
       .where('details.memoryPointId = :memoryPointId', {
@@ -37,39 +39,11 @@ export class GetMemoryPointGenerationSourceHandler
       throw new MemoryPointNotFoundException();
     }
 
-    /*
-     * Every required field is nullable at the schema level (an admin can create
-     * a metadata-only details row before media/text exists). Generation can only
-     * run once the full set is present — collect every missing field in one pass
-     * so the admin frontend can surface them all at once, and so the returned
-     * source contract stays non-null.
-     */
-    const missingFields: string[] = [];
-
-    if (!details.sourcePhotoUrl) {
-      missingFields.push('sourcePhotoUrl');
-    }
-
-    if (!details.sourceAudioUrl) {
-      missingFields.push('sourceAudioUrl');
-    }
-
-    if (!details.title) {
-      missingFields.push('title');
-    }
-
-    if (!details.description) {
-      missingFields.push('description');
-    }
-
-    if (missingFields.length > 0) {
-      throw new MemoryPointNotReadyForGenerationException(missingFields);
-    }
-
-    // Non-null by the guard above; assert to satisfy the non-null return contract.
     return {
-      sourcePhotoUrl: details.sourcePhotoUrl!,
-      sourceAudioUrl: details.sourceAudioUrl!,
+      sourcePhotoUrl: details.sourcePhotoUrl ?? null,
+      sourceAudioUrl: details.sourceAudioUrl ?? null,
+      title: details.title ?? null,
+      description: details.description ?? null,
     };
   }
 }

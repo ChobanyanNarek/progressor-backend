@@ -175,6 +175,38 @@ describe('UpsertMemoryPointDetailsHandler', () => {
     expect(textOnly).toBe(detailsDto);
   });
 
+  it('treats blank source paths as omitted (normalized, not probed or persisted)', async () => {
+    await handler.execute(
+      new UpsertMemoryPointDetailsCommand(pointId, userId, {
+        title: 'A title',
+        description: 'Has content',
+        sourcePhotoUrl: '',
+        sourceAudioUrl: '   ',
+      }),
+    );
+
+    // Blank paths are normalized away -> storage is never probed.
+    expect(exists).not.toHaveBeenCalled();
+    const created = create.mock.calls[0]![0] as Record<string, unknown>;
+    expect(created).not.toHaveProperty('sourcePhotoUrl');
+    expect(created).not.toHaveProperty('sourceAudioUrl');
+    expect(upsert).toHaveBeenCalledWith(expect.anything(), ['memoryPointId']);
+  });
+
+  it('throws MemoryPointContentRequiredException when blank paths leave no content', async () => {
+    await expect(
+      handler.execute(
+        new UpsertMemoryPointDetailsCommand(pointId, userId, {
+          title: 'A title',
+          sourcePhotoUrl: '',
+          sourceAudioUrl: '',
+        }),
+      ),
+    ).rejects.toBeInstanceOf(MemoryPointContentRequiredException);
+    expect(exists).not.toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
   it('throws MemoryPointContentRequiredException when only a title is provided', async () => {
     await expect(
       handler.execute(

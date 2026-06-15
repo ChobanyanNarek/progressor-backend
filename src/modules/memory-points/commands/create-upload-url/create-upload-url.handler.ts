@@ -2,15 +2,19 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
-import { AudioFileType } from '../../../../constants/audio-file-type.ts';
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
-import { PhotoFileType } from '../../../../constants/photo-file-type.ts';
 import { GcsStorageService } from '../../../../shared/services/gcs-storage.service.ts';
 import { GeneratorService } from '../../../../shared/services/generator.service.ts';
 import { MemoryPointUploadUrlsDto } from '../../dtos/memory-point-upload-urls.dto.ts';
 import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
 import { MemoryPointNotEditableException } from '../../exceptions/memory-point-not-editable.exception.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
+import {
+  AUDIO_MIME_BY_TYPE,
+  buildAudioPath,
+  buildPhotoPath,
+  PHOTO_MIME_BY_TYPE,
+} from '../../utils/media-upload.ts';
 import { CreateUploadUrlCommand } from './create-upload-url.command.ts';
 
 @CommandHandler(CreateUploadUrlCommand)
@@ -23,18 +27,6 @@ export class CreateUploadUrlHandler
     private readonly gcsStorageService: GcsStorageService,
     private readonly generatorService: GeneratorService,
   ) {}
-
-  private static readonly photoMimeByType: Record<PhotoFileType, string> = {
-    [PhotoFileType.JPG]: 'image/jpeg',
-    [PhotoFileType.JPEG]: 'image/jpeg',
-    [PhotoFileType.PNG]: 'image/png',
-  };
-
-  private static readonly audioMimeByType: Record<AudioFileType, string> = {
-    [AudioFileType.MP3]: 'audio/mpeg',
-    [AudioFileType.WAV]: 'audio/wav',
-    [AudioFileType.M4A]: 'audio/mp4',
-  };
 
   async execute(
     command: CreateUploadUrlCommand,
@@ -55,17 +47,25 @@ export class CreateUploadUrlHandler
       throw new MemoryPointNotEditableException();
     }
 
-    const photoPath = `memory-points/${memoryPointId}/photo/${this.generatorService.uuid()}.${photoContentType}`;
-    const audioPath = `memory-points/${memoryPointId}/audio/${this.generatorService.uuid()}.${audioContentType}`;
+    const photoPath = buildPhotoPath(
+      memoryPointId,
+      this.generatorService.uuid(),
+      photoContentType,
+    );
+    const audioPath = buildAudioPath(
+      memoryPointId,
+      this.generatorService.uuid(),
+      audioContentType,
+    );
 
     const [photoUrl, audioUrl] = await Promise.all([
       this.gcsStorageService.getSignedWriteUrl(
         photoPath,
-        CreateUploadUrlHandler.photoMimeByType[photoContentType],
+        PHOTO_MIME_BY_TYPE[photoContentType],
       ),
       this.gcsStorageService.getSignedWriteUrl(
         audioPath,
-        CreateUploadUrlHandler.audioMimeByType[audioContentType],
+        AUDIO_MIME_BY_TYPE[audioContentType],
       ),
     ]);
 

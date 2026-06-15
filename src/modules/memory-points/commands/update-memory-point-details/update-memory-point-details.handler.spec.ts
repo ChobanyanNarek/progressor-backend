@@ -4,6 +4,7 @@ import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts'
 import { MemoryPointType } from '../../../../constants/memory-point-type.ts';
 import { MemoryPointNotEditableException } from '../../exceptions/memory-point-not-editable.exception.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
+import { MemoryPointSourceNotUploadedException } from '../../exceptions/memory-point-source-not-uploaded.exception.ts';
 import { UpdateMemoryPointDetailsCommand } from './update-memory-point-details.command.ts';
 import { UpdateMemoryPointDetailsHandler } from './update-memory-point-details.handler.ts';
 
@@ -41,6 +42,7 @@ describe('UpdateMemoryPointDetailsHandler', () => {
   let memoryPointRepo: { createQueryBuilder: jest.Mock };
   let detailsRepo: { createQueryBuilder: jest.Mock };
   let record: jest.Mock;
+  let exists: jest.Mock<(path: string) => Promise<boolean>>;
 
   /** An editable point — admin edits are allowed in this status. */
   const editablePoint = {
@@ -74,11 +76,15 @@ describe('UpdateMemoryPointDetailsHandler', () => {
     };
 
     record = jest.fn();
+    exists = jest
+      .fn<(path: string) => Promise<boolean>>()
+      .mockResolvedValue(true);
 
     handler = new UpdateMemoryPointDetailsHandler(
       memoryPointRepo as never,
       detailsRepo as never,
       { record } as never,
+      { exists } as never,
     );
   }
 
@@ -182,6 +188,62 @@ describe('UpdateMemoryPointDetailsHandler', () => {
       sourcePhotoUrl: 'memory-points/point-1/photo/new.jpg',
       sourceAudioUrl: 'memory-points/point-1/audio/new.mp3',
     });
+    // Each provided source is existence-checked before persisting.
+    expect(exists).toHaveBeenCalledWith('memory-points/point-1/photo/new.jpg');
+    expect(exists).toHaveBeenCalledWith('memory-points/point-1/audio/new.mp3');
+  });
+
+  it('rejects a replacement source path outside the point prefix (403)', async () => {
+    setup(editablePoint, { id: 'details-1' });
+
+    await expect(
+      handler.execute(
+        new UpdateMemoryPointDetailsCommand(
+          pointId,
+          { sourcePhotoUrl: 'memory-points/other-point/photo/x.jpg' },
+          actorId,
+        ),
+      ),
+    ).rejects.toBeInstanceOf(MemoryPointSourceNotUploadedException);
+
+    // Prefix is rejected before storage is probed or anything is persisted.
+    expect(exists).not.toHaveBeenCalled();
+    expect(detailsWriteChain.update).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('rejects a replacement source whose object does not exist (403)', async () => {
+    setup(editablePoint, { id: 'details-1' });
+    exists.mockResolvedValue(false);
+
+    await expect(
+      handler.execute(
+        new UpdateMemoryPointDetailsCommand(
+          pointId,
+          { sourceAudioUrl: 'memory-points/point-1/audio/missing.mp3' },
+          actorId,
+        ),
+      ),
+    ).rejects.toBeInstanceOf(MemoryPointSourceNotUploadedException);
+
+    expect(detailsWriteChain.update).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('normalizes a blank source path to "not provided" (no overwrite, no probe)', async () => {
+    setup(editablePoint, { id: 'details-1' });
+
+    await handler.execute(
+      new UpdateMemoryPointDetailsCommand(
+        pointId,
+        { title: 'New', sourcePhotoUrl: '   ' },
+        actorId,
+      ),
+    );
+
+    // Blank path skipped: not probed, not part of the SET.
+    expect(exists).not.toHaveBeenCalled();
+    expect(detailsWriteChain.set).toHaveBeenCalledWith({ title: 'New' });
   });
 
   it('skips the UPDATE entirely when no fields are provided', async () => {

@@ -11,7 +11,10 @@ import { MemoryPointDetailsEntity } from '../../entities/memory-point-details.en
 import { MemoryPointContentRequiredException } from '../../exceptions/memory-point-content-required.exception.ts';
 import { MemoryPointNotEditableException } from '../../exceptions/memory-point-not-editable.exception.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
-import { MemoryPointSourceNotUploadedException } from '../../exceptions/memory-point-source-not-uploaded.exception.ts';
+import {
+  assertProvidedSourcesValid,
+  normalizeOptionalPath,
+} from '../../utils/media-upload.ts';
 import { UpsertMemoryPointDetailsCommand } from './upsert-memory-point-details.command.ts';
 
 @CommandHandler(UpsertMemoryPointDetailsCommand)
@@ -32,14 +35,19 @@ export class UpsertMemoryPointDetailsHandler
     command: UpsertMemoryPointDetailsCommand,
   ): Promise<MemoryPointDetailsDto> {
     const { memoryPointId, userId, upsertMemoryPointDetailsDto } = command;
-    const {
-      sourcePhotoUrl,
-      sourceAudioUrl,
-      title,
-      description,
-      cloudAnchorId,
-      type,
-    } = upsertMemoryPointDetailsDto;
+    const { title, description, cloudAnchorId, type } =
+      upsertMemoryPointDetailsDto;
+
+    /*
+     * Blank paths count as "not provided" so the guards apply consistently and
+     * the columns stay NULL rather than being set to an empty string.
+     */
+    const sourcePhotoUrl = normalizeOptionalPath(
+      upsertMemoryPointDetailsDto.sourcePhotoUrl,
+    );
+    const sourceAudioUrl = normalizeOptionalPath(
+      upsertMemoryPointDetailsDto.sourceAudioUrl,
+    );
 
     const memoryPoint = await this.memoryPointRepository
       .createQueryBuilder('memoryPoint')
@@ -77,33 +85,14 @@ export class UpsertMemoryPointDetailsHandler
     }
 
     /*
-     * Trust no client-supplied path blindly. For each source that IS provided,
-     * require it to live under this memory point's own prefix (so a CREATOR
-     * cannot reference another point's object), then confirm the file actually
-     * landed in storage before persisting it.
+     * Trust no client-supplied path blindly. For each provided source, require
+     * it to live under this point's prefix (so a CREATOR cannot reference
+     * another point's object) and confirm the file landed in storage.
      */
-    const photoPrefix = `memory-points/${memoryPointId}/photo/`;
-    const audioPrefix = `memory-points/${memoryPointId}/audio/`;
-
-    if (
-      (sourcePhotoUrl && !sourcePhotoUrl.startsWith(photoPrefix)) ||
-      (sourceAudioUrl && !sourceAudioUrl.startsWith(audioPrefix))
-    ) {
-      throw new MemoryPointSourceNotUploadedException();
-    }
-
-    const [hasPhoto, hasAudio] = await Promise.all([
-      sourcePhotoUrl
-        ? this.gcsStorageService.exists(sourcePhotoUrl)
-        : Promise.resolve(true),
-      sourceAudioUrl
-        ? this.gcsStorageService.exists(sourceAudioUrl)
-        : Promise.resolve(true),
-    ]);
-
-    if (!hasPhoto || !hasAudio) {
-      throw new MemoryPointSourceNotUploadedException();
-    }
+    await assertProvidedSourcesValid(this.gcsStorageService, memoryPointId, {
+      sourcePhotoUrl,
+      sourceAudioUrl,
+    });
 
     /*
      * Persist only the fields the creator actually provided (title always).
