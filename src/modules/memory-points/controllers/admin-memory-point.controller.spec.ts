@@ -72,25 +72,31 @@ describe('AdminMemoryPointController', () => {
 
   describe('updateStatus', () => {
     it('delegates to updateStatus with id and dto.status', async () => {
-      await controller.updateStatus(VALID_UUID, {
-        status: MemoryPointStatus.APPROVED,
-      } as never);
+      await controller.updateStatus(
+        VALID_UUID,
+        user as never,
+        {
+          status: MemoryPointStatus.APPROVED,
+        } as never,
+      );
 
       expect(memoryPointService.updateStatus).toHaveBeenCalledTimes(1);
       expect(memoryPointService.updateStatus).toHaveBeenCalledWith(
         VALID_UUID,
         MemoryPointStatus.APPROVED,
+        user.id,
       );
     });
   });
 
   describe('delete', () => {
     it('delegates to deleteMemoryPoint with the id', async () => {
-      await controller.delete(VALID_UUID);
+      await controller.delete(VALID_UUID, user as never);
 
       expect(memoryPointService.deleteMemoryPoint).toHaveBeenCalledTimes(1);
       expect(memoryPointService.deleteMemoryPoint).toHaveBeenCalledWith(
         VALID_UUID,
+        user.id,
       );
     });
   });
@@ -99,12 +105,13 @@ describe('AdminMemoryPointController', () => {
     it('delegates to updateDetails with id and dto', async () => {
       const dto = { title: 'x' } as never;
 
-      await controller.updateDetails(VALID_UUID, dto);
+      await controller.updateDetails(VALID_UUID, user as never, dto);
 
       expect(memoryPointService.updateDetails).toHaveBeenCalledTimes(1);
       expect(memoryPointService.updateDetails).toHaveBeenCalledWith(
         VALID_UUID,
         dto,
+        user.id,
       );
     });
   });

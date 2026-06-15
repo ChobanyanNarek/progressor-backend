@@ -110,24 +110,29 @@ export class MemoryPointService {
     >(new GetNearbyMemoryPointsQuery(pageOptionsDto));
   }
 
-  updateStatus(memoryPointId: Uuid, status: MemoryPointStatus): Promise<void> {
+  updateStatus(
+    memoryPointId: Uuid,
+    status: MemoryPointStatus,
+    actorId: Uuid,
+  ): Promise<void> {
     return this.commandBus.execute<UpdateMemoryPointStatusCommand>(
-      new UpdateMemoryPointStatusCommand(memoryPointId, status),
+      new UpdateMemoryPointStatusCommand(memoryPointId, status, actorId),
     );
   }
 
   updateDetails(
     memoryPointId: Uuid,
     dto: UpdateMemoryPointDetailsDto,
+    actorId: Uuid,
   ): Promise<void> {
     return this.commandBus.execute<UpdateMemoryPointDetailsCommand>(
-      new UpdateMemoryPointDetailsCommand(memoryPointId, dto),
+      new UpdateMemoryPointDetailsCommand(memoryPointId, dto, actorId),
     );
   }
 
-  deleteMemoryPoint(memoryPointId: Uuid): Promise<void> {
+  deleteMemoryPoint(memoryPointId: Uuid, actorId: Uuid): Promise<void> {
     return this.commandBus.execute<DeleteMemoryPointCommand>(
-      new DeleteMemoryPointCommand(memoryPointId),
+      new DeleteMemoryPointCommand(memoryPointId, actorId),
     );
   }
 
