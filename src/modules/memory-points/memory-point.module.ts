@@ -11,6 +11,7 @@ import { CreateUploadUrlHandler } from './commands/create-upload-url/create-uplo
 import { DeleteMemoryPointHandler } from './commands/delete-memory-point/delete-memory-point.handler.ts';
 import { MarkGenerationStartedHandler } from './commands/mark-generation-started/mark-generation-started.handler.ts';
 import { UpdateMemoryPointDetailsHandler } from './commands/update-memory-point-details/update-memory-point-details.handler.ts';
+import { UpdateMemoryPointLocationHandler } from './commands/update-memory-point-location/update-memory-point-location.handler.ts';
 import { UpdateMemoryPointStatusHandler } from './commands/update-memory-point-status/update-memory-point-status.handler.ts';
 import { UpsertMemoryPointDetailsHandler } from './commands/upsert-memory-point-details/upsert-memory-point-details.handler.ts';
 import { AdminMemoryPointController } from './controllers/admin-memory-point.controller.ts';
@@ -28,11 +29,13 @@ import { GetMemoryPointStatsHandler } from './queries/get-memory-point-stats/get
 import { GetMyMemoryPointsHandler } from './queries/get-my-memory-points/get-my-memory-points.handler.ts';
 import { GetNearbyMemoryPointsHandler } from './queries/get-nearby-memory-points/get-nearby-memory-points.handler.ts';
 import { GetRecentMemoryPointsHandler } from './queries/get-recent-memory-points/get-recent-memory-points.handler.ts';
+import { SearchMemoryPointsHandler } from './queries/search-memory-points/search-memory-points.handler.ts';
 
 const commandHandlers = [
   CreateMemoryPointHandler,
   UpdateMemoryPointStatusHandler,
   UpdateMemoryPointDetailsHandler,
+  UpdateMemoryPointLocationHandler,
   UpsertMemoryPointDetailsHandler,
   DeleteMemoryPointHandler,
   MarkGenerationStartedHandler,
@@ -50,6 +53,7 @@ const queryHandlers = [
   GetMemoryPointStatsHandler,
   GetRecentMemoryPointsHandler,
   GetMediaHandler,
+  SearchMemoryPointsHandler,
 ];
 
 @Module({

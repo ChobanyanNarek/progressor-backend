@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Query,
   ValidationPipe,
@@ -28,6 +29,7 @@ import { MemoryPointDetailsDto } from '../dtos/memory-point-details.dto.ts';
 import { MemoryPointUploadUrlsDto } from '../dtos/memory-point-upload-urls.dto.ts';
 import { MyMemoryPointDto } from '../dtos/my-memory-point.dto.ts';
 import { RequestUploadUrlDto } from '../dtos/request-upload-url.dto.ts';
+import { UpdateMemoryPointLocationDto } from '../dtos/update-memory-point-location.dto.ts';
 import { UpsertMemoryPointDetailsDto } from '../dtos/upsert-memory-point-details.dto.ts';
 import { MemoryPointService } from '../memory-point.service.ts';
 
@@ -102,6 +104,26 @@ export class CreatorMemoryPointController {
       id,
       user.id,
       upsertMemoryPointDetailsDto,
+    );
+  }
+
+  @Patch(':id/location')
+  @Auth([RoleType.CREATOR])
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Reposition own PENDING memory point to new coordinates',
+  })
+  @ApiUUIDParam('id')
+  updateLocation(
+    @UUIDParam('id') id: Uuid,
+    @AuthUser() user: UserEntity,
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos -- shares the admin reposition payload
+    @Body() updateMemoryPointLocationDto: UpdateMemoryPointLocationDto,
+  ): Promise<void> {
+    return this.memoryPointService.updateMemoryPointLocation(
+      id,
+      updateMemoryPointLocationDto,
+      { kind: 'creator', userId: user.id },
     );
   }
 
