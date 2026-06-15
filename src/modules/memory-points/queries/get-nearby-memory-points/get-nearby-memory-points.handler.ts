@@ -5,6 +5,7 @@ import type { Repository } from 'typeorm';
 import { PageDto } from '../../../../common/dto/page.dto.ts';
 import { escapeLikePattern } from '../../../../common/utils.ts';
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import { PublicationState } from '../../../../constants/publication-state.ts';
 import { NearbyMemoryPointDto } from '../../dtos/nearby-memory-point.dto.ts';
 import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
 import { GetNearbyMemoryPointsQuery } from './get-nearby-memory-points.query.ts';
@@ -35,6 +36,9 @@ export class GetNearbyMemoryPointsHandler
         'distance',
       )
       .where('mp.status = :status', { status: MemoryPointStatus.APPROVED })
+      .andWhere('mp.publicationState = :pub', {
+        pub: PublicationState.ACTIVE,
+      })
       .andWhere(`ST_DWithin(mp.location::geography, ${userPoint}, :radius)`)
       .orderBy('distance', 'ASC')
       .setParameters({

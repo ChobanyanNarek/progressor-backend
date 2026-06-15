@@ -1,5 +1,6 @@
 import { AbstractDto } from '../../../common/dto/abstract.dto.ts';
 import { MemoryPointStatus } from '../../../constants/memory-point-status.ts';
+import { PublicationState } from '../../../constants/publication-state.ts';
 import {
   ClassField,
   ClassFieldOptional,
@@ -19,6 +20,9 @@ export class MemoryPointDto extends AbstractDto {
   @EnumField(() => MemoryPointStatus)
   status!: MemoryPointStatus;
 
+  @EnumField(() => PublicationState)
+  publicationState!: PublicationState;
+
   @UUIDField()
   userId!: Uuid;
 
@@ -32,6 +36,7 @@ export class MemoryPointDto extends AbstractDto {
     super(entity);
     this.location = entity.location;
     this.status = entity.status;
+    this.publicationState = entity.publicationState;
     this.userId = entity.userId;
     this.memoryPointDetails = entity.memoryPointDetails?.toDto(options);
     this.creator = entity.user

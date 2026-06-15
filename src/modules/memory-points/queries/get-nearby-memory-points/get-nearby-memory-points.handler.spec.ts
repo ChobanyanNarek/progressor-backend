@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import { PublicationState } from '../../../../constants/publication-state.ts';
 import { NearbyMemoryPointDto } from '../../dtos/nearby-memory-point.dto.ts';
 import { GetNearbyMemoryPointsHandler } from './get-nearby-memory-points.handler.ts';
 import { GetNearbyMemoryPointsQuery } from './get-nearby-memory-points.query.ts';
@@ -78,7 +79,7 @@ describe('GetNearbyMemoryPointsHandler', () => {
     } as never);
   });
 
-  it('filters by APPROVED status, orders by distance, passes params and maps items to NearbyMemoryPointDto', async () => {
+  it('filters by APPROVED status, ACTIVE publicationState, orders by distance, passes params and maps items to NearbyMemoryPointDto', async () => {
     const pageOptionsDto = { ...baseOptions } as never;
 
     const result = await handler.execute(
@@ -91,6 +92,10 @@ describe('GetNearbyMemoryPointsHandler', () => {
     );
     expect(qb.where).toHaveBeenCalledWith('mp.status = :status', {
       status: MemoryPointStatus.APPROVED,
+    });
+    // Visibility gate: must also filter by ACTIVE publicationState.
+    expect(qb.andWhere).toHaveBeenCalledWith('mp.publicationState = :pub', {
+      pub: PublicationState.ACTIVE,
     });
     expect(qb.andWhere).toHaveBeenCalledWith(
       expect.stringContaining('ST_DWithin'),
@@ -120,7 +125,7 @@ describe('GetNearbyMemoryPointsHandler', () => {
       new GetNearbyMemoryPointsQuery({ ...baseOptions } as never),
     );
 
-    // Only the ST_DWithin andWhere should have run, not a title filter.
+    // Only the publicationState and ST_DWithin andWhere calls; no title filter.
     const titleCall = qb.andWhere.mock.calls.find(
       (c) => c[0] === 'details.title ILIKE :q',
     );

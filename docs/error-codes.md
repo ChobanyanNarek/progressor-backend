@@ -22,6 +22,9 @@ This page is the contract: the list of codes the frontend must handle. The
 | `error.memoryPointNotFound` | 404 | No memory point matches the id (or not owned) |
 | `error.memoryPointNotEditable` | 403 | Memory point is past the editable state |
 | `error.memoryPointSourceNotUploaded` | 403 | Photo/audio not uploaded before saving details |
+| `error.memoryPointNotOwned` | 403 | Caller does not own the memory point |
+| `error.invalidStatusTransition` | 400 | Requested review-pipeline status transition is not allowed |
+| `error.invalidPublicationStateTransition` | 400 | Requested publication-state transition is not allowed |
 | `error.userExists` | 409 | A user with that email already exists (create/edit) |
 | `error.unique.email` | 409 | Email already in use (DB unique constraint) |
 | `error.aiGenerationFailed` | 500 | Starting the AI video generation failed for a non-recoverable reason (provider 5xx, network error, internal error); the generation row is marked `FAILED` |

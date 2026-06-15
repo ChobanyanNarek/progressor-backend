@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import { PublicationState } from '../../../../constants/publication-state.ts';
 import { RoleType } from '../../../../constants/role-type.ts';
 import { GcsStorageService } from '../../../../shared/services/gcs-storage.service.ts';
 import type { MemoryPointDto } from '../../dtos/memory-point.dto.ts';
@@ -36,9 +37,17 @@ export class GetMemoryPointHandler
         });
       }
     } else {
-      queryBuilder.andWhere('mp.status = :status', {
-        status: MemoryPointStatus.APPROVED,
-      });
+      /*
+       * Public read: must be APPROVED and ACTIVE; soft-deleted rows are already
+       * excluded by TypeORM's automatic deletedAt filter.
+       */
+      queryBuilder
+        .andWhere('mp.status = :status', {
+          status: MemoryPointStatus.APPROVED,
+        })
+        .andWhere('mp.publicationState = :pub', {
+          pub: PublicationState.ACTIVE,
+        });
     }
 
     const memoryPointEntity = await queryBuilder.getOne();
