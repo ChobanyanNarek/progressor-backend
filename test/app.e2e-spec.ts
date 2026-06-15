@@ -337,10 +337,60 @@ describe('Memory points (e2e)', () => {
     });
   });
 
-  describe('admin upserts details on a fresh PENDING point (§2.3 regression)', () => {
+  /**
+   * Creates a point and submits its details so it lands in ADMIN_REVIEWING.
+   * `overrides` lets a test omit a field (e.g. description) to exercise the
+   * generation-readiness gate. Returns the new point id.
+   */
+  /** Creates a bare PENDING point and returns its id. */
+  const createPoint = async (lat: number, lng: number): Promise<string> => {
+    const created = await request(app.getHttpServer())
+      .post('/creator/memory-points')
+      .set(authHeader(creatorToken))
+      .send({ latitude: lat, longitude: lng })
+      .expect(201);
+
+    return created.body.id as string;
+  };
+
+  const submitPoint = async (
+    lat: number,
+    lng: number,
+    overrides: Record<string, unknown> = {},
+  ): Promise<string> => {
+    const created = await request(app.getHttpServer())
+      .post('/creator/memory-points')
+      .set(authHeader(creatorToken))
+      .send({ latitude: lat, longitude: lng })
+      .expect(201);
+    const pointId = created.body.id as string;
+
+    const urls = await request(app.getHttpServer())
+      .post(`/creator/memory-points/${pointId}/upload-url`)
+      .set(authHeader(creatorToken))
+      .send({ photoContentType: 'jpg', audioContentType: 'mp3' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/creator/memory-points/${pointId}/details`)
+      .set(authHeader(creatorToken))
+      .send({
+        sourcePhotoUrl: urls.body.photo.objectPath,
+        sourceAudioUrl: urls.body.audio.objectPath,
+        title: 'E2E title',
+        description: 'E2E description',
+        type: 'MEMORIAL',
+        ...overrides,
+      })
+      .expect(200);
+
+    return pointId;
+  };
+
+  describe('admin edits are blocked on a PENDING draft', () => {
     let pendingPointId: string;
 
-    it('creator creates a fresh PENDING point with no details row', async () => {
+    it('creator creates a fresh PENDING point', async () => {
       const response = await request(app.getHttpServer())
         .post('/creator/memory-points')
         .set(authHeader(creatorToken))
@@ -351,59 +401,105 @@ describe('Memory points (e2e)', () => {
       pendingPointId = (response.body as { id: string }).id;
     });
 
-    it('admin PATCH details on the detail-less point returns 204 (was 404)', async () => {
+    it('admin PATCH details on a PENDING point returns 403', async () => {
       await request(app.getHttpServer())
         .patch(`/admin/memory-points/${pendingPointId}/details`)
         .set(authHeader(adminToken))
+        .send({ title: 'nope' })
+        .expect(403);
+    });
+
+    it('admin media upload-url on a PENDING point returns 403', async () => {
+      await request(app.getHttpServer())
+        .post(`/admin/memory-points/${pendingPointId}/media/upload-url`)
+        .set(authHeader(adminToken))
+        .send({ photoContentType: 'jpg', audioContentType: 'mp3' })
+        .expect(403);
+    });
+  });
+
+  describe('admin edits texts and replaces media on an ADMIN_REVIEWING point', () => {
+    let pointId: string;
+
+    it('sets up a submitted point in ADMIN_REVIEWING', async () => {
+      pointId = await submitPoint(43.1, 44.2);
+    });
+
+    it('admin PATCH details (text) returns 204', async () => {
+      await request(app.getHttpServer())
+        .patch(`/admin/memory-points/${pointId}/details`)
+        .set(authHeader(adminToken))
+        .send({ title: 'Admin edited title', description: 'Admin edited desc' })
+        .expect(204);
+    });
+
+    it('admin gets media upload URLs (201) and persists the new source path', async () => {
+      const urls = await request(app.getHttpServer())
+        .post(`/admin/memory-points/${pointId}/media/upload-url`)
+        .set(authHeader(adminToken))
+        .send({ photoContentType: 'png', audioContentType: 'wav' })
+        .expect(201);
+
+      expect(urls.body.photo.objectPath).toContain(`${pointId}/photo/`);
+      expect(urls.body.audio.objectPath).toContain(`${pointId}/audio/`);
+
+      await request(app.getHttpServer())
+        .patch(`/admin/memory-points/${pointId}/details`)
+        .set(authHeader(adminToken))
         .send({
-          title: 'Admin set title',
-          description: 'desc',
-          type: 'GRAVE',
+          sourcePhotoUrl: urls.body.photo.objectPath,
+          sourceAudioUrl: urls.body.audio.objectPath,
         })
         .expect(204);
     });
+  });
 
-    it('persists the admin-set details and leaves the point PENDING', async () => {
-      const response = await request(app.getHttpServer())
-        .get(`/admin/memory-points/${pendingPointId}`)
-        .set(authHeader(adminToken))
+  describe('creator submit accepts partial content', () => {
+    it('accepts a text-only submit (title + description, no media) -> ADMIN_REVIEWING', async () => {
+      const pointId = await createPoint(46.1, 47.2);
+
+      await request(app.getHttpServer())
+        .post(`/creator/memory-points/${pointId}/details`)
+        .set(authHeader(creatorToken))
+        .send({ title: 'Text only', description: 'No media yet' })
         .expect(200);
 
-      const body = response.body as {
-        status: string;
-        memoryPointDetails: { title: string; type: string };
-      };
-
-      // Admin GET-by-id returns PENDING points (no status restriction).
-      expect(body.status).toBe('PENDING');
-      expect(body.memoryPointDetails.title).toBe('Admin set title');
-      expect(body.memoryPointDetails.type).toBe('GRAVE');
+      const response = await request(app.getHttpServer())
+        .get(`/creator/memory-points/${pointId}`)
+        .set(authHeader(creatorToken))
+        .expect(200);
+      expect(response.body.status).toBe('ADMIN_REVIEWING');
     });
 
-    it('second PATCH (description only) is 204 and preserves the title', async () => {
-      await request(app.getHttpServer())
-        .patch(`/admin/memory-points/${pendingPointId}/details`)
-        .set(authHeader(adminToken))
-        .send({ description: 'updated' })
-        .expect(204);
+    it('rejects a title-only submit with 422 error.memoryPointContentRequired', async () => {
+      const pointId = await createPoint(46.3, 47.4);
 
       const response = await request(app.getHttpServer())
-        .get(`/admin/memory-points/${pendingPointId}`)
+        .post(`/creator/memory-points/${pointId}/details`)
+        .set(authHeader(creatorToken))
+        .send({ title: 'Just a title' })
+        .expect(HttpStatus.UNPROCESSABLE_ENTITY);
+
+      expect(response.body.message).toBe('error.memoryPointContentRequired');
+    });
+  });
+
+  describe('generation readiness gate', () => {
+    it('rejects generation with 422 and lists the missing field', async () => {
+      // Submit a point that has sources + title but no description.
+      const pointId = await submitPoint(44.1, 45.2, { description: undefined });
+
+      const response = await request(app.getHttpServer())
+        .post(`/admin/memory-points/${pointId}/generate-video`)
         .set(authHeader(adminToken))
-        .expect(200);
+        .expect(HttpStatus.UNPROCESSABLE_ENTITY);
 
       const body = response.body as {
-        memoryPointDetails: {
-          title: string;
-          description: string;
-          type: string;
-        };
+        message: string;
+        missingFields: string[];
       };
-
-      // Update branch only touches provided fields; title/type are preserved.
-      expect(body.memoryPointDetails.title).toBe('Admin set title');
-      expect(body.memoryPointDetails.type).toBe('GRAVE');
-      expect(body.memoryPointDetails.description).toBe('updated');
+      expect(body.message).toBe('error.memoryPointNotReadyForGeneration');
+      expect(body.missingFields).toContain('description');
     });
   });
 });

@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { MemoryPointAiGenerationModule } from '../memory-point-ai-generation/memory-point-ai-generation.module.ts';
 import { ApplyGenerationResultHandler } from './commands/apply-generation-result/apply-generation-result.handler.ts';
 import { CleanupStaleDraftsHandler } from './commands/cleanup-stale-drafts/cleanup-stale-drafts.handler.ts';
+import { CreateAdminUploadUrlHandler } from './commands/create-admin-upload-url/create-admin-upload-url.handler.ts';
 import { CreateMemoryPointHandler } from './commands/create-memory-point/create-memory-point.handler.ts';
 import { CreateUploadUrlHandler } from './commands/create-upload-url/create-upload-url.handler.ts';
 import { DeleteMemoryPointHandler } from './commands/delete-memory-point/delete-memory-point.handler.ts';
@@ -37,6 +38,7 @@ const commandHandlers = [
   MarkGenerationStartedHandler,
   ApplyGenerationResultHandler,
   CreateUploadUrlHandler,
+  CreateAdminUploadUrlHandler,
   CleanupStaleDraftsHandler,
 ];
 

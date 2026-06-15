@@ -19,8 +19,10 @@ This page is the contract: the list of codes the frontend must handle. The
 | `error.phoneNumber` | 422 | Phone number failed validation |
 | `error.pageType` | 500 | Internal pagination misuse |
 | `error.memoryPointNotFound` | 404 | No memory point matches the id (or not owned) |
-| `error.memoryPointNotEditable` | 403 | Memory point is past the editable state |
-| `error.memoryPointSourceNotUploaded` | 403 | Photo/audio not uploaded before saving details |
+| `error.memoryPointNotEditable` | 403 | Memory point is not in an admin-editable state (admin edits/media replacement are only allowed in `ADMIN_REVIEWING`/`REJECTED`) |
+| `error.memoryPointSourceNotUploaded` | 403 | A provided photo/audio path is invalid or the file is not in storage (creator submit) |
+| `error.memoryPointContentRequired` | 422 | Creator submit has a title but no content at all — none of source photo, source audio or description |
+| `error.memoryPointNotReadyForGeneration` | 422 | Admin triggered generation while required fields are missing; response carries a `missingFields` array (subset of `sourcePhotoUrl`, `sourceAudioUrl`, `title`, `description`) |
 | `error.userExists` | 409 | A user with that email already exists (create/edit) |
 | `error.unique.email` | 409 | Email already in use (DB unique constraint) |
 | `error.aiGenerationFailed` | 500 | Starting the AI video generation failed for a non-recoverable reason (provider 5xx, network error, internal error); the generation row is marked `FAILED` |

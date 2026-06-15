@@ -4,7 +4,7 @@ import type { Repository } from 'typeorm';
 
 import { MemoryPointDetailsEntity } from '../../entities/memory-point-details.entity.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
-import { MemoryPointSourceNotUploadedException } from '../../exceptions/memory-point-source-not-uploaded.exception.ts';
+import { MemoryPointNotReadyForGenerationException } from '../../exceptions/memory-point-not-ready-for-generation.exception.ts';
 import {
   GetMemoryPointGenerationSourceQuery,
   type MemoryPointGenerationSource,
@@ -38,18 +38,38 @@ export class GetMemoryPointGenerationSourceHandler
     }
 
     /*
-     * Source columns are nullable at the schema level (an admin can create a
-     * metadata-only details row before media exists). Generation, however, can
-     * only run once both sources are present — guard so the returned contract
-     * stays non-null.
+     * Every required field is nullable at the schema level (an admin can create
+     * a metadata-only details row before media/text exists). Generation can only
+     * run once the full set is present — collect every missing field in one pass
+     * so the admin frontend can surface them all at once, and so the returned
+     * source contract stays non-null.
      */
-    if (!details.sourcePhotoUrl || !details.sourceAudioUrl) {
-      throw new MemoryPointSourceNotUploadedException();
+    const missingFields: string[] = [];
+
+    if (!details.sourcePhotoUrl) {
+      missingFields.push('sourcePhotoUrl');
     }
 
+    if (!details.sourceAudioUrl) {
+      missingFields.push('sourceAudioUrl');
+    }
+
+    if (!details.title) {
+      missingFields.push('title');
+    }
+
+    if (!details.description) {
+      missingFields.push('description');
+    }
+
+    if (missingFields.length > 0) {
+      throw new MemoryPointNotReadyForGenerationException(missingFields);
+    }
+
+    // Non-null by the guard above; assert to satisfy the non-null return contract.
     return {
-      sourcePhotoUrl: details.sourcePhotoUrl,
-      sourceAudioUrl: details.sourceAudioUrl,
+      sourcePhotoUrl: details.sourcePhotoUrl!,
+      sourceAudioUrl: details.sourceAudioUrl!,
     };
   }
 }

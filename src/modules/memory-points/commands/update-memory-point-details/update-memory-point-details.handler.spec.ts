@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
+import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
 import { MemoryPointType } from '../../../../constants/memory-point-type.ts';
+import { MemoryPointNotEditableException } from '../../exceptions/memory-point-not-editable.exception.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
 import { UpdateMemoryPointDetailsCommand } from './update-memory-point-details.command.ts';
 import { UpdateMemoryPointDetailsHandler } from './update-memory-point-details.handler.ts';
@@ -38,6 +40,12 @@ describe('UpdateMemoryPointDetailsHandler', () => {
   let memoryPointRepo: { createQueryBuilder: jest.Mock };
   let detailsRepo: { createQueryBuilder: jest.Mock };
 
+  /** An editable point — admin edits are allowed in this status. */
+  const editablePoint = {
+    id: pointId,
+    status: MemoryPointStatus.ADMIN_REVIEWING,
+  };
+
   /**
    * @param point  what the memory-point lookup resolves to.
    * @param details what the details lookup resolves to.
@@ -70,7 +78,7 @@ describe('UpdateMemoryPointDetailsHandler', () => {
   }
 
   beforeEach(() => {
-    setup({ id: pointId }, null);
+    setup(editablePoint, null);
   });
 
   it('throws MemoryPointNotFoundException when the memory point does not exist', async () => {
@@ -86,8 +94,42 @@ describe('UpdateMemoryPointDetailsHandler', () => {
     expect(detailsRepo.createQueryBuilder).not.toHaveBeenCalled();
   });
 
-  it('UPDATEs the existing details row with only the defined metadata fields', async () => {
-    setup({ id: pointId }, { id: 'details-1' });
+  it.each([
+    [MemoryPointStatus.PENDING],
+    [MemoryPointStatus.GENERATING],
+    [MemoryPointStatus.AI_REVIEWING],
+    [MemoryPointStatus.APPROVED],
+  ])(
+    'throws MemoryPointNotEditableException when status is %s',
+    async (status) => {
+      setup({ id: pointId, status }, { id: 'details-1' });
+
+      await expect(
+        handler.execute(
+          new UpdateMemoryPointDetailsCommand(pointId, { title: 'x' }),
+        ),
+      ).rejects.toBeInstanceOf(MemoryPointNotEditableException);
+
+      // Must short-circuit before touching the details repository.
+      expect(detailsRepo.createQueryBuilder).not.toHaveBeenCalled();
+    },
+  );
+
+  it('allows editing a REJECTED point', async () => {
+    setup(
+      { id: pointId, status: MemoryPointStatus.REJECTED },
+      { id: 'details-1' },
+    );
+
+    await handler.execute(
+      new UpdateMemoryPointDetailsCommand(pointId, { title: 'New' }),
+    );
+
+    expect(detailsWriteChain.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('UPDATEs the existing details row with only the defined fields', async () => {
+    setup(editablePoint, { id: 'details-1' });
 
     await handler.execute(
       new UpdateMemoryPointDetailsCommand(pointId, {
@@ -109,8 +151,24 @@ describe('UpdateMemoryPointDetailsHandler', () => {
     expect(detailsWriteChain.execute).toHaveBeenCalledTimes(1);
   });
 
-  it('skips the UPDATE entirely when no metadata fields are provided', async () => {
-    setup({ id: pointId }, { id: 'details-1' });
+  it('persists replacement source media paths', async () => {
+    setup(editablePoint, { id: 'details-1' });
+
+    await handler.execute(
+      new UpdateMemoryPointDetailsCommand(pointId, {
+        sourcePhotoUrl: 'memory-points/point-1/photo/new.jpg',
+        sourceAudioUrl: 'memory-points/point-1/audio/new.mp3',
+      }),
+    );
+
+    expect(detailsWriteChain.set).toHaveBeenCalledWith({
+      sourcePhotoUrl: 'memory-points/point-1/photo/new.jpg',
+      sourceAudioUrl: 'memory-points/point-1/audio/new.mp3',
+    });
+  });
+
+  it('skips the UPDATE entirely when no fields are provided', async () => {
+    setup(editablePoint, { id: 'details-1' });
 
     await handler.execute(new UpdateMemoryPointDetailsCommand(pointId, {}));
 
@@ -121,7 +179,7 @@ describe('UpdateMemoryPointDetailsHandler', () => {
   });
 
   it('INSERTs a new details row (with memoryPointId) when none exists (regression: upsert on absent row)', async () => {
-    setup({ id: pointId }, null);
+    setup(editablePoint, null);
 
     await handler.execute(
       new UpdateMemoryPointDetailsCommand(pointId, {

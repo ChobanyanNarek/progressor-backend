@@ -8,6 +8,7 @@ import type { RoleType } from '../../constants/role-type.ts';
 import type { AiGenerationStatusResponseDto } from '../memory-point-ai-generation/dtos/ai-generation-status.dto.ts';
 import type { MemoryPointAiGenerationDto } from '../memory-point-ai-generation/dtos/memory-point-ai-generation.dto.ts';
 import { MemoryPointAiGenerationService } from '../memory-point-ai-generation/services/memory-point-ai-generation.service.ts';
+import { CreateAdminUploadUrlCommand } from './commands/create-admin-upload-url/create-admin-upload-url.command.ts';
 import { CreateMemoryPointCommand } from './commands/create-memory-point/create-memory-point.command.ts';
 import { CreateUploadUrlCommand } from './commands/create-upload-url/create-upload-url.command.ts';
 import { DeleteMemoryPointCommand } from './commands/delete-memory-point/delete-memory-point.command.ts';
@@ -15,6 +16,7 @@ import { UpdateMemoryPointDetailsCommand } from './commands/update-memory-point-
 import { UpdateMemoryPointStatusCommand } from './commands/update-memory-point-status/update-memory-point-status.command.ts';
 import { UpsertMemoryPointDetailsCommand } from './commands/upsert-memory-point-details/upsert-memory-point-details.command.ts';
 import type { AdminMemoryPointListItemDto } from './dtos/admin-memory-point-list-item.dto.ts';
+import type { AdminMemoryPointUploadUrlsDto } from './dtos/admin-memory-point-upload-urls.dto.ts';
 import type { CreateMemoryPointDto } from './dtos/create-memory-point.dto.ts';
 import type { MediaItemDto } from './dtos/media-item.dto.ts';
 import type { MemoryPointDto } from './dtos/memory-point.dto.ts';
@@ -25,6 +27,7 @@ import type { MyMemoryPointDto } from './dtos/my-memory-point.dto.ts';
 import type { NearbyMemoryPointDto } from './dtos/nearby-memory-point.dto.ts';
 import type { NearbyMemoryPointsPageOptionsDto } from './dtos/nearby-memory-points-page-options.dto.ts';
 import type { RecentMemoryPointDto } from './dtos/recent-memory-point.dto.ts';
+import type { RequestAdminUploadUrlDto } from './dtos/request-admin-upload-url.dto.ts';
 import type { RequestUploadUrlDto } from './dtos/request-upload-url.dto.ts';
 import type { UpdateMemoryPointDetailsDto } from './dtos/update-memory-point-details.dto.ts';
 import type { UpsertMemoryPointDetailsDto } from './dtos/upsert-memory-point-details.dto.ts';
@@ -154,6 +157,16 @@ export class MemoryPointService {
       CreateUploadUrlCommand,
       MemoryPointUploadUrlsDto
     >(new CreateUploadUrlCommand(memoryPointId, userId, requestUploadUrlDto));
+  }
+
+  createAdminUploadUrls(
+    memoryPointId: Uuid,
+    requestUploadUrlDto: RequestAdminUploadUrlDto,
+  ): Promise<AdminMemoryPointUploadUrlsDto> {
+    return this.commandBus.execute<
+      CreateAdminUploadUrlCommand,
+      AdminMemoryPointUploadUrlsDto
+    >(new CreateAdminUploadUrlCommand(memoryPointId, requestUploadUrlDto));
   }
 
   generateVideo(memoryPointId: Uuid): Promise<MemoryPointAiGenerationDto> {
