@@ -19,16 +19,19 @@ describe('GetMemoryPointGenerationSourceHandler', () => {
     } as never);
   });
 
-  it('returns sourcePhotoUrl and sourceAudioUrl when details exist', async () => {
+  const run = (): Promise<unknown> =>
+    handler.execute(new GetMemoryPointGenerationSourceQuery(memoryPointId));
+
+  it('returns the generation-relevant fields as-is (pure read, no validation)', async () => {
     getOne.mockResolvedValue({
       sourcePhotoUrl: 'photo.jpg',
       sourceAudioUrl: 'audio.mp3',
+      title: 'A title',
+      description: 'A description',
       other: 'ignored',
     });
 
-    const result = await handler.execute(
-      new GetMemoryPointGenerationSourceQuery(memoryPointId),
-    );
+    const result = await run();
 
     expect(where).toHaveBeenCalledWith(
       'details.memoryPointId = :memoryPointId',
@@ -37,14 +40,30 @@ describe('GetMemoryPointGenerationSourceHandler', () => {
     expect(result).toEqual({
       sourcePhotoUrl: 'photo.jpg',
       sourceAudioUrl: 'audio.mp3',
+      title: 'A title',
+      description: 'A description',
     });
   });
 
-  it('throws MemoryPointNotFoundException when details are null', async () => {
+  it('maps absent fields to null without throwing (validation lives in the command)', async () => {
+    getOne.mockResolvedValue({
+      sourcePhotoUrl: 'photo.jpg',
+      // sourceAudioUrl / title / description absent
+    });
+
+    const result = await run();
+
+    expect(result).toEqual({
+      sourcePhotoUrl: 'photo.jpg',
+      sourceAudioUrl: null,
+      title: null,
+      description: null,
+    });
+  });
+
+  it('throws MemoryPointNotFoundException when the details row is null', async () => {
     getOne.mockResolvedValue(null);
 
-    await expect(
-      handler.execute(new GetMemoryPointGenerationSourceQuery(memoryPointId)),
-    ).rejects.toBeInstanceOf(MemoryPointNotFoundException);
+    await expect(run()).rejects.toBeInstanceOf(MemoryPointNotFoundException);
   });
 });

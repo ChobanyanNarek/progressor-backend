@@ -26,7 +26,9 @@ import { AiGenerationStatusResponseDto } from '../../memory-point-ai-generation/
 import { MemoryPointAiGenerationDto } from '../../memory-point-ai-generation/dtos/memory-point-ai-generation.dto.ts';
 import type { UserEntity } from '../../user/user.entity.ts';
 import { AdminMemoryPointListItemDto } from '../dtos/admin-memory-point-list-item.dto.ts';
+import { AdminMemoryPointUploadUrlsDto } from '../dtos/admin-memory-point-upload-urls.dto.ts';
 import { MemoryPointDto } from '../dtos/memory-point.dto.ts';
+import { RequestAdminUploadUrlDto } from '../dtos/request-admin-upload-url.dto.ts';
 import { UpdateMemoryPointDetailsDto } from '../dtos/update-memory-point-details.dto.ts';
 import { UpdateMemoryPointLocationDto } from '../dtos/update-memory-point-location.dto.ts';
 import { UpdateMemoryPointStatusDto } from '../dtos/update-memory-point-status.dto.ts';
@@ -145,6 +147,28 @@ export class AdminMemoryPointController {
       id,
       updateMemoryPointDetailsDto,
       user.id,
+    );
+  }
+
+  @Post(':id/media/upload-url')
+  @Auth([RoleType.ADMIN])
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Get signed URLs to replace a memory point’s source media',
+  })
+  @ApiUUIDParam('id')
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
+    type: AdminMemoryPointUploadUrlsDto,
+  })
+  createMediaUploadUrls(
+    @UUIDParam('id') id: Uuid,
+    @Body() requestUploadUrlDto: RequestAdminUploadUrlDto,
+  ): Promise<AdminMemoryPointUploadUrlsDto> {
+    return this.memoryPointService.createAdminUploadUrls(
+      id,
+      requestUploadUrlDto,
     );
   }
 

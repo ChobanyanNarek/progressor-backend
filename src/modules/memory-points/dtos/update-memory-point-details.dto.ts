@@ -17,4 +17,16 @@ export class UpdateMemoryPointDetailsDto extends BaseDto {
 
   @EnumFieldOptional(() => MemoryPointType)
   readonly type?: MemoryPointType;
+
+  /**
+   * GCS object path of a replacement source photo, obtained from the admin
+   * upload-url endpoint after the bytes have been PUT. Only set when the admin
+   * is swapping the media.
+   */
+  @StringFieldOptional()
+  readonly sourcePhotoUrl?: string;
+
+  /** GCS object path of a replacement source audio (see {@link sourcePhotoUrl}). */
+  @StringFieldOptional()
+  readonly sourceAudioUrl?: string;
 }

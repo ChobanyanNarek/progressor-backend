@@ -20,6 +20,7 @@ describe('AdminMemoryPointController', () => {
     updateStatus: ServiceMock;
     deleteMemoryPoint: ServiceMock;
     updateDetails: ServiceMock;
+    createAdminUploadUrls: ServiceMock;
     generateVideo: ServiceMock;
     getVideoStatus: ServiceMock;
   };
@@ -32,6 +33,8 @@ describe('AdminMemoryPointController', () => {
       updateStatus: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       deleteMemoryPoint: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       updateDetails: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      createAdminUploadUrls:
+        jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       generateVideo: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       getVideoStatus: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     };
@@ -113,6 +116,26 @@ describe('AdminMemoryPointController', () => {
         dto,
         user.id,
       );
+    });
+  });
+
+  describe('createMediaUploadUrls', () => {
+    it('delegates to createAdminUploadUrls with id and dto and returns its result', async () => {
+      const expected = { photo: {}, audio: {} };
+      memoryPointService.createAdminUploadUrls.mockResolvedValue(expected);
+      const dto = {
+        photoContentType: 'jpg',
+        audioContentType: 'mp3',
+      } as never;
+
+      const result = await controller.createMediaUploadUrls(VALID_UUID, dto);
+
+      expect(memoryPointService.createAdminUploadUrls).toHaveBeenCalledTimes(1);
+      expect(memoryPointService.createAdminUploadUrls).toHaveBeenCalledWith(
+        VALID_UUID,
+        dto,
+      );
+      expect(result).toBe(expected);
     });
   });
 

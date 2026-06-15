@@ -8,9 +8,13 @@ import { GcsStorageService } from '../../../../shared/services/gcs-storage.servi
 import { MemoryPointDetailsDto } from '../../dtos/memory-point-details.dto.ts';
 import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
 import { MemoryPointDetailsEntity } from '../../entities/memory-point-details.entity.ts';
+import { MemoryPointContentRequiredException } from '../../exceptions/memory-point-content-required.exception.ts';
 import { MemoryPointNotEditableException } from '../../exceptions/memory-point-not-editable.exception.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
-import { MemoryPointSourceNotUploadedException } from '../../exceptions/memory-point-source-not-uploaded.exception.ts';
+import {
+  assertProvidedSourcesValid,
+  normalizeOptionalPath,
+} from '../../utils/media-upload.ts';
 import { UpsertMemoryPointDetailsCommand } from './upsert-memory-point-details.command.ts';
 
 @CommandHandler(UpsertMemoryPointDetailsCommand)
@@ -31,14 +35,19 @@ export class UpsertMemoryPointDetailsHandler
     command: UpsertMemoryPointDetailsCommand,
   ): Promise<MemoryPointDetailsDto> {
     const { memoryPointId, userId, upsertMemoryPointDetailsDto } = command;
-    const {
-      sourcePhotoUrl,
-      sourceAudioUrl,
-      title,
-      description,
-      cloudAnchorId,
-      type,
-    } = upsertMemoryPointDetailsDto;
+    const { title, description, cloudAnchorId, type } =
+      upsertMemoryPointDetailsDto;
+
+    /*
+     * Blank paths count as "not provided" so the guards apply consistently and
+     * the columns stay NULL rather than being set to an empty string.
+     */
+    const sourcePhotoUrl = normalizeOptionalPath(
+      upsertMemoryPointDetailsDto.sourcePhotoUrl,
+    );
+    const sourceAudioUrl = normalizeOptionalPath(
+      upsertMemoryPointDetailsDto.sourceAudioUrl,
+    );
 
     const memoryPoint = await this.memoryPointRepository
       .createQueryBuilder('memoryPoint')
@@ -65,48 +74,66 @@ export class UpsertMemoryPointDetailsHandler
     }
 
     /*
-     * Trust no client-supplied path blindly. First require each path to live
-     * under this memory point's own prefix, so a CREATOR cannot reference
-     * another point's object (or any nameable object) as their source. Then
-     * confirm both files actually landed in storage before persisting them.
+     * Title is always required (enforced by the DTO). Beyond that a point must
+     * carry at least one piece of content — a photo, audio or a description — so
+     * a creator can submit e.g. a text-only AR point. Whichever are omitted stay
+     * unset; video generation later requires the full set and the admin fills
+     * any gaps.
      */
-    const photoPrefix = `memory-points/${memoryPointId}/photo/`;
-    const audioPrefix = `memory-points/${memoryPointId}/audio/`;
-
-    if (
-      !sourcePhotoUrl.startsWith(photoPrefix) ||
-      !sourceAudioUrl.startsWith(audioPrefix)
-    ) {
-      throw new MemoryPointSourceNotUploadedException();
+    if (!sourcePhotoUrl && !sourceAudioUrl && !description) {
+      throw new MemoryPointContentRequiredException();
     }
 
-    const [hasPhoto, hasAudio] = await Promise.all([
-      this.gcsStorageService.exists(sourcePhotoUrl),
-      this.gcsStorageService.exists(sourceAudioUrl),
-    ]);
+    /*
+     * Trust no client-supplied path blindly. For each provided source, require
+     * it to live under this point's prefix (so a CREATOR cannot reference
+     * another point's object) and confirm the file landed in storage.
+     */
+    await assertProvidedSourcesValid(this.gcsStorageService, memoryPointId, {
+      sourcePhotoUrl,
+      sourceAudioUrl,
+    });
 
-    if (!hasPhoto || !hasAudio) {
-      throw new MemoryPointSourceNotUploadedException();
+    /*
+     * Persist only the fields the creator actually provided (title always).
+     * `upsert` on the memoryPointId conflict updates just these columns, so a
+     * re-submit (REJECTED -> ADMIN_REVIEWING) that omits a field preserves the
+     * previously stored value rather than clearing it.
+     */
+    const detailsToUpsert: Partial<MemoryPointDetailsEntity> = {
+      title,
+      memoryPointId,
+    };
+
+    if (description !== undefined) {
+      detailsToUpsert.description = description;
+    }
+
+    if (cloudAnchorId !== undefined) {
+      detailsToUpsert.cloudAnchorId = cloudAnchorId;
+    }
+
+    if (type !== undefined) {
+      detailsToUpsert.type = type;
+    }
+
+    if (sourcePhotoUrl !== undefined) {
+      detailsToUpsert.sourcePhotoUrl = sourcePhotoUrl;
+    }
+
+    if (sourceAudioUrl !== undefined) {
+      detailsToUpsert.sourceAudioUrl = sourceAudioUrl;
     }
 
     await this.memoryPointDetailsRepository.upsert(
-      this.memoryPointDetailsRepository.create({
-        title,
-        description,
-        cloudAnchorId,
-        type,
-        sourcePhotoUrl,
-        sourceAudioUrl,
-        memoryPointId,
-      }),
+      this.memoryPointDetailsRepository.create(detailsToUpsert),
       ['memoryPointId'],
     );
 
     /*
-     * Submitting details completes the point: it now has a face photo, audio
-     * and metadata, so it leaves the creator-only PENDING draft state and enters
-     * the admin review queue. Admin-facing lists surface points from
-     * ADMIN_REVIEWING onward; PENDING stays creator-private.
+     * Submitting details moves the point out of the creator-only PENDING draft
+     * state and into the admin review queue. Admin-facing lists surface points
+     * from ADMIN_REVIEWING onward; PENDING stays creator-private.
      */
     await this.memoryPointRepository.update(
       { id: memoryPointId },

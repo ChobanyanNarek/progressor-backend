@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { AiGenerationStatus } from '../../../../constants/ai-generation-status.ts';
 import { ApplyGenerationResultCommand } from '../../../memory-points/commands/apply-generation-result/apply-generation-result.command.ts';
 import { MarkGenerationStartedCommand } from '../../../memory-points/commands/mark-generation-started/mark-generation-started.command.ts';
+import { MemoryPointNotReadyForGenerationException } from '../../../memory-points/exceptions/memory-point-not-ready-for-generation.exception.ts';
 import { GetMemoryPointGenerationSourceQuery } from '../../../memory-points/queries/get-memory-point-generation-source/get-memory-point-generation-source.query.ts';
 import { AiGenerationFailedException } from '../../exceptions/ai-generation-failed.exception.ts';
 import { AiGenerationInvalidMediaException } from '../../exceptions/ai-generation-invalid-media.exception.ts';
@@ -108,7 +109,12 @@ describe('CreateAiGenerationHandler', () => {
     commandBusExecute = jest.fn<(command: unknown) => Promise<unknown>>();
     queryBusExecute = jest
       .fn<(query: unknown) => Promise<unknown>>()
-      .mockResolvedValue({ sourcePhotoUrl, sourceAudioUrl });
+      .mockResolvedValue({
+        sourcePhotoUrl,
+        sourceAudioUrl,
+        title: 'A title',
+        description: 'A description',
+      });
 
     handler = new CreateAiGenerationHandler(
       repo as never,
@@ -132,6 +138,26 @@ describe('CreateAiGenerationHandler', () => {
     expect((query as GetMemoryPointGenerationSourceQuery).memoryPointId).toBe(
       memoryPointId,
     );
+  });
+
+  it('aborts with MemoryPointNotReadyForGeneration when a required field is missing (before touching the row or provider)', async () => {
+    queryBusExecute.mockResolvedValue({
+      sourcePhotoUrl,
+      sourceAudioUrl,
+      title: 'A title',
+      description: null,
+    });
+
+    await expect(
+      handler.execute(new CreateAiGenerationCommand(memoryPointId)),
+    ).rejects.toBeInstanceOf(MemoryPointNotReadyForGenerationException);
+
+    // No generation row read/created, no provider call, no status change.
+    expect(repo.createQueryBuilder).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+    expect(uploadImage).not.toHaveBeenCalled();
+    expect(createTalk).not.toHaveBeenCalled();
+    expect(commandBusExecute).not.toHaveBeenCalled();
   });
 
   it('creates a new PENDING generation with attemptNumber 1 when none exists', async () => {

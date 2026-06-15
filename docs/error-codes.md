@@ -20,8 +20,10 @@ This page is the contract: the list of codes the frontend must handle. The
 | `error.phoneNumber` | 422 | Phone number failed validation |
 | `error.pageType` | 500 | Internal pagination misuse |
 | `error.memoryPointNotFound` | 404 | No memory point matches the id (or not owned) |
-| `error.memoryPointNotEditable` | 403 | Memory point is past the editable state |
-| `error.memoryPointSourceNotUploaded` | 403 | Photo/audio not uploaded before saving details |
+| `error.memoryPointNotEditable` | 403 | Memory point is not in an admin-editable state (admin edits/media replacement are only allowed in `ADMIN_REVIEWING`/`REJECTED`) |
+| `error.memoryPointSourceNotUploaded` | 403 | A provided photo/audio path is invalid or the file is not in storage (creator submit) |
+| `error.memoryPointContentRequired` | 422 | Creator submit has a title but no content at all — none of source photo, source audio or description |
+| `error.memoryPointNotReadyForGeneration` | 422 | Admin triggered generation while required fields are missing; response carries a `missingFields` array (subset of `sourcePhotoUrl`, `sourceAudioUrl`, `title`, `description`) |
 | `error.memoryPointNotOwned` | 403 | Caller does not own the memory point |
 | `error.invalidStatusTransition` | 400 | Requested review-pipeline status transition is not allowed |
 | `error.invalidPublicationStateTransition` | 400 | Requested publication-state transition is not allowed |

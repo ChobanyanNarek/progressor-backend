@@ -2,10 +2,10 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
-import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import { ADMIN_EDITABLE_STATUSES } from '../../../../constants/memory-point-status.ts';
 import { GcsStorageService } from '../../../../shared/services/gcs-storage.service.ts';
 import { GeneratorService } from '../../../../shared/services/generator.service.ts';
-import { MemoryPointUploadUrlsDto } from '../../dtos/memory-point-upload-urls.dto.ts';
+import { AdminMemoryPointUploadUrlsDto } from '../../dtos/admin-memory-point-upload-urls.dto.ts';
 import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
 import { MemoryPointNotEditableException } from '../../exceptions/memory-point-not-editable.exception.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
@@ -15,11 +15,12 @@ import {
   buildPhotoPath,
   PHOTO_MIME_BY_TYPE,
 } from '../../utils/media-upload.ts';
-import { CreateUploadUrlCommand } from './create-upload-url.command.ts';
+import { CreateAdminUploadUrlCommand } from './create-admin-upload-url.command.ts';
 
-@CommandHandler(CreateUploadUrlCommand)
-export class CreateUploadUrlHandler
-  implements ICommandHandler<CreateUploadUrlCommand, MemoryPointUploadUrlsDto>
+@CommandHandler(CreateAdminUploadUrlCommand)
+export class CreateAdminUploadUrlHandler
+  implements
+    ICommandHandler<CreateAdminUploadUrlCommand, AdminMemoryPointUploadUrlsDto>
 {
   constructor(
     @InjectRepository(MemoryPointEntity)
@@ -29,9 +30,9 @@ export class CreateUploadUrlHandler
   ) {}
 
   async execute(
-    command: CreateUploadUrlCommand,
-  ): Promise<MemoryPointUploadUrlsDto> {
-    const { memoryPointId, userId, requestUploadUrlDto } = command;
+    command: CreateAdminUploadUrlCommand,
+  ): Promise<AdminMemoryPointUploadUrlsDto> {
+    const { memoryPointId, requestUploadUrlDto } = command;
     const { photoContentType, audioContentType } = requestUploadUrlDto;
 
     const memoryPoint = await this.memoryPointRepository
@@ -39,11 +40,11 @@ export class CreateUploadUrlHandler
       .where('memoryPoint.id = :id', { id: memoryPointId })
       .getOne();
 
-    if (memoryPoint?.userId !== userId) {
+    if (!memoryPoint) {
       throw new MemoryPointNotFoundException();
     }
 
-    if (memoryPoint.status !== MemoryPointStatus.PENDING) {
+    if (!ADMIN_EDITABLE_STATUSES.includes(memoryPoint.status)) {
       throw new MemoryPointNotEditableException();
     }
 
@@ -69,7 +70,7 @@ export class CreateUploadUrlHandler
       ),
     ]);
 
-    return MemoryPointUploadUrlsDto.create({
+    return AdminMemoryPointUploadUrlsDto.create({
       photo: { uploadUrl: photoUrl, objectPath: photoPath },
       audio: { uploadUrl: audioUrl, objectPath: audioPath },
     });

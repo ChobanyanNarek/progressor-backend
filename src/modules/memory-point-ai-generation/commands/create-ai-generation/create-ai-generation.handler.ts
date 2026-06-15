@@ -13,10 +13,12 @@ import { AiGenerationStatus } from '../../../../constants/ai-generation-status.t
 import { GcsStorageService } from '../../../../shared/services/gcs-storage.service.ts';
 import { ApplyGenerationResultCommand } from '../../../memory-points/commands/apply-generation-result/apply-generation-result.command.ts';
 import { MarkGenerationStartedCommand } from '../../../memory-points/commands/mark-generation-started/mark-generation-started.command.ts';
+import { MemoryPointNotReadyForGenerationException } from '../../../memory-points/exceptions/memory-point-not-ready-for-generation.exception.ts';
+import { GetMemoryPointGenerationSourceQuery } from '../../../memory-points/queries/get-memory-point-generation-source/get-memory-point-generation-source.query.ts';
 import {
-  GetMemoryPointGenerationSourceQuery,
-  type MemoryPointGenerationSource,
-} from '../../../memory-points/queries/get-memory-point-generation-source/get-memory-point-generation-source.query.ts';
+  collectMissingGenerationFields,
+  type IMemoryPointGenerationFields,
+} from '../../../memory-points/utils/generation-readiness.ts';
 import type { MemoryPointAiGenerationDto } from '../../dtos/memory-point-ai-generation.dto.ts';
 import { AiGenerationFailedException } from '../../exceptions/ai-generation-failed.exception.ts';
 import { AiGenerationInvalidMediaException } from '../../exceptions/ai-generation-invalid-media.exception.ts';
@@ -44,10 +46,25 @@ export class CreateAiGenerationHandler
   ): Promise<MemoryPointAiGenerationDto> {
     const { memoryPointId } = command;
 
-    const { sourcePhotoUrl, sourceAudioUrl } = await this.queryBus.execute<
+    /*
+     * Read the generation-relevant fields, then enforce readiness here (the
+     * command owns the rule). Any missing field aborts before the row is touched
+     * or the provider is called, surfacing the `missingFields` contract.
+     */
+    const fields = await this.queryBus.execute<
       GetMemoryPointGenerationSourceQuery,
-      MemoryPointGenerationSource
+      IMemoryPointGenerationFields
     >(new GetMemoryPointGenerationSourceQuery(memoryPointId));
+
+    const missingFields = collectMissingGenerationFields(fields);
+
+    if (missingFields.length > 0) {
+      throw new MemoryPointNotReadyForGenerationException(missingFields);
+    }
+
+    // Non-null by the readiness guard above.
+    const sourcePhotoUrl = fields.sourcePhotoUrl!;
+    const sourceAudioUrl = fields.sourceAudioUrl!;
 
     let generation = await this.aiGenerationRepository
       .createQueryBuilder('aiGeneration')
