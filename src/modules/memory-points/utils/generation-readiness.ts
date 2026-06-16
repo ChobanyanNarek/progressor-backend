@@ -13,29 +13,31 @@ export interface IMemoryPointGenerationFields {
 }
 
 /**
- * Returns the identifiers of the required fields that are missing/empty, in a
+ * Returns the identifiers of the required inputs that are missing/empty, in a
  * stable order. Empty array means the point is ready to generate. The returned
  * identifiers are the `missingFields` contract surfaced to the admin frontend.
+ *
+ * Required: `title`, `sourcePhotoUrl` (face), and **a script** — either a
+ * `description` (D-ID synthesizes the voice via TTS) or an uploaded
+ * `sourceAudioUrl`. When neither script source is present a single
+ * `descriptionOrAudio` token is returned (only one is needed, so listing both
+ * would mislead).
  */
 export function collectMissingGenerationFields(
   fields: IMemoryPointGenerationFields,
 ): string[] {
   const missingFields: string[] = [];
 
-  if (!fields.sourcePhotoUrl) {
-    missingFields.push('sourcePhotoUrl');
-  }
-
-  if (!fields.sourceAudioUrl) {
-    missingFields.push('sourceAudioUrl');
-  }
-
   if (!fields.title) {
     missingFields.push('title');
   }
 
-  if (!fields.description) {
-    missingFields.push('description');
+  if (!fields.sourcePhotoUrl) {
+    missingFields.push('sourcePhotoUrl');
+  }
+
+  if (!fields.description && !fields.sourceAudioUrl) {
+    missingFields.push('descriptionOrAudio');
   }
 
   return missingFields;

@@ -76,6 +76,24 @@ describe('DidService', () => {
         durationSeconds: 12,
       });
     });
+
+    it('sends a text script (D-ID default TTS) when no audio is provided', async () => {
+      httpService.post.mockReturnValue(
+        of({ data: { id: 'talk-2', status: 'created' } }),
+      );
+
+      await service.createTalk({
+        sourceUrl: 'https://src/photo.jpg',
+        scriptText: 'Hello from the past',
+        userData: 'point-1',
+      });
+
+      const [, body] = httpService.post.mock.calls[0]!;
+      expect(body).toMatchObject({
+        source_url: 'https://src/photo.jpg',
+        script: { type: 'text', input: 'Hello from the past' },
+      });
+    });
   });
 
   describe('uploadImage', () => {

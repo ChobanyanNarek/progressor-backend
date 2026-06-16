@@ -1,13 +1,26 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import { DuplicateMemoryPointException } from '../../exceptions/duplicate-memory-point.exception.ts';
 import { MemoryPointNotEditableException } from '../../exceptions/memory-point-not-editable.exception.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
 import { UpdateMemoryPointLocationCommand } from './update-memory-point-location.command.ts';
 import { UpdateMemoryPointLocationHandler } from './update-memory-point-location.handler.ts';
 
 const POINT_ID = 'point-1' as Uuid;
+const OTHER_ID = 'point-2' as Uuid;
 const USER_ID = 'user-1' as Uuid;
+const DUPLICATE_RADIUS_METERS = 50;
+
+interface IDupQb {
+  select: jest.Mock;
+  addSelect: jest.Mock;
+  where: jest.Mock;
+  andWhere: jest.Mock;
+  setParameters: jest.Mock;
+  orderBy: jest.Mock;
+  getRawOne: jest.Mock;
+}
 
 interface IUpdateQb {
   update: jest.Mock;
@@ -23,6 +36,22 @@ interface ISelectQb {
   where: jest.Mock;
   andWhere: jest.Mock;
   getOne: jest.Mock;
+}
+
+/** Duplicate-proximity check builder. `near` is the nearest live point, or null. */
+function makeDupQb(near: { id: Uuid; distance: string } | null): IDupQb {
+  const qb: Partial<IDupQb> = {};
+  qb.select = jest.fn().mockReturnValue(qb);
+  qb.addSelect = jest.fn().mockReturnValue(qb);
+  qb.where = jest.fn().mockReturnValue(qb);
+  qb.andWhere = jest.fn().mockReturnValue(qb);
+  qb.setParameters = jest.fn().mockReturnValue(qb);
+  qb.orderBy = jest.fn().mockReturnValue(qb);
+  qb.getRawOne = jest
+    .fn<() => Promise<unknown>>()
+    .mockResolvedValue(near ?? undefined);
+
+  return qb as IDupQb;
 }
 
 function makeUpdateQb(affected: number): IUpdateQb {
@@ -49,7 +78,7 @@ function makeSelectQb(owned: unknown): ISelectQb {
   return qb as ISelectQb;
 }
 
-function makeHandler(builders: Array<IUpdateQb | ISelectQb>): {
+function makeHandler(builders: Array<IDupQb | IUpdateQb | ISelectQb>): {
   handler: UpdateMemoryPointLocationHandler;
   createQueryBuilder: jest.Mock;
 } {
@@ -59,18 +88,61 @@ function makeHandler(builders: Array<IUpdateQb | ISelectQb>): {
     createQueryBuilder.mockReturnValueOnce(b);
   }
 
-  const handler = new UpdateMemoryPointLocationHandler({
-    createQueryBuilder,
-  } as never);
+  const handler = new UpdateMemoryPointLocationHandler(
+    { createQueryBuilder } as never,
+    { duplicateRadiusMeters: DUPLICATE_RADIUS_METERS } as never,
+  );
 
   return { handler, createQueryBuilder };
 }
 
 describe('UpdateMemoryPointLocationHandler', () => {
+  describe('duplicate-proximity guard', () => {
+    it('blocks the move when another live point is within the radius', async () => {
+      // Dup check finds a different nearby point — update is never attempted.
+      const { handler, createQueryBuilder } = makeHandler([
+        makeDupQb({ id: OTHER_ID, distance: '5' }),
+      ]);
+
+      await expect(
+        handler.execute(
+          new UpdateMemoryPointLocationCommand(POINT_ID, 40, 44, {
+            kind: 'admin',
+          }),
+        ),
+      ).rejects.toBeInstanceOf(DuplicateMemoryPointException);
+
+      // Only the dup-check builder ran; no UPDATE.
+      expect(createQueryBuilder).toHaveBeenCalledTimes(1);
+    });
+
+    it('excludes the point being moved from the duplicate candidates', async () => {
+      const dupQb = makeDupQb(null);
+      const { handler } = makeHandler([dupQb, makeUpdateQb(1)]);
+
+      await handler.execute(
+        new UpdateMemoryPointLocationCommand(POINT_ID, 40, 44, {
+          kind: 'admin',
+        }),
+      );
+
+      expect(dupQb.andWhere).toHaveBeenCalledWith('mp.id != :selfId', {
+        selfId: POINT_ID,
+      });
+      // REJECTED points stay excluded, mirroring create.
+      expect(dupQb.andWhere).toHaveBeenCalledWith(
+        'mp.status != :excludedStatus',
+        {
+          excludedStatus: MemoryPointStatus.REJECTED,
+        },
+      );
+    });
+  });
+
   describe('admin path', () => {
     it('updates any point by id alone and resolves', async () => {
       const updateQb = makeUpdateQb(1);
-      const { handler } = makeHandler([updateQb]);
+      const { handler } = makeHandler([makeDupQb(null), updateQb]);
 
       await expect(
         handler.execute(
@@ -86,7 +158,7 @@ describe('UpdateMemoryPointLocationHandler', () => {
     });
 
     it('throws MemoryPointNotFoundException when no row is updated', async () => {
-      const { handler } = makeHandler([makeUpdateQb(0)]);
+      const { handler } = makeHandler([makeDupQb(null), makeUpdateQb(0)]);
 
       await expect(
         handler.execute(
@@ -101,7 +173,7 @@ describe('UpdateMemoryPointLocationHandler', () => {
   describe('creator path', () => {
     it('updates only an own PENDING point — guard is in the UPDATE WHERE', async () => {
       const updateQb = makeUpdateQb(1);
-      const { handler } = makeHandler([updateQb]);
+      const { handler } = makeHandler([makeDupQb(null), updateQb]);
 
       await expect(
         handler.execute(
@@ -124,6 +196,7 @@ describe('UpdateMemoryPointLocationHandler', () => {
     it('throws NotEditable when the point is owned but no longer PENDING', async () => {
       // Update matches nothing; the classification read finds an owned row.
       const { handler } = makeHandler([
+        makeDupQb(null),
         makeUpdateQb(0),
         makeSelectQb({ id: POINT_ID, status: MemoryPointStatus.APPROVED }),
       ]);
@@ -139,7 +212,11 @@ describe('UpdateMemoryPointLocationHandler', () => {
     });
 
     it('throws NotFound when the point does not exist or is not owned', async () => {
-      const { handler } = makeHandler([makeUpdateQb(0), makeSelectQb(null)]);
+      const { handler } = makeHandler([
+        makeDupQb(null),
+        makeUpdateQb(0),
+        makeSelectQb(null),
+      ]);
 
       await expect(
         handler.execute(
