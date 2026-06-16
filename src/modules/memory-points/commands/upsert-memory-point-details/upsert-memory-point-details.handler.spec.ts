@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
 import { MemoryPointType } from '../../../../constants/memory-point-type.ts';
-import { MemoryPointContentRequiredException } from '../../exceptions/memory-point-content-required.exception.ts';
 import { MemoryPointNotEditableException } from '../../exceptions/memory-point-not-editable.exception.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
 import { MemoryPointSourceNotUploadedException } from '../../exceptions/memory-point-source-not-uploaded.exception.ts';
@@ -146,77 +145,23 @@ describe('UpsertMemoryPointDetailsHandler', () => {
     expect(result).toBe(detailsDto);
   });
 
-  it('allows a text-only submit (title + description, no media)', async () => {
-    const textOnly = await handler.execute(
-      new UpsertMemoryPointDetailsCommand(pointId, userId, {
-        title: 'A title',
-        description: 'A description',
-      }),
-    );
-
-    // No source paths provided -> storage is never probed.
-    expect(exists).not.toHaveBeenCalled();
-    expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: 'A title',
-        description: 'A description',
-        memoryPointId: pointId,
-      }),
-    );
-    // Omitted source columns are not part of the upserted object (preserved).
-    const created = create.mock.calls[0]![0] as Record<string, unknown>;
-    expect(created).not.toHaveProperty('sourcePhotoUrl');
-    expect(created).not.toHaveProperty('sourceAudioUrl');
-    expect(upsert).toHaveBeenCalledWith(expect.anything(), ['memoryPointId']);
-    expect(updateStatus).toHaveBeenCalledWith(
-      { id: pointId },
-      { status: MemoryPointStatus.ADMIN_REVIEWING },
-    );
-    expect(textOnly).toBe(detailsDto);
-  });
-
-  it('treats blank source paths as omitted (normalized, not probed or persisted)', async () => {
+  it('normalizes a blank audio path to omitted (not probed or persisted)', async () => {
     await handler.execute(
       new UpsertMemoryPointDetailsCommand(pointId, userId, {
         title: 'A title',
-        description: 'Has content',
-        sourcePhotoUrl: '',
+        sourcePhotoUrl: `memory-points/${pointId}/photo/abc.jpg`,
         sourceAudioUrl: '   ',
       }),
     );
 
-    // Blank paths are normalized away -> storage is never probed.
-    expect(exists).not.toHaveBeenCalled();
+    // Blank audio normalized away -> only the photo is probed/persisted.
+    expect(exists).toHaveBeenCalledTimes(1);
+    expect(exists).toHaveBeenCalledWith(
+      `memory-points/${pointId}/photo/abc.jpg`,
+    );
     const created = create.mock.calls[0]![0] as Record<string, unknown>;
-    expect(created).not.toHaveProperty('sourcePhotoUrl');
     expect(created).not.toHaveProperty('sourceAudioUrl');
     expect(upsert).toHaveBeenCalledWith(expect.anything(), ['memoryPointId']);
-  });
-
-  it('throws MemoryPointContentRequiredException when blank paths leave no content', async () => {
-    await expect(
-      handler.execute(
-        new UpsertMemoryPointDetailsCommand(pointId, userId, {
-          title: 'A title',
-          sourcePhotoUrl: '',
-          sourceAudioUrl: '',
-        }),
-      ),
-    ).rejects.toBeInstanceOf(MemoryPointContentRequiredException);
-    expect(exists).not.toHaveBeenCalled();
-    expect(upsert).not.toHaveBeenCalled();
-  });
-
-  it('throws MemoryPointContentRequiredException when only a title is provided', async () => {
-    await expect(
-      handler.execute(
-        new UpsertMemoryPointDetailsCommand(pointId, userId, {
-          title: 'Just a title',
-        }),
-      ),
-    ).rejects.toBeInstanceOf(MemoryPointContentRequiredException);
-    expect(exists).not.toHaveBeenCalled();
-    expect(upsert).not.toHaveBeenCalled();
   });
 
   it('allows a photo-only submit (no audio, no description)', async () => {

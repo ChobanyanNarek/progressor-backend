@@ -8,7 +8,6 @@ import { GcsStorageService } from '../../../../shared/services/gcs-storage.servi
 import { MemoryPointDetailsDto } from '../../dtos/memory-point-details.dto.ts';
 import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
 import { MemoryPointDetailsEntity } from '../../entities/memory-point-details.entity.ts';
-import { MemoryPointContentRequiredException } from '../../exceptions/memory-point-content-required.exception.ts';
 import { MemoryPointNotEditableException } from '../../exceptions/memory-point-not-editable.exception.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
 import {
@@ -74,17 +73,10 @@ export class UpsertMemoryPointDetailsHandler
     }
 
     /*
-     * Title is always required (enforced by the DTO). Beyond that a point must
-     * carry at least one piece of content — a photo, audio or a description — so
-     * a creator can submit e.g. a text-only AR point. Whichever are omitted stay
-     * unset; video generation later requires the full set and the admin fills
-     * any gaps.
-     */
-    if (!sourcePhotoUrl && !sourceAudioUrl && !description) {
-      throw new MemoryPointContentRequiredException();
-    }
-
-    /*
+     * Title and photo are required (enforced by the DTO). Audio/description are
+     * optional here; the admin gate requires a script (description or audio)
+     * before video generation.
+     *
      * Trust no client-supplied path blindly. For each provided source, require
      * it to live under this point's prefix (so a CREATOR cannot reference
      * another point's object) and confirm the file landed in storage.

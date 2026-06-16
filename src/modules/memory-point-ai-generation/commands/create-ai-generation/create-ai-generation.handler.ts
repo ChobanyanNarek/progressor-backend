@@ -62,9 +62,12 @@ export class CreateAiGenerationHandler
       throw new MemoryPointNotReadyForGenerationException(missingFields);
     }
 
-    // Non-null by the readiness guard above.
+    /*
+     * Photo is non-null by the readiness guard; audio/description are the
+     * script source — exactly one drives the talk (audio wins).
+     */
     const sourcePhotoUrl = fields.sourcePhotoUrl!;
-    const sourceAudioUrl = fields.sourceAudioUrl!;
+    const { sourceAudioUrl, description } = fields;
 
     let generation = await this.aiGenerationRepository
       .createQueryBuilder('aiGeneration')
@@ -88,10 +91,7 @@ export class CreateAiGenerationHandler
     await this.aiGenerationRepository.save(generation);
 
     try {
-      const [photoBuffer, signedAudioUrl] = await Promise.all([
-        this.gcsService.download(sourcePhotoUrl),
-        this.gcsService.getSignedReadUrl(sourceAudioUrl),
-      ]);
+      const photoBuffer = await this.gcsService.download(sourcePhotoUrl);
 
       /*
        * D-ID can't decode HEIC (the iPhone default the client uploads under a
@@ -115,9 +115,19 @@ export class CreateAiGenerationHandler
         contentType,
       );
 
+      /*
+       * Audio wins: when a voice was uploaded, drive the talk with it; otherwise
+       * D-ID synthesizes the voice from the description text. The readiness gate
+       * guarantees at least one of the two is present.
+       */
+      const signedAudioUrl = sourceAudioUrl
+        ? await this.gcsService.getSignedReadUrl(sourceAudioUrl)
+        : undefined;
+
       const talk = await this.didService.createTalk({
         sourceUrl,
         audioUrl: signedAudioUrl,
+        scriptText: signedAudioUrl ? undefined : (description ?? undefined),
         userData: generation.id,
       });
 

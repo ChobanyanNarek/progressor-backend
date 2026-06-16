@@ -11,12 +11,14 @@ export class UpsertMemoryPointDetailsDto extends BaseDto {
   @StringField()
   readonly title!: string;
 
+  /** A face photo is always required (object path from the upload-url flow). */
+  @StringField()
+  readonly sourcePhotoUrl!: string;
+
   /**
-   * The remaining content fields are optional, but the handler requires at least
-   * one of {@link sourcePhotoUrl}, {@link sourceAudioUrl} or
-   * {@link description} so a point carries some content (e.g. an AR point may be
-   * text-only). Video generation still needs photo + audio + title +
-   * description; the admin fills any gaps before generating.
+   * The rest are optional. For video generation the admin additionally needs a
+   * script — either a description (D-ID TTS) or an uploaded voice
+   * ({@link sourceAudioUrl}) — but neither is required to submit.
    */
   @StringFieldOptional()
   readonly description?: string;
@@ -26,9 +28,6 @@ export class UpsertMemoryPointDetailsDto extends BaseDto {
 
   @EnumFieldOptional(() => MemoryPointType)
   readonly type?: MemoryPointType;
-
-  @StringFieldOptional()
-  readonly sourcePhotoUrl?: string;
 
   @StringFieldOptional()
   readonly sourceAudioUrl?: string;

@@ -10,11 +10,33 @@ describe('collectMissingGenerationFields', () => {
     description: 'A description',
   };
 
-  it('returns an empty array when every field is present', () => {
+  it('returns an empty array when title, photo and a script are present', () => {
     expect(collectMissingGenerationFields(complete)).toEqual([]);
   });
 
-  it('lists every missing field in a stable order', () => {
+  it('is ready with a description but no audio (D-ID TTS)', () => {
+    expect(
+      collectMissingGenerationFields({ ...complete, sourceAudioUrl: null }),
+    ).toEqual([]);
+  });
+
+  it('is ready with audio but no description', () => {
+    expect(
+      collectMissingGenerationFields({ ...complete, description: null }),
+    ).toEqual([]);
+  });
+
+  it('flags descriptionOrAudio when neither script source exists', () => {
+    expect(
+      collectMissingGenerationFields({
+        ...complete,
+        description: null,
+        sourceAudioUrl: null,
+      }),
+    ).toEqual(['descriptionOrAudio']);
+  });
+
+  it('lists every missing requirement in a stable order', () => {
     expect(
       collectMissingGenerationFields({
         sourcePhotoUrl: null,
@@ -22,10 +44,10 @@ describe('collectMissingGenerationFields', () => {
         title: null,
         description: null,
       }),
-    ).toEqual(['sourcePhotoUrl', 'sourceAudioUrl', 'title', 'description']);
+    ).toEqual(['title', 'sourcePhotoUrl', 'descriptionOrAudio']);
   });
 
-  it.each([['sourcePhotoUrl'], ['sourceAudioUrl'], ['title'], ['description']])(
+  it.each([['title'], ['sourcePhotoUrl']])(
     'flags a single missing %s',
     (field) => {
       expect(

@@ -41,9 +41,18 @@ export class DidService {
   }
 
   async createTalk(params: IDidCreateTalk): Promise<IDidTalk> {
+    /*
+     * Audio wins when both are present (a real uploaded voice beats TTS). With
+     * no audio we send a text script and let D-ID synthesize the voice with its
+     * default TTS (no provider specified).
+     */
+    const script = params.audioUrl
+      ? { type: 'audio', audio_url: params.audioUrl }
+      : { type: 'text', input: params.scriptText };
+
     const body = {
       source_url: params.sourceUrl,
-      script: { type: 'audio', audio_url: params.audioUrl },
+      script,
       webhook: this.webhookEndpoint,
       user_data: params.userData,
     };

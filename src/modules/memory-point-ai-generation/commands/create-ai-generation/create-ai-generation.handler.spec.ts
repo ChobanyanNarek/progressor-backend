@@ -140,10 +140,10 @@ describe('CreateAiGenerationHandler', () => {
     );
   });
 
-  it('aborts with MemoryPointNotReadyForGeneration when a required field is missing (before touching the row or provider)', async () => {
+  it('aborts with MemoryPointNotReadyForGeneration when no script source exists (before touching the row or provider)', async () => {
     queryBusExecute.mockResolvedValue({
       sourcePhotoUrl,
-      sourceAudioUrl,
+      sourceAudioUrl: null,
       title: 'A title',
       description: null,
     });
@@ -253,6 +253,29 @@ describe('CreateAiGenerationHandler', () => {
     );
 
     expect(result).toEqual({ id: generationId, memoryPointId });
+  });
+
+  it('text path: no audio -> createTalk with a text script, audio is not signed', async () => {
+    const created = makeGeneration();
+    getOne.mockResolvedValue(null);
+    create.mockReturnValue(created);
+    queryBusExecute.mockResolvedValue({
+      sourcePhotoUrl,
+      sourceAudioUrl: null,
+      title: 'A title',
+      description: 'Say this please',
+    });
+
+    await handler.execute(new CreateAiGenerationCommand(memoryPointId));
+
+    // No audio -> never signed; D-ID gets the description as a text script.
+    expect(getSignedReadUrl).not.toHaveBeenCalled();
+    expect(createTalk).toHaveBeenCalledWith({
+      sourceUrl: didSourceUrl,
+      audioUrl: undefined,
+      scriptText: 'Say this please',
+      userData: generationId,
+    });
   });
 
   it('failure path: createTalk throws -> FAILED + provider errorMessage, dispatches ApplyGenerationResult, throws coded exception', async () => {

@@ -474,15 +474,12 @@ describe('Memory points (e2e)', () => {
     });
   });
 
-  describe('creator submit accepts partial content', () => {
-    it('accepts a text-only submit (title + description, no media) -> ADMIN_REVIEWING', async () => {
-      const pointId = await createPoint(46.1, 47.2);
-
-      await request(app.getHttpServer())
-        .post(`/creator/memory-points/${pointId}/details`)
-        .set(authHeader(creatorToken))
-        .send({ title: 'Text only', description: 'No media yet' })
-        .expect(200);
+  describe('creator submit rules', () => {
+    it('accepts photo + title (no audio/description) -> ADMIN_REVIEWING', async () => {
+      const pointId = await submitPoint(46.1, 47.2, {
+        sourceAudioUrl: undefined,
+        description: undefined,
+      });
 
       const response = await request(app.getHttpServer())
         .get(`/creator/memory-points/${pointId}`)
@@ -491,23 +488,24 @@ describe('Memory points (e2e)', () => {
       expect(response.body.status).toBe('ADMIN_REVIEWING');
     });
 
-    it('rejects a title-only submit with 422 error.memoryPointContentRequired', async () => {
+    it('rejects a submit without a photo with 422 (validation)', async () => {
       const pointId = await createPoint(46.3, 47.4);
 
-      const response = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .post(`/creator/memory-points/${pointId}/details`)
         .set(authHeader(creatorToken))
-        .send({ title: 'Just a title' })
+        .send({ title: 'No photo', description: 'has text but no face' })
         .expect(HttpStatus.UNPROCESSABLE_ENTITY);
-
-      expect(response.body.message).toBe('error.memoryPointContentRequired');
     });
   });
 
   describe('generation readiness gate', () => {
-    it('rejects generation with 422 and lists the missing field', async () => {
-      // Submit a point that has sources + title but no description.
-      const pointId = await submitPoint(44.1, 45.2, { description: undefined });
+    it('rejects generation with 422 when no script (description or audio) exists', async () => {
+      // Photo + title only — no description and no audio to drive the talk.
+      const pointId = await submitPoint(44.1, 45.2, {
+        sourceAudioUrl: undefined,
+        description: undefined,
+      });
 
       const response = await request(app.getHttpServer())
         .post(`/admin/memory-points/${pointId}/generate-video`)
@@ -519,7 +517,7 @@ describe('Memory points (e2e)', () => {
         missingFields: string[];
       };
       expect(body.message).toBe('error.memoryPointNotReadyForGeneration');
-      expect(body.missingFields).toContain('description');
+      expect(body.missingFields).toContain('descriptionOrAudio');
     });
   });
 
