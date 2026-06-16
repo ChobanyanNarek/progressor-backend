@@ -22,7 +22,13 @@ export class DeleteMemoryPointHandler
   async execute(command: DeleteMemoryPointCommand): Promise<void> {
     const { memoryPointId, actorId } = command;
 
-    const result = await this.memoryPointRepository.delete({
+    /*
+     * Soft-delete only — stamp deletedAt without physically removing the row.
+     * TypeORM then auto-excludes the row from all query-builder reads (e.g. the
+     * creator's get-my-memory-points list) unless .withDeleted() is added, so a
+     * deleted point disappears from the CREATOR app immediately.
+     */
+    const result = await this.memoryPointRepository.softDelete({
       id: memoryPointId,
     });
 
