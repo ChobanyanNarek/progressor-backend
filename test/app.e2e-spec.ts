@@ -62,7 +62,14 @@ describe('Memory points (e2e)', () => {
     })
       .overrideProvider(GcsStorageService)
       .useValue({
-        getSignedWriteUrl: () => Promise.resolve('https://example.test/upload'),
+        getSignedWriteTarget: (_path: string, contentType: string) =>
+          Promise.resolve({
+            url: 'https://example.test/upload',
+            requiredHeaders: [
+              { name: 'Content-Type', value: contentType },
+              { name: 'x-goog-content-length-range', value: '0,26214400' },
+            ],
+          }),
         getSignedReadUrl: (path: string) =>
           Promise.resolve(`https://example.test/read/${path}`),
         getSignedReadUrlOrNull: (path: string | null | undefined) =>
@@ -447,6 +454,14 @@ describe('Memory points (e2e)', () => {
 
       expect(urls.body.photo.objectPath).toContain(`${pointId}/photo/`);
       expect(urls.body.audio.objectPath).toContain(`${pointId}/audio/`);
+
+      // Contract: signed headers the client must echo on the PUT are returned.
+      const headerNames = (
+        urls.body.photo.requiredHeaders as Array<{ name: string }>
+      ).map((h) => h.name);
+      expect(headerNames).toEqual(
+        expect.arrayContaining(['Content-Type', 'x-goog-content-length-range']),
+      );
 
       await request(app.getHttpServer())
         .patch(`/admin/memory-points/${pointId}/details`)

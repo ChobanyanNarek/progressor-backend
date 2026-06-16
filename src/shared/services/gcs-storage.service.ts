@@ -8,6 +8,24 @@ import { ApiConfigService } from './api-config.service.ts';
 
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
+/** A single HTTP header the client MUST send verbatim on the signed PUT. */
+export interface ISignedUploadHeader {
+  name: string;
+  value: string;
+}
+
+/** A signed write URL plus the headers bound into its signature. */
+export interface ISignedWriteTarget {
+  /** Short-lived signed URL the client PUTs the bytes to. */
+  url: string;
+  /**
+   * Headers that are part of the v4 signature — the PUT must send each one
+   * exactly, or GCS rejects it (400 MalformedSecurityHeader / 403
+   * SignatureDoesNotMatch). The client should not infer these.
+   */
+  requiredHeaders: ISignedUploadHeader[];
+}
+
 @Injectable()
 export class GcsStorageService {
   private readonly logger = new Logger(GcsStorageService.name);
@@ -110,17 +128,19 @@ export class GcsStorageService {
   }
 
   /**
-   * Generate a short-lived signed write URL the client can PUT bytes to.
-   * The `contentType` is bound into the signature, so the client must send the
-   * exact same `Content-Type` header on its PUT or GCS rejects the upload.
-   * An `x-goog-content-length-range` upper bound is also bound in, so the client
-   * must send that header too and GCS rejects oversize bodies (cost/abuse cap).
+   * Generate a short-lived signed write target the client can PUT bytes to.
+   * Both `Content-Type` and an `x-goog-content-length-range` upper bound are
+   * bound into the signature, so the PUT must send both headers exactly or GCS
+   * rejects it. The exact values are returned in `requiredHeaders` — the client
+   * sends them verbatim and never infers them.
    */
-  async getSignedWriteUrl(
+  async getSignedWriteTarget(
     objectPath: string,
     contentType: string,
     ttlMs: number = FIFTEEN_MINUTES_MS,
-  ): Promise<string> {
+  ): Promise<ISignedWriteTarget> {
+    const contentLengthRange = `0,${this.maxUploadBytes}`;
+
     const [url] = await this.storage
       .bucket(this.bucketName)
       .file(objectPath)
@@ -130,12 +150,18 @@ export class GcsStorageService {
         contentType,
         extensionHeaders: {
           // eslint-disable-next-line @typescript-eslint/naming-convention
-          'x-goog-content-length-range': `0,${this.maxUploadBytes}`,
+          'x-goog-content-length-range': contentLengthRange,
         },
         expires: Date.now() + ttlMs,
       });
 
-    return url;
+    return {
+      url,
+      requiredHeaders: [
+        { name: 'Content-Type', value: contentType },
+        { name: 'x-goog-content-length-range', value: contentLengthRange },
+      ],
+    };
   }
 
   /** Download an object's full contents into memory as a Buffer. */
