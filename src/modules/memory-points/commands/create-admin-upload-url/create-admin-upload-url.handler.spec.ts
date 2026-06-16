@@ -9,13 +9,23 @@ import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-
 import { CreateAdminUploadUrlCommand } from './create-admin-upload-url.command.ts';
 import { CreateAdminUploadUrlHandler } from './create-admin-upload-url.handler.ts';
 
+/** Mirrors the headers the real signer binds, keyed by content type. */
+const headersFor = (
+  contentType: string,
+): Array<{ name: string; value: string }> => [
+  { name: 'Content-Type', value: contentType },
+  { name: 'x-goog-content-length-range', value: '0,26214400' },
+];
+
 describe('CreateAdminUploadUrlHandler', () => {
   let handler: CreateAdminUploadUrlHandler;
 
   let getOne: jest.Mock<() => Promise<unknown>>;
   let where: jest.Mock<(clause: string, params: unknown) => unknown>;
   let createQueryBuilder: jest.Mock<() => unknown>;
-  let getSignedWriteUrl: jest.Mock<(path: string) => Promise<string>>;
+  let getSignedWriteTarget: jest.Mock<
+    (path: string, contentType: string) => Promise<unknown>
+  >;
   let uuid: jest.Mock<() => string>;
 
   const pointId = 'point-1' as Uuid;
@@ -39,13 +49,18 @@ describe('CreateAdminUploadUrlHandler', () => {
 
       return `uuid-${counter}`;
     });
-    getSignedWriteUrl = jest
-      .fn<(path: string) => Promise<string>>()
-      .mockImplementation((path: string) => Promise.resolve(`signed:${path}`));
+    getSignedWriteTarget = jest
+      .fn<(path: string, contentType: string) => Promise<unknown>>()
+      .mockImplementation((path: string, contentType: string) =>
+        Promise.resolve({
+          url: `signed:${path}`,
+          requiredHeaders: headersFor(contentType),
+        }),
+      );
 
     handler = new CreateAdminUploadUrlHandler(
       { createQueryBuilder } as never,
-      { getSignedWriteUrl } as never,
+      { getSignedWriteTarget } as never,
       { uuid } as never,
     );
   });
@@ -57,21 +72,23 @@ describe('CreateAdminUploadUrlHandler', () => {
     const result = await run();
 
     expect(where).toHaveBeenCalledWith('memoryPoint.id = :id', { id: pointId });
-    expect(getSignedWriteUrl).toHaveBeenCalledWith(
+    expect(getSignedWriteTarget).toHaveBeenCalledWith(
       `memory-points/${pointId}/photo/uuid-1.jpg`,
       'image/jpeg',
     );
-    expect(getSignedWriteUrl).toHaveBeenCalledWith(
+    expect(getSignedWriteTarget).toHaveBeenCalledWith(
       `memory-points/${pointId}/audio/uuid-2.mp3`,
       'audio/mpeg',
     );
     expect(result.photo).toEqual({
       uploadUrl: `signed:memory-points/${pointId}/photo/uuid-1.jpg`,
       objectPath: `memory-points/${pointId}/photo/uuid-1.jpg`,
+      requiredHeaders: headersFor('image/jpeg'),
     });
     expect(result.audio).toEqual({
       uploadUrl: `signed:memory-points/${pointId}/audio/uuid-2.mp3`,
       objectPath: `memory-points/${pointId}/audio/uuid-2.mp3`,
+      requiredHeaders: headersFor('audio/mpeg'),
     });
   });
 
@@ -79,7 +96,7 @@ describe('CreateAdminUploadUrlHandler', () => {
     getOne.mockResolvedValue(null);
 
     await expect(run()).rejects.toBeInstanceOf(MemoryPointNotFoundException);
-    expect(getSignedWriteUrl).not.toHaveBeenCalled();
+    expect(getSignedWriteTarget).not.toHaveBeenCalled();
   });
 
   it('allows editing a REJECTED point', async () => {
@@ -89,7 +106,7 @@ describe('CreateAdminUploadUrlHandler', () => {
     });
 
     await expect(run()).resolves.toBeDefined();
-    expect(getSignedWriteUrl).toHaveBeenCalledTimes(2);
+    expect(getSignedWriteTarget).toHaveBeenCalledTimes(2);
   });
 
   it.each([
@@ -105,7 +122,7 @@ describe('CreateAdminUploadUrlHandler', () => {
       await expect(run()).rejects.toBeInstanceOf(
         MemoryPointNotEditableException,
       );
-      expect(getSignedWriteUrl).not.toHaveBeenCalled();
+      expect(getSignedWriteTarget).not.toHaveBeenCalled();
     },
   );
 });

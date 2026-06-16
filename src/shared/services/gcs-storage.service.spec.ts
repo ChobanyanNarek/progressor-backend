@@ -47,9 +47,9 @@ describe('GcsStorageService', () => {
     });
   });
 
-  describe('getSignedWriteUrl', () => {
-    it('signs with V4 and binds the content type', async () => {
-      await service.getSignedWriteUrl(
+  describe('getSignedWriteTarget', () => {
+    it('signs with V4, binds the content type + length range', async () => {
+      const target = await service.getSignedWriteTarget(
         'memory-points/a/photo/b.jpeg',
         'image/jpeg',
       );
@@ -60,7 +60,18 @@ describe('GcsStorageService', () => {
         version: 'v4',
         action: 'write',
         contentType: 'image/jpeg',
+        extensionHeaders: {
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          'x-goog-content-length-range': '0,1000',
+        },
       });
+
+      // The bound headers are returned verbatim for the client to echo.
+      expect(target.url).toBe('https://signed.example');
+      expect(target.requiredHeaders).toEqual([
+        { name: 'Content-Type', value: 'image/jpeg' },
+        { name: 'x-goog-content-length-range', value: '0,1000' },
+      ]);
     });
   });
 

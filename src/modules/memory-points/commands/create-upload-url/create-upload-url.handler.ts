@@ -58,20 +58,28 @@ export class CreateUploadUrlHandler
       audioContentType,
     );
 
-    const [photoUrl, audioUrl] = await Promise.all([
-      this.gcsStorageService.getSignedWriteUrl(
+    const [photoTarget, audioTarget] = await Promise.all([
+      this.gcsStorageService.getSignedWriteTarget(
         photoPath,
         PHOTO_MIME_BY_TYPE[photoContentType],
       ),
-      this.gcsStorageService.getSignedWriteUrl(
+      this.gcsStorageService.getSignedWriteTarget(
         audioPath,
         AUDIO_MIME_BY_TYPE[audioContentType],
       ),
     ]);
 
     return MemoryPointUploadUrlsDto.create({
-      photo: { uploadUrl: photoUrl, objectPath: photoPath },
-      audio: { uploadUrl: audioUrl, objectPath: audioPath },
+      photo: {
+        uploadUrl: photoTarget.url,
+        objectPath: photoPath,
+        requiredHeaders: photoTarget.requiredHeaders,
+      },
+      audio: {
+        uploadUrl: audioTarget.url,
+        objectPath: audioPath,
+        requiredHeaders: audioTarget.requiredHeaders,
+      },
     });
   }
 }
