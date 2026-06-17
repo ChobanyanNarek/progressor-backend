@@ -18,3 +18,17 @@ export const ADMIN_EDITABLE_STATUSES: readonly MemoryPointStatus[] = [
   MemoryPointStatus.ADMIN_REVIEWING,
   MemoryPointStatus.REJECTED,
 ];
+
+/**
+ * Statuses that count as a *live* point for duplicate-proximity ("dedup")
+ * checks. A new or repositioned point only collides with these. `PENDING` (an
+ * uncommitted creator draft that no one edits and that ages out via cleanup)
+ * and `REJECTED` (dead) do not occupy the map, so they never block a point at
+ * the same coordinates.
+ */
+export const DEDUP_LIVE_STATUSES: readonly MemoryPointStatus[] = [
+  MemoryPointStatus.ADMIN_REVIEWING,
+  MemoryPointStatus.GENERATING,
+  MemoryPointStatus.AI_REVIEWING,
+  MemoryPointStatus.APPROVED,
+];

@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import {
+  DEDUP_LIVE_STATUSES,
+  MemoryPointStatus,
+} from '../../../../constants/memory-point-status.ts';
 import { DuplicateMemoryPointException } from '../../exceptions/duplicate-memory-point.exception.ts';
 import { CreateMemoryPointCommand } from './create-memory-point.command.ts';
 import { CreateMemoryPointHandler } from './create-memory-point.handler.ts';
@@ -212,8 +215,8 @@ describe('CreateMemoryPointHandler', () => {
   });
 
   describe('duplicate-check status filter', () => {
-    it('excludes REJECTED points so a nearby rejected point does not block', async () => {
-      // No live duplicate is returned; assert the query filters REJECTED out.
+    it('only compares against live points so PENDING and REJECTED do not block', async () => {
+      // No live duplicate is returned; assert the query keeps only live statuses.
       const repo = makeRepository();
       const handler = new CreateMemoryPointHandler(
         repo as never,
@@ -233,11 +236,13 @@ describe('CreateMemoryPointHandler', () => {
         andWhere: jest.Mock;
       };
       expect(dupQb.andWhere).toHaveBeenCalledWith(
-        'mp.status != :excludedStatus',
+        'mp.status IN (:...liveStatuses)',
         {
-          excludedStatus: MemoryPointStatus.REJECTED,
+          liveStatuses: DEDUP_LIVE_STATUSES,
         },
       );
+      expect(DEDUP_LIVE_STATUSES).not.toContain(MemoryPointStatus.PENDING);
+      expect(DEDUP_LIVE_STATUSES).not.toContain(MemoryPointStatus.REJECTED);
     });
   });
 
