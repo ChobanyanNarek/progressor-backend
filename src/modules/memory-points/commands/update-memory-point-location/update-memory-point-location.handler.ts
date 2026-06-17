@@ -2,7 +2,10 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
-import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import {
+  DEDUP_LIVE_STATUSES,
+  MemoryPointStatus,
+} from '../../../../constants/memory-point-status.ts';
 import { ApiConfigService } from '../../../../shared/services/api-config.service.ts';
 import { MemoryPointEntity } from '../../entities/memory-point.entity.ts';
 import { DuplicateMemoryPointException } from '../../exceptions/duplicate-memory-point.exception.ts';
@@ -76,9 +79,9 @@ export class UpdateMemoryPointLocationHandler
   /**
    * Reject the move if a *live* existing point — other than the one being
    * moved — lies within the configured radius of the new coordinates. Mirrors
-   * the create-time check, with `mp.id != :selfId` so a point never blocks its
-   * own repositioning (e.g. nudging it a few metres). REJECTED points are dead
-   * and excluded, same as on create.
+   * the create-time check: only DEDUP_LIVE_STATUSES are candidates (PENDING and
+   * REJECTED are not live), plus `mp.id != :selfId` so a point never blocks its
+   * own repositioning (e.g. nudging it a few metres).
    */
   private async assertNoNearbyDuplicate(
     memoryPointId: Uuid,
@@ -98,8 +101,8 @@ export class UpdateMemoryPointLocationHandler
       )
       .where(`ST_DWithin(mp.location::geography, ${userPoint}, :dupRadius)`)
       .andWhere('mp.id != :selfId', { selfId: memoryPointId })
-      .andWhere('mp.status != :excludedStatus', {
-        excludedStatus: MemoryPointStatus.REJECTED,
+      .andWhere('mp.status IN (:...liveStatuses)', {
+        liveStatuses: DEDUP_LIVE_STATUSES,
       })
       .setParameters({
         dupLng: longitude,

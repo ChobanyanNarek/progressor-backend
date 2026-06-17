@@ -4,7 +4,10 @@ import type { Repository } from 'typeorm';
 
 import { LogLevel } from '../../../../constants/log-level.ts';
 import { LogSource } from '../../../../constants/log-source.ts';
-import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import {
+  DEDUP_LIVE_STATUSES,
+  MemoryPointStatus,
+} from '../../../../constants/memory-point-status.ts';
 import { ApiConfigService } from '../../../../shared/services/api-config.service.ts';
 import { AdminLogsService } from '../../../admin-logs/admin-logs.service.ts';
 import type { MemoryPointDto } from '../../dtos/memory-point.dto.ts';
@@ -37,10 +40,10 @@ export class CreateMemoryPointHandler
      * getRawOne reads the id + computed distance in one round-trip without
      * TypeORM hydrating a partial entity.
      *
-     * REJECTED points are excluded — a dead point must not block a legitimate
-     * re-creation at the same spot. Abandoned PENDING drafts are handled
-     * separately by CleanupStaleDraftsHandler, so they age out rather than
-     * permanently blocking the location.
+     * Only *live* points (DEDUP_LIVE_STATUSES) are candidates. PENDING (an
+     * uncommitted draft that no one edits and that ages out via
+     * CleanupStaleDraftsHandler) and REJECTED (dead) are not live and must not
+     * block a legitimate creation at the same spot.
      *
      * NOTE: this is a check-then-insert with a race window — two concurrent
      * creates at the same coordinates can both pass the check and insert. The
@@ -61,8 +64,8 @@ export class CreateMemoryPointHandler
           'distance',
         )
         .where(`ST_DWithin(mp.location::geography, ${userPoint}, :dupRadius)`)
-        .andWhere('mp.status != :excludedStatus', {
-          excludedStatus: MemoryPointStatus.REJECTED,
+        .andWhere('mp.status IN (:...liveStatuses)', {
+          liveStatuses: DEDUP_LIVE_STATUSES,
         })
         .setParameters({
           dupLng: longitude,

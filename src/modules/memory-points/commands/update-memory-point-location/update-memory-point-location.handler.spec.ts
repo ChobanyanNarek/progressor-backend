@@ -1,6 +1,9 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
-import { MemoryPointStatus } from '../../../../constants/memory-point-status.ts';
+import {
+  DEDUP_LIVE_STATUSES,
+  MemoryPointStatus,
+} from '../../../../constants/memory-point-status.ts';
 import { DuplicateMemoryPointException } from '../../exceptions/duplicate-memory-point.exception.ts';
 import { MemoryPointNotEditableException } from '../../exceptions/memory-point-not-editable.exception.ts';
 import { MemoryPointNotFoundException } from '../../exceptions/memory-point-not-found.exception.ts';
@@ -129,13 +132,18 @@ describe('UpdateMemoryPointLocationHandler', () => {
       expect(dupQb.andWhere).toHaveBeenCalledWith('mp.id != :selfId', {
         selfId: POINT_ID,
       });
-      // REJECTED points stay excluded, mirroring create.
+      /*
+       * Only live points are candidates, mirroring create — PENDING and
+       * REJECTED never block.
+       */
       expect(dupQb.andWhere).toHaveBeenCalledWith(
-        'mp.status != :excludedStatus',
+        'mp.status IN (:...liveStatuses)',
         {
-          excludedStatus: MemoryPointStatus.REJECTED,
+          liveStatuses: DEDUP_LIVE_STATUSES,
         },
       );
+      expect(DEDUP_LIVE_STATUSES).not.toContain(MemoryPointStatus.PENDING);
+      expect(DEDUP_LIVE_STATUSES).not.toContain(MemoryPointStatus.REJECTED);
     });
   });
 
