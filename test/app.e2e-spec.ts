@@ -691,7 +691,7 @@ describe('Memory points (e2e)', () => {
   });
 
   describe('ARCore anchor token', () => {
-    it('returns a token and expiry for an authenticated creator', async () => {
+    it('returns a token and expiry for an authenticated caller', async () => {
       const response = await request(app.getHttpServer())
         .get('/ar/anchor-token')
         .set(authHeader(creatorToken))
@@ -704,8 +704,13 @@ describe('Memory points (e2e)', () => {
       );
     });
 
-    it('rejects an anonymous caller with 401', async () => {
-      await request(app.getHttpServer()).get('/ar/anchor-token').expect(401);
+    it('returns a token to an anonymous viewer (public route)', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/ar/anchor-token')
+        .expect(200);
+
+      expect(typeof response.body.token).toBe('string');
+      expect(response.body.token.length).toBeGreaterThan(0);
     });
   });
 });
