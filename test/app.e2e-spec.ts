@@ -17,6 +17,7 @@ import { initializeTransactionalContext } from 'typeorm-transactional';
 import { AppModule } from '../src/app.module.ts';
 import { AccountStatus } from '../src/constants/account-status.ts';
 import { RoleType } from '../src/constants/role-type.ts';
+import { ArcoreTokenSigner } from '../src/modules/ar/services/arcore-token-signer.service.ts';
 import { UserEntity } from '../src/modules/user/user.entity.ts';
 import { GcsStorageService } from '../src/shared/services/gcs-storage.service.ts';
 
@@ -76,6 +77,14 @@ describe('Memory points (e2e)', () => {
           Promise.resolve(path ? `https://example.test/read/${path}` : null),
         exists: () => Promise.resolve(true),
         deletePrefix: () => Promise.resolve(),
+      })
+      // Stub the ARCore signer so e2e needs no real service-account key.
+      .overrideProvider(ArcoreTokenSigner)
+      .useValue({
+        mint: () => ({
+          token: 'e2e.fake.arcore.jwt',
+          expiresAt: new Date(Date.now() + 3_600_000),
+        }),
       })
       .compile();
 
@@ -678,6 +687,25 @@ describe('Memory points (e2e)', () => {
         .get('/creator/memory-points/mine?page=1&take=10')
         .set(authHeader(tokenBeforeDisable))
         .expect(401);
+    });
+  });
+
+  describe('ARCore anchor token', () => {
+    it('returns a token and expiry for an authenticated creator', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/ar/anchor-token')
+        .set(authHeader(creatorToken))
+        .expect(200);
+
+      expect(typeof response.body.token).toBe('string');
+      expect(response.body.token.length).toBeGreaterThan(0);
+      expect(new Date(response.body.expiresAt).getTime()).toBeGreaterThan(
+        Date.now(),
+      );
+    });
+
+    it('rejects an anonymous caller with 401', async () => {
+      await request(app.getHttpServer()).get('/ar/anchor-token').expect(401);
     });
   });
 });

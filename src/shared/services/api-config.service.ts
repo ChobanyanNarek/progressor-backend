@@ -9,6 +9,7 @@ import parse from 'parse-duration';
 
 import type {
   IAppConfig,
+  IArcoreConfig,
   IAuthConfig,
   IDidConfig,
   IGcpConfig,
@@ -179,6 +180,21 @@ export class ApiConfigService {
       baseUrl: this.getString('DID_BASE_URL', 'https://api.d-id.com'),
       webhookUrl: this.getString('DID_WEBHOOK_URL'),
       webhookSecret: this.getString('DID_WEBHOOK_SECRET'),
+    };
+  }
+
+  /**
+   * Service-account credentials used to sign short-lived ARCore Cloud Anchor
+   * auth tokens (keyless authorization). The private key is a single-line PEM
+   * with literal `\n` (un-escaped by `getString`, like `JWT_PRIVATE_KEY`); in
+   * production it rides in the Secret Manager runtime blob. Never shipped to the
+   * client. See docs/arcore-anchor-token.md.
+   */
+  get arcoreConfig(): IArcoreConfig {
+    return {
+      signerEmail: this.getString('ARCORE_SIGNER_CLIENT_EMAIL'),
+      privateKey: this.getString('ARCORE_SIGNER_PRIVATE_KEY'),
+      privateKeyId: this.getString('ARCORE_SIGNER_PRIVATE_KEY_ID'),
     };
   }
 

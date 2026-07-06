@@ -22,6 +22,7 @@ import {
 import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.module.ts';
 import { AdminLogsModule } from './modules/admin-logs/admin-logs.module.ts';
 import { AdminMediaModule } from './modules/admin-media/admin-media.module.ts';
+import { ArModule } from './modules/ar/ar.module.ts';
 import { AuthModule } from './modules/auth/auth.module.ts';
 import { HealthCheckerModule } from './modules/health-checker/health-checker.module.ts';
 import { MemoryPointAiGenerationModule } from './modules/memory-point-ai-generation/memory-point-ai-generation.module.ts';
@@ -39,6 +40,7 @@ import { SharedModule } from './shared/shared.module.ts';
     AdminDashboardModule,
     AdminLogsModule,
     AdminMediaModule,
+    ArModule,
     ScheduleModule.forRoot(),
     ClsModule.forRoot({
       global: true,
