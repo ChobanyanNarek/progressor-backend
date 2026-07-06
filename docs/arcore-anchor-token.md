@@ -15,18 +15,21 @@ This backend exposes an authenticated endpoint that mints that token on demand.
 
 ```
 GET /ar/anchor-token
-Authorization: Bearer <app user's access token>
+Authorization: Bearer <app user's access token>   # optional
 ```
 
 > **Path note:** this service has no `/api/v1` global prefix (routing is
 > subdomain-based, e.g. `https://api-dev.evmemory.com`). The full dev URL is
 > `https://api-dev.evmemory.com/ar/anchor-token`.
 
-- **Auth:** the same bearer access token the app already uses for every other
-  authenticated call (roles `CREATOR` or `ADMIN`). Anonymous callers get `401`.
-- **Rate limit:** 10 requests / minute per IP. A client only needs a token about
-  once per hour; the backend also caches and reuses a still-valid token, so
-  calling more often than that is unnecessary.
+- **Auth: none required — the endpoint is public.** Logged-out **viewers** need a
+  token to *resolve* anchors on-device, so no login is required. The token is
+  **not user-scoped** — it authenticates our service account to Google (the same
+  value for every caller), so there is nothing user-specific to gate on. Sending a
+  valid bearer is fine (still returns the same kind of token) but not necessary.
+- **Rate limit:** 10 requests / minute per IP (a scripted-abuse cap). A client
+  only needs a token about once per hour, and the backend caches and reuses a
+  still-valid token, so calling more often is unnecessary.
 
 **Response `200`:**
 
