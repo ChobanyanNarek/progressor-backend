@@ -1,5 +1,5 @@
-FROM node:25-slim AS base
-# node:25-slim no longer ships corepack reliably, so install pnpm directly
+FROM node:22-slim AS base
+# node:22-slim no longer ships corepack reliably, so install pnpm directly
 # (matches the "packageManager" field in package.json).
 RUN npm install -g pnpm@10.26.2
 # Disable husky during `pnpm install` — the image has no .git (it's in
@@ -24,7 +24,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # --- Final runtime image ---
-FROM node:25-slim
+FROM node:22-slim
 
 ARG PORT=3000
 
