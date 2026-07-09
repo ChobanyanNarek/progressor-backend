@@ -10,6 +10,7 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import compression from 'compression';
+import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { initializeTransactionalContext } from 'typeorm-transactional';
@@ -36,10 +37,21 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   }
 
   initializeTransactionalContext();
+
+  /*
+   * Pre-configure Express with a larger body limit before NestJS registers routes,
+   * so the 10 MB cap is in place before the default 100 KB parser can reject requests.
+   */
+  const expressInstance = express();
+  expressInstance.disable('x-powered-by');
+  expressInstance.use(express.json({ limit: '10mb' }));
+  expressInstance.use(express.urlencoded({ limit: '10mb', extended: true }));
+
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule,
-    new ExpressAdapter(),
+    new ExpressAdapter(expressInstance),
     {
+      bodyParser: false, // body parser already added above
       cors: {
         origin: parseCorsOrigins(process.env.CORS_ORIGINS),
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
@@ -48,7 +60,6 @@ export async function bootstrap(): Promise<NestExpressApplication> {
     },
   );
   app.enable('trust proxy');
-  app.useBodyParser('json', { limit: '10mb' });
   app.use(helmet());
   // app.setGlobalPrefix('/api'); use api as global prefix if you don't have subdomain
   app.use(compression());
