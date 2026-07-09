@@ -8,7 +8,22 @@
   "type": "module",
   "packageManager": "pnpm@10.26.2",
   "engines": {
-    "node": ">=25.0.0"
+    "node": ">=22.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@firebase/util",
+      "@nestjs/core",
+      "@parcel/watcher",
+      "@scarf/scarf",
+      "@swc/core",
+      "bcrypt",
+      "esbuild",
+      "msgpackr-extract",
+      "protobufjs",
+      "sharp",
+      "unrs-resolver"
+    ]
   },
   "scripts": {
     "build:prod": "nest build",
