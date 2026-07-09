@@ -156,6 +156,14 @@ export class ApiConfigService {
     };
   }
 
+  get googleClientId(): string {
+    return this.getString('GOOGLE_CLIENT_ID', '');
+  }
+
+  get frontendUrl(): string {
+    return this.getString('FRONTEND_URL', 'http://localhost:5173');
+  }
+
   get appConfig(): IAppConfig {
     return {
       port: this.getString('PORT'),

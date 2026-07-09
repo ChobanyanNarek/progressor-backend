@@ -14,7 +14,9 @@ import { Auth } from '../../decorators/http.decorators.ts';
 import type { UserEntity } from '../user/user.entity.ts';
 import { AuthService } from './auth.service.ts';
 import { GetMeDto } from './dto/get-me.dto.ts';
+import { GoogleTokenDto } from './dto/google-token.dto.ts';
 import { LoginPayloadDto } from './dto/login-payload.dto.ts';
+import { RegisterDto } from './dto/register.dto.ts';
 import { UserLoginDto } from './dto/user-login.dto.ts';
 
 @Controller('auth')
@@ -40,6 +42,30 @@ export class AuthController {
     });
 
     return LoginPayloadDto.create({ accessToken });
+  }
+
+  @Post('register')
+  @HttpCode(HttpStatus.OK)
+  /* eslint-disable awesome-nest/unique-endpoint-dtos */
+  @ApiOkResponse({
+    type: LoginPayloadDto,
+    description: 'Newly created account with access token',
+  })
+  register(@Body() dto: RegisterDto): Promise<LoginPayloadDto> {
+    /* eslint-enable awesome-nest/unique-endpoint-dtos */
+    return this.authService.register(dto);
+  }
+
+  @Post('google-token')
+  @HttpCode(HttpStatus.OK)
+  /* eslint-disable awesome-nest/unique-endpoint-dtos */
+  @ApiOkResponse({
+    type: LoginPayloadDto,
+    description: 'Sign in or register via Google ID token',
+  })
+  googleToken(@Body() dto: GoogleTokenDto): Promise<LoginPayloadDto> {
+    /* eslint-enable awesome-nest/unique-endpoint-dtos */
+    return this.authService.googleLogin(dto.idToken);
   }
 
   @Get('me')

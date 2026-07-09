@@ -1,11 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
+
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { OAuth2Client } from 'google-auth-library';
 
 import { validateHash } from '../../common/utils.ts';
 import { AccountStatus } from '../../constants/account-status.ts';
 import { LogLevel } from '../../constants/log-level.ts';
 import { LogSource } from '../../constants/log-source.ts';
-import type { RoleType } from '../../constants/role-type.ts';
+import { RoleType } from '../../constants/role-type.ts';
 import { TokenType } from '../../constants/token-type.ts';
 import { AccountDisabledException } from '../../exceptions/account-disabled.exception.ts';
 import { InvalidCredentialsException } from '../../exceptions/invalid-credentials.exception.ts';
@@ -14,6 +21,8 @@ import { ApiConfigService } from '../../shared/services/api-config.service.ts';
 import { AdminLogsService } from '../admin-logs/admin-logs.service.ts';
 import type { UserEntity } from '../user/user.entity.ts';
 import { UserService } from '../user/user.service.ts';
+import { LoginPayloadDto } from './dto/login-payload.dto.ts';
+import type { RegisterDto } from './dto/register.dto.ts';
 import { TokenPayloadDto } from './dto/token-payload.dto.ts';
 import type { UserLoginDto } from './dto/user-login.dto.ts';
 
@@ -90,6 +99,84 @@ export class AuthService {
     });
 
     return user;
+  }
+
+  async register(dto: RegisterDto): Promise<LoginPayloadDto> {
+    const result = await this.userService.create({
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      email: dto.email,
+      password: dto.password,
+      role: RoleType.CREATOR,
+      status: AccountStatus.ACTIVE,
+    });
+
+    const accessToken = await this.createAccessToken({
+      userId: result.id as Uuid,
+      role: RoleType.CREATOR,
+    });
+
+    return LoginPayloadDto.create({ accessToken });
+  }
+
+  async googleLogin(idToken: string): Promise<LoginPayloadDto> {
+    const clientId = this.configService.googleClientId;
+
+    if (!clientId) {
+      throw new BadRequestException('Google OAuth is not configured');
+    }
+
+    const client = new OAuth2Client(clientId);
+    let email: string;
+    let firstName: string;
+    let lastName: string;
+
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: clientId,
+      });
+      const payload = ticket.getPayload();
+
+      if (!payload?.email) {
+        throw new Error('No email in token');
+      }
+
+      email = payload.email;
+      firstName = payload.given_name ?? 'User';
+      lastName = payload.family_name ?? '';
+    } catch {
+      throw new UnauthorizedException('error.invalidGoogleToken');
+    }
+
+    let user = await this.userService.findOne({ email });
+
+    if (!user) {
+      await this.userService.create({
+        firstName,
+        lastName,
+        email,
+        password: randomBytes(32).toString('hex'),
+        role: RoleType.CREATOR,
+        status: AccountStatus.ACTIVE,
+      });
+      user = await this.userService.findOne({ email });
+    }
+
+    if (!user) {
+      throw new UserNotFoundException();
+    }
+
+    if (user.status === AccountStatus.DISABLED) {
+      throw new AccountDisabledException();
+    }
+
+    const accessToken = await this.createAccessToken({
+      userId: user.id,
+      role: user.role,
+    });
+
+    return LoginPayloadDto.create({ accessToken });
   }
 
   private recordLoginFailure(email: string, reason: string): void {

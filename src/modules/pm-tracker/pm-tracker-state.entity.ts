@@ -7,8 +7,11 @@ import { PmTrackerStateDto } from './dtos/pm-tracker-state.dto.ts';
 @Entity({ name: 'pm_tracker_state' })
 @UseDto(PmTrackerStateDto)
 export class PmTrackerStateEntity extends AbstractEntity<PmTrackerStateDto> {
-  @Column({ type: 'varchar', unique: true })
-  workspaceKey!: string;
+  @Column({ type: 'varchar', nullable: true })
+  workspaceKey!: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  userId!: Uuid | null;
 
   @Column({ type: 'jsonb' })
   data!: Record<string, unknown>;

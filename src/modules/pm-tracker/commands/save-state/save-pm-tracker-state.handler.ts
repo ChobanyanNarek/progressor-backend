@@ -22,16 +22,16 @@ export class SavePmTrackerStateHandler
   ): Promise<SavePmTrackerStateDto> {
     const existing = await this.repo
       .createQueryBuilder('s')
-      .where('s.workspace_key = :key', { key: command.workspaceKey })
+      .where('s.user_id = :userId', { userId: command.userId })
       .getOne();
 
     if (existing) {
       await this.repo
         .createQueryBuilder()
         .update(PmTrackerStateEntity)
-        .set({ data: () => `:data` } as never)
+        .set({ data: () => ':data' } as never)
         .setParameter('data', JSON.stringify(command.data))
-        .where('workspace_key = :key', { key: command.workspaceKey })
+        .where('id = :id', { id: existing.id })
         .execute();
 
       existing.data = command.data;
@@ -40,7 +40,8 @@ export class SavePmTrackerStateHandler
     }
 
     const entity = this.repo.create({
-      workspaceKey: command.workspaceKey,
+      userId: command.userId,
+      workspaceKey: null,
       data: command.data,
     });
 

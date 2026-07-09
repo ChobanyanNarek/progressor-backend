@@ -17,21 +17,21 @@ export class PmTrackerService {
     private readonly queryBus: QueryBus,
   ) {}
 
-  getState(workspaceKey: string): Promise<PmTrackerStateEntity | null> {
+  getState(userId: Uuid): Promise<PmTrackerStateEntity | null> {
     return this.queryBus.execute<
       GetPmTrackerStateQuery,
       PmTrackerStateEntity | null
-    >(new GetPmTrackerStateQuery(workspaceKey));
+    >(new GetPmTrackerStateQuery(userId));
   }
 
   saveState(
-    workspaceKey: string,
+    userId: Uuid,
     data: Record<string, unknown>,
   ): Promise<SavePmTrackerStateDto> {
     return this.commandBus.execute<
       SavePmTrackerStateCommand,
       SavePmTrackerStateDto
-    >(new SavePmTrackerStateCommand(workspaceKey, data));
+    >(new SavePmTrackerStateCommand(userId, data));
   }
 
   async jiraSearch(dto: JiraSearchRequestDto): Promise<JiraSearchResultDto> {

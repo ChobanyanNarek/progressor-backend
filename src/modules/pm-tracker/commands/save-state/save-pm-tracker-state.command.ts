@@ -4,7 +4,7 @@ import type { SavePmTrackerStateDto } from '../../dtos/save-pm-tracker-state.dto
 
 export class SavePmTrackerStateCommand extends Command<SavePmTrackerStateDto> {
   constructor(
-    public readonly workspaceKey: string,
+    public readonly userId: Uuid,
     public readonly data: Record<string, unknown>,
   ) {
     super();

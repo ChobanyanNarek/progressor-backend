@@ -19,11 +19,34 @@ export class GetPmTrackerStateHandler
   async execute(
     query: GetPmTrackerStateQuery,
   ): Promise<PmTrackerStateEntity | null> {
-    const result = await this.repo
+    const userState = await this.repo
       .createQueryBuilder('s')
-      .where('s.workspace_key = :key', { key: query.workspaceKey })
+      .where('s.user_id = :userId', { userId: query.userId })
       .getOne();
 
-    return result;
+    if (userState) {
+      return userState;
+    }
+
+    // Migrate the legacy 'default' workspace to this user on first access.
+    const defaultState = await this.repo
+      .createQueryBuilder('s')
+      .where('s.workspace_key = :key AND s.user_id IS NULL', { key: 'default' })
+      .getOne();
+
+    if (defaultState) {
+      await this.repo
+        .createQueryBuilder()
+        .update(PmTrackerStateEntity)
+        .set({ userId: query.userId } as never)
+        .where('id = :id', { id: defaultState.id })
+        .execute();
+
+      defaultState.userId = query.userId;
+
+      return defaultState;
+    }
+
+    return null;
   }
 }

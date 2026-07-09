@@ -7,10 +7,13 @@ import {
   NotFoundException,
   Post,
   Put,
-  Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
+import { RoleType } from '../../constants/role-type.ts';
+import { AuthUser } from '../../decorators/auth-user.decorator.ts';
+import { Auth } from '../../decorators/http.decorators.ts';
+import type { UserEntity } from '../user/user.entity.ts';
 import {
   JiraSearchRequestDto,
   JiraSearchResultDto,
@@ -19,8 +22,6 @@ import type { PmTrackerStateDto } from './dtos/pm-tracker-state.dto.ts';
 import type { SavePmTrackerStateDto } from './dtos/save-pm-tracker-state.dto.ts';
 import { PmTrackerService } from './pm-tracker.service.ts';
 
-const DEFAULT_WORKSPACE = 'default';
-
 @Controller('pm-tracker')
 @ApiTags('pm-tracker')
 export class PmTrackerController {
@@ -28,11 +29,12 @@ export class PmTrackerController {
 
   @Get('state')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Get pm-tracker state' })
+  @ApiOperation({ summary: 'Get pm-tracker state for the authenticated user' })
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
   async getState(
-    @Query('workspace') workspace: string = DEFAULT_WORKSPACE,
+    @AuthUser() user: UserEntity,
   ): Promise<PmTrackerStateDto | null> {
-    const entity = await this.pmTrackerService.getState(workspace);
+    const entity = await this.pmTrackerService.getState(user.id);
 
     if (!entity) {
       throw new NotFoundException('No state found');
@@ -43,12 +45,13 @@ export class PmTrackerController {
 
   @Put('state')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Save pm-tracker state' })
+  @ApiOperation({ summary: 'Save pm-tracker state for the authenticated user' })
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
   saveState(
-    @Query('workspace') workspace: string = DEFAULT_WORKSPACE,
+    @AuthUser() user: UserEntity,
     @Body() data: Record<string, unknown>,
   ): Promise<SavePmTrackerStateDto> {
-    return this.pmTrackerService.saveState(workspace, data);
+    return this.pmTrackerService.saveState(user.id, data);
   }
 
   @Post('jira-search')
@@ -56,6 +59,7 @@ export class PmTrackerController {
   @ApiOperation({
     summary: 'Proxy a Jira issue search to avoid browser CORS restrictions',
   })
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
   jiraSearch(@Body() dto: JiraSearchRequestDto): Promise<JiraSearchResultDto> {
     return this.pmTrackerService.jiraSearch(dto);
   }
