@@ -48,6 +48,7 @@ export async function bootstrap(): Promise<NestExpressApplication> {
     },
   );
   app.enable('trust proxy');
+  app.useBodyParser('json', { limit: '10mb' });
   app.use(helmet());
   // app.setGlobalPrefix('/api'); use api as global prefix if you don't have subdomain
   app.use(compression());
