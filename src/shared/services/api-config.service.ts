@@ -1,6 +1,3 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { ThrottlerOptions } from '@nestjs/throttler';
@@ -124,24 +121,8 @@ export class ApiConfigService {
   }
 
   get postgresConfig(): TypeOrmModuleOptions {
-    /*
-     * Derive the module directory from its URL rather than `import.meta.dirname`
-     * (cleaner, but undefined under jest's ESM runtime). `import.meta.url` is
-     * populated everywhere: Node, Vite, Bun and jest.
-     */
-    // eslint-disable-next-line unicorn/prefer-import-meta-properties
-    const dirname = path.dirname(fileURLToPath(import.meta.url));
-    const entities = [
-      path.join(dirname, `../../modules/**/*.entity{.ts,.js}`),
-      path.join(dirname, `../../modules/**/*.view-entity{.ts,.js}`),
-    ];
-    const migrations = [
-      path.join(dirname, `../../database/migrations/*{.ts,.js}`),
-    ];
-
     return {
-      entities,
-      migrations,
+      autoLoadEntities: true,
       dropSchema: this.isTest,
       type: 'postgres',
       host: this.getString('DB_HOST'),
@@ -149,8 +130,10 @@ export class ApiConfigService {
       username: this.getString('DB_USERNAME'),
       password: this.getString('DB_PASSWORD'),
       database: this.getString('DB_DATABASE'),
+      ssl:
+        process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
       subscribers: [UserSubscriber],
-      migrationsRun: true,
+      migrationsRun: false,
       logging: this.getBoolean('ENABLE_ORM_LOGS'),
       namingStrategy: new SnakeNamingStrategy(),
     };
