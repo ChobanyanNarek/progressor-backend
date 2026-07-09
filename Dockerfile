@@ -9,7 +9,7 @@ ENV HUSKY=0
 # --- Build stage: compile TypeScript ---
 FROM base AS build
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm run build:prod
@@ -17,11 +17,13 @@ RUN pnpm run build:prod
 # --- Production dependencies stage ---
 FROM base AS prod-deps
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
-# --ignore-scripts: --prod omits devDeps (incl. husky), but the `prepare`
-# lifecycle still calls `husky`, which would be missing -> "husky: not found".
-# Production deps don't need git hooks, so skip lifecycle scripts here.
-RUN pnpm install --frozen-lockfile --prod --ignore-scripts
+COPY package.json pnpm-lock.yaml pnpm.yaml ./
+# husky is a devDep absent with --prod, but the root "prepare": "husky" script
+# would still run and fail.  Strip it from package.json before install so
+# pnpm does not try to invoke the missing binary.  Native production deps
+# (bcrypt, sharp, …) are allowed to run via pnpm.yaml onlyBuiltDependencies.
+RUN node -e "const fs=require('fs'),p=JSON.parse(fs.readFileSync('package.json')); delete p.scripts.prepare; fs.writeFileSync('package.json',JSON.stringify(p))"
+RUN pnpm install --frozen-lockfile --prod
 
 # --- Final runtime image ---
 FROM node:22-slim
