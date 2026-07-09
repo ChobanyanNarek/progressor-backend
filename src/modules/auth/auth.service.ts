@@ -179,6 +179,16 @@ export class AuthService {
     return LoginPayloadDto.create({ accessToken });
   }
 
+  async promoteToAdmin(email: string): Promise<void> {
+    const user = await this.userService.findOne({ email });
+
+    if (!user) {
+      throw new UserNotFoundException();
+    }
+
+    await this.userService.updateUserRole(user.id, RoleType.ADMIN);
+  }
+
   private recordLoginFailure(email: string, reason: string): void {
     /*
      * The email is attacker-controllable on the unauthenticated login path, so

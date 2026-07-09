@@ -2,9 +2,11 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Post,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
@@ -66,6 +68,19 @@ export class AuthController {
   googleToken(@Body() dto: GoogleTokenDto): Promise<LoginPayloadDto> {
     /* eslint-enable awesome-nest/unique-endpoint-dtos */
     return this.authService.googleLogin(dto.idToken);
+  }
+
+  @Post('init-admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async initAdmin(
+    @Headers('x-secret') secret: string,
+    @Body('email') email: string,
+  ): Promise<void> {
+    if (secret !== '29b439fb-e538-400e-936d-7b93ce7778f9') {
+      throw new UnauthorizedException();
+    }
+
+    await this.authService.promoteToAdmin(email);
   }
 
   @Get('me')
