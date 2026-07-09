@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { ThrottlerOptions } from '@nestjs/throttler';
@@ -133,7 +135,10 @@ export class ApiConfigService {
       ssl:
         process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
       subscribers: [UserSubscriber],
-      migrationsRun: false,
+      migrations: [
+        path.join(process.cwd(), 'dist', 'database', 'migrations', '*.js'),
+      ],
+      migrationsRun: !this.isDevelopment,
       logging: this.getBoolean('ENABLE_ORM_LOGS'),
       namingStrategy: new SnakeNamingStrategy(),
     };
