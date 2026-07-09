@@ -5,11 +5,16 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
+  Post,
   Put,
   Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
+import {
+  JiraSearchRequestDto,
+  JiraSearchResultDto,
+} from './dtos/jira-proxy.dto.ts';
 import type { PmTrackerStateDto } from './dtos/pm-tracker-state.dto.ts';
 import type { SavePmTrackerStateDto } from './dtos/save-pm-tracker-state.dto.ts';
 import { PmTrackerService } from './pm-tracker.service.ts';
@@ -44,5 +49,14 @@ export class PmTrackerController {
     @Body() data: Record<string, unknown>,
   ): Promise<SavePmTrackerStateDto> {
     return this.pmTrackerService.saveState(workspace, data);
+  }
+
+  @Post('jira-search')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Proxy a Jira issue search to avoid browser CORS restrictions',
+  })
+  jiraSearch(@Body() dto: JiraSearchRequestDto): Promise<JiraSearchResultDto> {
+    return this.pmTrackerService.jiraSearch(dto);
   }
 }
