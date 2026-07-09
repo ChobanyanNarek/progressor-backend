@@ -1,0 +1,62 @@
+services:
+  - type: web
+    name: ghost-app-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+
+      # Database — injected from the Render-managed PostgreSQL below
+      - key: DB_TYPE
+        value: postgres
+      - key: DB_HOST
+        fromDatabase:
+          name: ghost-app-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ghost-app-db
+          property: port
+      - key: DB_USERNAME
+        fromDatabase:
+          name: ghost-app-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ghost-app-db
+          property: password
+      - key: DB_DATABASE
+        fromDatabase:
+          name: ghost-app-db
+          property: database
+      - key: DB_SSL
+        value: "true"
+
+      # App settings — set the rest in the Render dashboard → Environment
+      - key: JWT_EXPIRATION_TIME
+        value: 86400
+      - key: FALLBACK_LANGUAGE
+        value: en_US
+      - key: ENABLE_ORM_LOGS
+        value: "false"
+      - key: ENABLE_DOCUMENTATION
+        value: "true"
+      - key: API_VERSION
+        value: v1.0.0
+
+      # Secrets — add these in the Render dashboard (never commit real values)
+      # JWT_PRIVATE_KEY, JWT_PUBLIC_KEY, CORS_ORIGINS, FRONTEND_URL
+
+databases:
+  - name: ghost-app-db
+    databaseName: ghost_app
+    user: ghost_app
+    plan: free
+    region: frankfurt
