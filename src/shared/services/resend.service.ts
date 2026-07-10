@@ -1,4 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { Resend } from 'resend';
 
 import { ApiConfigService } from './api-config.service.ts';
@@ -52,6 +56,8 @@ export class ResendService {
 
     if (error) {
       this.logger.error('Failed to send registration code email', error);
+
+      throw new InternalServerErrorException('error.emailSendFailed');
     }
   }
 }
