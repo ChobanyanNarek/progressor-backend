@@ -10,12 +10,10 @@ import { createTransport, type Transporter } from 'nodemailer';
 
 import { ApiConfigService } from './api-config.service.ts';
 
-const LOGO_GIF = readFileSync(
-  path.join(__dirname, '..', 'assets', 'logo-wordmark.gif'),
-);
-
 @Injectable()
 export class ResendService {
+  private static logoGif: Buffer | undefined;
+
   private readonly logger = new Logger(ResendService.name);
 
   private readonly transporter: Transporter | null;
@@ -23,6 +21,10 @@ export class ResendService {
   private readonly fromAddress: string | undefined;
 
   constructor(private configService: ApiConfigService) {
+    ResendService.logoGif ??= readFileSync(
+      path.join(__dirname, '..', 'assets', 'logo-wordmark.gif'),
+    );
+
     const user = this.configService.gmailUser;
     const pass = this.configService.gmailAppPassword;
 
@@ -77,7 +79,7 @@ export class ResendService {
         attachments: [
           {
             filename: 'logo.gif',
-            content: LOGO_GIF,
+            content: ResendService.logoGif!,
             cid: 'wordmark',
             contentType: 'image/gif',
           },
