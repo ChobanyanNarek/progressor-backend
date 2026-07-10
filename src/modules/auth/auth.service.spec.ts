@@ -35,6 +35,8 @@ describe('AuthService', () => {
       { authConfig: { jwtExpirationTime } } as never,
       { findOne, update } as never,
       { record } as never,
+      {} as never,
+      { createQueryBuilder: jest.fn() } as never,
     );
   });
 

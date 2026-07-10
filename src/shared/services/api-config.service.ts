@@ -95,6 +95,14 @@ export class ApiConfigService {
     return this.getString('FALLBACK_LANGUAGE');
   }
 
+  get resendApiKey(): string {
+    return this.getString('RESEND_API_KEY');
+  }
+
+  get resendFromEmail(): string {
+    return this.getString('RESEND_FROM_EMAIL');
+  }
+
   /**
    * Maximum age (in milliseconds) a PENDING memory point may keep before its
    * details are submitted. Older detail-less drafts are purged by the cleanup
