@@ -58,6 +58,10 @@ export class EditUserHandler
       user.avatar = editUserDto.avatar;
     }
 
+    if (editUserDto.phone !== undefined) {
+      user.phone = editUserDto.phone;
+    }
+
     await this.userRepository.save(user);
 
     return user.toDto();

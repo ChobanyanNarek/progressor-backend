@@ -7,6 +7,7 @@ import {
   EnumField,
   NumberField,
   StringField,
+  StringFieldOptional,
   UUIDField,
 } from '../../../decorators/field.decorators.ts';
 
@@ -22,6 +23,9 @@ export class AdminPmTrackerUserDto extends BaseDto {
 
   @EmailField()
   email!: string;
+
+  @StringFieldOptional({ nullable: true })
+  phone?: string | null;
 
   @EnumField(() => RoleType)
   role!: RoleType;

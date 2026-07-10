@@ -21,4 +21,7 @@ export class EditUserDto extends BaseDto {
 
   @StringFieldOptional({ nullable: true })
   readonly avatar?: string | null;
+
+  @StringFieldOptional({ maxLength: 30, nullable: true })
+  readonly phone?: string | null;
 }
