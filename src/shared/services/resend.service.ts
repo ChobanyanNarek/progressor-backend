@@ -7,16 +7,27 @@ import { ApiConfigService } from './api-config.service.ts';
 export class ResendService {
   private readonly logger = new Logger(ResendService.name);
 
-  private readonly client: Resend;
+  private readonly client: Resend | null;
 
   private readonly from: string;
 
   constructor(private configService: ApiConfigService) {
-    this.client = new Resend(this.configService.resendApiKey);
+    const apiKey = this.configService.resendApiKey;
+    this.client = apiKey ? new Resend(apiKey) : null;
     this.from = this.configService.resendFromEmail;
+
+    if (!this.client) {
+      this.logger.warn('RESEND_API_KEY not set — emails will not be sent');
+    }
   }
 
   async sendRegistrationCode(email: string, code: string): Promise<void> {
+    if (!this.client) {
+      this.logger.warn(`Skipping email to ${email} — Resend not configured`);
+
+      return;
+    }
+
     const { error } = await this.client.emails.send({
       from: this.from,
       to: email,

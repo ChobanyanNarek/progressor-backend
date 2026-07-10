@@ -95,12 +95,12 @@ export class ApiConfigService {
     return this.getString('FALLBACK_LANGUAGE');
   }
 
-  get resendApiKey(): string {
-    return this.getString('RESEND_API_KEY');
+  get resendApiKey(): string | undefined {
+    return this.configService.get<string>('RESEND_API_KEY');
   }
 
   get resendFromEmail(): string {
-    return this.getString('RESEND_FROM_EMAIL');
+    return this.getString('RESEND_FROM_EMAIL', 'noreply@example.com');
   }
 
   /**
