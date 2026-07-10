@@ -18,6 +18,10 @@
         "include": "i18n/**/*",
         "outDir": "dist/i18n",
         "watchAssets": true
+      },
+      {
+        "include": "shared/assets/**/*",
+        "watchAssets": true
       }
     ]
   }
