@@ -44,6 +44,17 @@ export class AdminPmTrackerController {
     return this.service.deleteUser(userId);
   }
 
+  @Delete('users/:id/data')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Auth([RoleType.ADMIN])
+  @ApiOperation({
+    summary: "Delete a user's pm-tracker data while keeping the account",
+  })
+  @ApiNoContentResponse()
+  deleteUserData(@UUIDParam('id') userId: Uuid): Promise<void> {
+    return this.service.deleteUserData(userId);
+  }
+
   @Put('users/:id/password')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Auth([RoleType.ADMIN])

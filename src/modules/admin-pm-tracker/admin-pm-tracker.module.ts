@@ -8,6 +8,7 @@ import { UserEntity } from '../user/user.entity.ts';
 import { AdminPmTrackerController } from './admin-pm-tracker.controller.ts';
 import { AdminPmTrackerService } from './admin-pm-tracker.service.ts';
 import { AdminChangePasswordHandler } from './commands/admin-change-password/admin-change-password.handler.ts';
+import { DeleteUserDataHandler } from './commands/delete-user-data/delete-user-data.handler.ts';
 import { GetAdminUsersHandler } from './queries/get-admin-users/get-admin-users.handler.ts';
 
 @Module({
@@ -20,6 +21,7 @@ import { GetAdminUsersHandler } from './queries/get-admin-users/get-admin-users.
     AdminPmTrackerService,
     GetAdminUsersHandler,
     AdminChangePasswordHandler,
+    DeleteUserDataHandler,
     DeleteUserHandler,
   ],
 })
