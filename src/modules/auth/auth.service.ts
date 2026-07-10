@@ -54,16 +54,18 @@ export class AuthService {
   }
 
   async validateUser(userLoginDto: UserLoginDto): Promise<UserEntity> {
-    const user = await this.userService.findOne({
-      email: userLoginDto.email,
-    });
+    const credential = userLoginDto.credential.trim();
+    const isEmail = credential.includes('@');
+    const user = isEmail
+      ? await this.userService.findOne({ email: credential })
+      : await this.userService.findOne({ phone: credential });
 
     /*
      * Unknown account → 404; wrong password for a real account → 401. Keeping
      * these distinct lets the client show an accurate message.
      */
     if (!user) {
-      this.recordLoginFailure(userLoginDto.email, 'userNotFound');
+      this.recordLoginFailure(credential, 'userNotFound');
 
       throw new UserNotFoundException();
     }
@@ -74,7 +76,7 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      this.recordLoginFailure(userLoginDto.email, 'invalidCredentials');
+      this.recordLoginFailure(credential, 'invalidCredentials');
 
       throw new InvalidCredentialsException();
     }
@@ -84,7 +86,7 @@ export class AuthService {
      * must not obtain a token even with the correct password.
      */
     if (user.status === AccountStatus.DISABLED) {
-      this.recordLoginFailure(userLoginDto.email, 'accountDisabled');
+      this.recordLoginFailure(credential, 'accountDisabled');
 
       throw new AccountDisabledException();
     }
@@ -106,6 +108,7 @@ export class AuthService {
       firstName: dto.firstName,
       lastName: dto.lastName,
       email: dto.email,
+      phone: dto.phone,
       password: dto.password,
       role: RoleType.CREATOR,
       status: AccountStatus.ACTIVE,
@@ -189,10 +192,10 @@ export class AuthService {
     await this.userService.updateUserRole(user.id, RoleType.ADMIN);
   }
 
-  private recordLoginFailure(email: string, reason: string): void {
+  private recordLoginFailure(credential: string, reason: string): void {
     /*
-     * The email is attacker-controllable on the unauthenticated login path, so
-     * we log it for audit value (which account was targeted) but truncate to a
+     * The credential is attacker-controllable on the unauthenticated login path,
+     * so we log it for audit value (which account was targeted) but truncate to a
      * sane bound to keep a flood of junk attempts from bloating the audit table.
      *
      * NOTE: login rate-limiting is NOT yet enforced — ThrottlerModule is
@@ -200,12 +203,12 @@ export class AuthService {
      * registered, so /auth/login is currently unthrottled. Wiring the global
      * throttler guard is a separate, app-wide follow-up.
      */
-    const MAX_EMAIL_LEN = 320; // RFC 5321 max address length.
+    const MAX_LEN = 320;
     this.adminLogsService.record({
       level: LogLevel.WARN,
       source: LogSource.AUTH,
       message: `Login failed: ${reason}`,
-      context: { email: email.slice(0, MAX_EMAIL_LEN) },
+      context: { credential: credential.slice(0, MAX_LEN) },
     });
   }
 }

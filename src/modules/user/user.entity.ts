@@ -31,6 +31,9 @@ export class UserEntity extends AbstractEntity<UserDto> {
   @Column({ unique: true, type: 'varchar', length: 255 })
   email!: string;
 
+  @Column({ nullable: true, unique: true, type: 'varchar', length: 30 })
+  phone!: string | null;
+
   @Column({ type: 'varchar', length: 255 })
   password!: string;
 

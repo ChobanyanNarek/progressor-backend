@@ -58,7 +58,7 @@ describe('AuthService', () => {
 
   describe('validateUser', () => {
     const loginDto = {
-      email: 'john@test.com',
+      credential: 'john@test.com',
       password: 'correct-horse',
     } as UserLoginDto;
 
@@ -73,7 +73,7 @@ describe('AuthService', () => {
         expect.objectContaining({
           level: LogLevel.WARN,
           source: LogSource.AUTH,
-          context: { email: loginDto.email },
+          context: { credential: loginDto.credential },
         }),
       );
     });

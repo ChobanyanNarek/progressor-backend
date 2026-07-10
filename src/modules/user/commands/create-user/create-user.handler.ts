@@ -18,7 +18,7 @@ export class CreateUserHandler
   ) {}
 
   async execute(command: CreateUserCommand): Promise<CreateUserResultDto> {
-    const { firstName, lastName, email, role, password, status } =
+    const { firstName, lastName, email, phone, role, password, status } =
       command.createUserDto;
 
     const existingUser = await this.userRepository
@@ -34,6 +34,7 @@ export class CreateUserHandler
       firstName,
       lastName,
       email,
+      phone: phone ?? null,
       password,
       role,
       status,

@@ -6,6 +6,7 @@ import {
   EnumField,
   EnumFieldOptional,
   StringField,
+  StringFieldOptional,
 } from '../../../decorators/field.decorators.ts';
 
 export class CreateUserDto extends BaseDto {
@@ -17,6 +18,9 @@ export class CreateUserDto extends BaseDto {
 
   @EmailField()
   readonly email!: string;
+
+  @StringFieldOptional({ maxLength: 30 })
+  readonly phone?: string;
 
   @StringField({ minLength: 6 })
   readonly password!: string;
