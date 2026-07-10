@@ -95,12 +95,12 @@ export class ApiConfigService {
     return this.getString('FALLBACK_LANGUAGE');
   }
 
-  get gmailUser(): string {
-    return this.getString('GMAIL_USER');
+  get gmailUser(): string | undefined {
+    return this.configService.get<string>('GMAIL_USER');
   }
 
-  get gmailAppPassword(): string {
-    return this.getString('GMAIL_APP_PASSWORD');
+  get gmailAppPassword(): string | undefined {
+    return this.configService.get<string>('GMAIL_APP_PASSWORD');
   }
 
   /**

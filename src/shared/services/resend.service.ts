@@ -11,25 +11,43 @@ import { ApiConfigService } from './api-config.service.ts';
 export class ResendService {
   private readonly logger = new Logger(ResendService.name);
 
-  private readonly transporter: Transporter;
+  private readonly transporter: Transporter | null;
+
+  private readonly fromAddress: string | undefined;
 
   constructor(private configService: ApiConfigService) {
-    // eslint-disable-next-line sonarjs/no-clear-text-protocols
-    this.transporter = createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false, // STARTTLS — encrypted despite secure:false
-      auth: {
-        user: this.configService.gmailUser,
-        pass: this.configService.gmailAppPassword,
-      },
-    });
+    const user = this.configService.gmailUser;
+    const pass = this.configService.gmailAppPassword;
+
+    if (user && pass) {
+      // eslint-disable-next-line sonarjs/no-clear-text-protocols
+      this.transporter = createTransport({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false, // STARTTLS — encrypted despite secure:false
+        auth: { user, pass },
+      });
+      this.fromAddress = user;
+    } else {
+      this.transporter = null;
+      this.logger.warn(
+        'GMAIL_USER/GMAIL_APP_PASSWORD not set — emails will not be sent',
+      );
+    }
   }
 
   async sendRegistrationCode(email: string, code: string): Promise<void> {
+    if (!this.transporter) {
+      this.logger.warn(
+        `Skipping email to ${email} — Gmail SMTP not configured`,
+      );
+
+      return;
+    }
+
     try {
       await this.transporter.sendMail({
-        from: `ProgressOr <${this.configService.gmailUser}>`,
+        from: `ProgressOr <${this.fromAddress}>`,
         to: email,
         subject: `${code} is your ProgressOr verification code`,
         html: `
