@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs';
-import path from 'node:path';
 
 import {
   Injectable,
@@ -22,7 +21,7 @@ export class ResendService {
 
   constructor(private configService: ApiConfigService) {
     ResendService.logoGif ??= readFileSync(
-      path.join(__dirname, '..', 'assets', 'logo-wordmark.gif'),
+      new URL('../assets/logo-wordmark.gif', import.meta.url),
     );
 
     const user = this.configService.gmailUser;
