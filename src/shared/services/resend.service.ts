@@ -60,7 +60,7 @@ export class ResendService {
         subject: `${code} is your ProgressOr verification code`,
         html: [
           '<div style="font-family:-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:48px 24px;color:#111827">',
-          '  <div style="margin-bottom:32px">',
+          '  <div style="margin-bottom:32px;background:#ffffff;display:inline-block;border-radius:6px;padding:2px 0">',
           '    <img src="cid:wordmark" width="186" height="36" alt="ProgressOr" style="display:block" />',
           '  </div>',
           '  <div style="font-size:15px;font-weight:600;margin-bottom:10px">Your verification code</div>',
