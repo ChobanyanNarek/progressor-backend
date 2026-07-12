@@ -26,4 +26,7 @@ export class GetMeDto extends BaseDto {
 
   @StringFieldOptional({ nullable: true })
   avatar?: string | null;
+
+  @StringFieldOptional({ maxLength: 30, nullable: true })
+  phone?: string | null;
 }

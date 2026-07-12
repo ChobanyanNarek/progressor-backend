@@ -96,8 +96,16 @@ export class AuthController {
   @ApiOkResponse({ description: 'Current user info', type: GetMeDto })
   getCurrentUser(@AuthUser() user: UserEntity): GetMeDto {
     /* eslint-enable awesome-nest/unique-endpoint-dtos */
-    const { id, firstName, lastName, email, role, avatar } = user;
+    const { id, firstName, lastName, email, role, avatar, phone } = user;
 
-    return GetMeDto.create({ id, firstName, lastName, email, role, avatar });
+    return GetMeDto.create({
+      id,
+      firstName,
+      lastName,
+      email,
+      role,
+      avatar,
+      phone,
+    });
   }
 }

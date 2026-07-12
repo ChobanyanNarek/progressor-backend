@@ -6,15 +6,19 @@ import type { FindOptionsWhere, Repository } from 'typeorm';
 import type { PageDto } from '../../common/dto/page.dto.ts';
 import type { AccountStatus } from '../../constants/account-status.ts';
 import type { RoleType } from '../../constants/role-type.ts';
+import { ChangeMyPasswordCommand } from './commands/change-my-password/change-my-password.command.ts';
 import { CreateUserCommand } from './commands/create-user/create-user.command.ts';
 import { DeleteUserCommand } from './commands/delete-user/delete-user.command.ts';
 import { EditUserCommand } from './commands/edit-user/edit-user.command.ts';
+import { UpdateMyProfileCommand } from './commands/update-my-profile/update-my-profile.command.ts';
 import { UpdateUserCommand } from './commands/update-user/update-user.command.ts';
 import { UpdateUserRoleCommand } from './commands/update-user-role/update-user-role.command.ts';
 import { UpdateUserStatusCommand } from './commands/update-user-status/update-user-status.command.ts';
+import type { ChangeMyPasswordDto } from './dtos/change-my-password.dto.ts';
 import type { CreateUserDto } from './dtos/create-user.dto.ts';
 import { CreateUserResultDto } from './dtos/create-user-result.dto.ts';
 import type { EditUserDto } from './dtos/edit-user.dto.ts';
+import type { UpdateMyProfileDto } from './dtos/update-my-profile.dto.ts';
 import type { UpdateUserDto } from './dtos/update-user.dto.ts';
 import type { UserDto } from './dtos/user.dto.ts';
 import type { UserListDto } from './dtos/user-list.dto.ts';
@@ -90,6 +94,18 @@ export class UserService {
   updateUserRole(userId: Uuid, role: RoleType): Promise<UserDto> {
     return this.commandBus.execute<UpdateUserRoleCommand, UserDto>(
       new UpdateUserRoleCommand(userId, role),
+    );
+  }
+
+  updateMyProfile(userId: Uuid, dto: UpdateMyProfileDto): Promise<void> {
+    return this.commandBus.execute<UpdateMyProfileCommand>(
+      new UpdateMyProfileCommand(userId, dto),
+    );
+  }
+
+  changeMyPassword(userId: Uuid, dto: ChangeMyPasswordDto): Promise<void> {
+    return this.commandBus.execute<ChangeMyPasswordCommand>(
+      new ChangeMyPasswordCommand(userId, dto),
     );
   }
 }

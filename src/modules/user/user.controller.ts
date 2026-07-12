@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Patch,
   Post,
+  Put,
   Query,
   ValidationPipe,
 } from '@nestjs/common';
@@ -15,19 +16,23 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PageDto } from '../../common/dto/page.dto.ts';
 import { RoleType } from '../../constants/role-type.ts';
 import { ApiPageResponse } from '../../decorators/api-page-response.decorator.ts';
+import { AuthUser } from '../../decorators/auth-user.decorator.ts';
 import {
   ApiUUIDParam,
   Auth,
   UUIDParam,
 } from '../../decorators/http.decorators.ts';
+import { ChangeMyPasswordDto } from './dtos/change-my-password.dto.ts';
 import { CreateUserDto } from './dtos/create-user.dto.ts';
 import { CreateUserResultDto } from './dtos/create-user-result.dto.ts';
 import { EditUserDto } from './dtos/edit-user.dto.ts';
+import { UpdateMyProfileDto } from './dtos/update-my-profile.dto.ts';
 import { UpdateUserRoleDto } from './dtos/update-user-role.dto.ts';
 import { UpdateUserStatusDto } from './dtos/update-user-status.dto.ts';
 import { UserDto } from './dtos/user.dto.ts';
 import { UserListDto } from './dtos/user-list.dto.ts';
 import type { UsersPageOptionsDto } from './dtos/users-page-options.dto.ts';
+import type { UserEntity } from './user.entity.ts';
 import { UserService } from './user.service.ts';
 
 @Controller('users')
@@ -62,6 +67,28 @@ export class UserController {
     @Body() createUserDto: CreateUserDto,
   ): Promise<CreateUserResultDto> {
     return this.userService.create(createUserDto);
+  }
+
+  @Patch('me')
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Update own profile (phone)' })
+  updateMyProfile(
+    @AuthUser() user: UserEntity,
+    @Body() dto: UpdateMyProfileDto,
+  ): Promise<void> {
+    return this.userService.updateMyProfile(user.id, dto);
+  }
+
+  @Put('me/password')
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Change own password' })
+  changeMyPassword(
+    @AuthUser() user: UserEntity,
+    @Body() dto: ChangeMyPasswordDto,
+  ): Promise<void> {
+    return this.userService.changeMyPassword(user.id, dto);
   }
 
   @Get(':id')
