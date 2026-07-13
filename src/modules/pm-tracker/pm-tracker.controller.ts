@@ -17,6 +17,7 @@ import type { UserEntity } from '../user/user.entity.ts';
 import {
   JiraSearchRequestDto,
   JiraSearchResultDto,
+  JiraStatusesRequestDto,
 } from './dtos/jira-proxy.dto.ts';
 import type { PmTrackerStateDto } from './dtos/pm-tracker-state.dto.ts';
 import type { SavePmTrackerStateDto } from './dtos/save-pm-tracker-state.dto.ts';
@@ -62,5 +63,17 @@ export class PmTrackerController {
   @Auth([RoleType.CREATOR, RoleType.ADMIN])
   jiraSearch(@Body() dto: JiraSearchRequestDto): Promise<JiraSearchResultDto> {
     return this.pmTrackerService.jiraSearch(dto);
+  }
+
+  @Post('jira-statuses')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Fetch all Jira statuses for a workspace to build status mappings',
+  })
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  jiraStatuses(
+    @Body() dto: JiraStatusesRequestDto,
+  ): Promise<Array<Record<string, unknown>>> {
+    return this.pmTrackerService.jiraStatuses(dto);
   }
 }
