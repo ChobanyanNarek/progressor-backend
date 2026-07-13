@@ -21,3 +21,14 @@ export class JiraSearchResultDto extends BaseDto {
   @Expose()
   issues!: Array<Record<string, unknown>>;
 }
+
+export class JiraStatusesRequestDto extends BaseDto {
+  @StringField()
+  baseUrl!: string;
+
+  @StringField()
+  email!: string;
+
+  @StringField()
+  token!: string;
+}
