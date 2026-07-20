@@ -15,6 +15,7 @@ import { AuthUser } from '../../decorators/auth-user.decorator.ts';
 import { Auth } from '../../decorators/http.decorators.ts';
 import type { UserEntity } from '../user/user.entity.ts';
 import {
+  JiraBoardsRequestDto,
   JiraSearchRequestDto,
   JiraSearchResultDto,
   JiraStatusesRequestDto,
@@ -75,5 +76,17 @@ export class PmTrackerController {
     @Body() dto: JiraStatusesRequestDto,
   ): Promise<Array<Record<string, unknown>>> {
     return this.pmTrackerService.jiraStatuses(dto);
+  }
+
+  @Post('jira-boards')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Fetch all Jira boards for a workspace to filter synced issues',
+  })
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  jiraBoards(
+    @Body() dto: JiraBoardsRequestDto,
+  ): Promise<Array<Record<string, unknown>>> {
+    return this.pmTrackerService.jiraBoards(dto);
   }
 }

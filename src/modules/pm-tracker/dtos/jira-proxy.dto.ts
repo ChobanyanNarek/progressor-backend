@@ -32,3 +32,14 @@ export class JiraStatusesRequestDto extends BaseDto {
   @StringField()
   token!: string;
 }
+
+export class JiraBoardsRequestDto extends BaseDto {
+  @StringField()
+  baseUrl!: string;
+
+  @StringField()
+  email!: string;
+
+  @StringField()
+  token!: string;
+}

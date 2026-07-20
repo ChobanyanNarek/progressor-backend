@@ -3,6 +3,7 @@ import { CommandBus, QueryBus } from '@nestjs/cqrs';
 
 import { SavePmTrackerStateCommand } from './commands/save-state/save-pm-tracker-state.command.ts';
 import type {
+  JiraBoardsRequestDto,
   JiraSearchRequestDto,
   JiraSearchResultDto,
   JiraStatusesRequestDto,
@@ -106,5 +107,56 @@ export class PmTrackerService {
     }
 
     return res.json() as Promise<Array<Record<string, unknown>>>;
+  }
+
+  async jiraBoards(
+    dto: JiraBoardsRequestDto,
+  ): Promise<Array<Record<string, unknown>>> {
+    const { baseUrl, email, token } = dto;
+
+    if (!baseUrl.includes('atlassian.net')) {
+      throw new BadRequestException(
+        'Only Atlassian Cloud URLs (*.atlassian.net) are supported',
+      );
+    }
+
+    const auth = Buffer.from(`${email}:${token}`).toString('base64');
+    const headers: Record<string, string> = {
+      // biome-ignore lint/style/useNamingConvention: HTTP header names are PascalCase by spec
+      Authorization: `Basic ${auth}`,
+      // biome-ignore lint/style/useNamingConvention: HTTP header names are PascalCase by spec
+      Accept: 'application/json',
+    };
+
+    const boards: Array<Record<string, unknown>> = [];
+    let startAt = 0;
+    const maxResults = 50;
+
+    while (true) {
+      const params = new URLSearchParams({
+        startAt: String(startAt),
+        maxResults: String(maxResults),
+      });
+      const url = `${baseUrl.replace(/\/$/, '')}/rest/agile/1.0/board?${params.toString()}`;
+      const res = await fetch(url, { headers });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new HttpException(text || res.statusText, res.status);
+      }
+
+      const data = (await res.json()) as {
+        values?: Array<Record<string, unknown>>;
+        isLast?: boolean;
+        total?: number;
+      };
+
+      boards.push(...(data.values ?? []));
+
+      if (data.isLast || boards.length >= (data.total ?? 0)) break;
+      startAt += maxResults;
+    }
+
+    return boards;
   }
 }
