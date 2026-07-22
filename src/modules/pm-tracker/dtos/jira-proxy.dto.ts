@@ -1,7 +1,7 @@
 import { Expose } from 'class-transformer';
 
 import { BaseDto } from '../../../common/dto/base.dto.ts';
-import { NumberField, StringField } from '../../../decorators/field.decorators.ts';
+import { NumberField, StringField, StringFieldOptional } from '../../../decorators/field.decorators.ts';
 
 export class JiraSearchRequestDto extends BaseDto {
   @StringField()
@@ -42,6 +42,23 @@ export class JiraBoardsRequestDto extends BaseDto {
 
   @StringField()
   token!: string;
+}
+
+export class JiraBoardIssuesRequestDto extends BaseDto {
+  @StringField()
+  baseUrl!: string;
+
+  @StringField()
+  email!: string;
+
+  @StringField()
+  token!: string;
+
+  @NumberField()
+  boardId!: number;
+
+  @StringFieldOptional()
+  assigneeEmail?: string;
 }
 
 export class JiraSprintsRequestDto extends BaseDto {
