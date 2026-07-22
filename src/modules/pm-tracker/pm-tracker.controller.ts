@@ -18,6 +18,7 @@ import {
   JiraBoardsRequestDto,
   JiraSearchRequestDto,
   JiraSearchResultDto,
+  JiraSprintsRequestDto,
   JiraStatusesRequestDto,
 } from './dtos/jira-proxy.dto.ts';
 import type { PmTrackerStateDto } from './dtos/pm-tracker-state.dto.ts';
@@ -88,5 +89,17 @@ export class PmTrackerController {
     @Body() dto: JiraBoardsRequestDto,
   ): Promise<Array<Record<string, unknown>>> {
     return this.pmTrackerService.jiraBoards(dto);
+  }
+
+  @Post('jira-sprints')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Fetch active/future sprints for a Jira board',
+  })
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  jiraSprints(
+    @Body() dto: JiraSprintsRequestDto,
+  ): Promise<Array<Record<string, unknown>>> {
+    return this.pmTrackerService.jiraSprints(dto);
   }
 }

@@ -6,6 +6,7 @@ import type {
   JiraBoardsRequestDto,
   JiraSearchRequestDto,
   JiraSearchResultDto,
+  JiraSprintsRequestDto,
   JiraStatusesRequestDto,
 } from './dtos/jira-proxy.dto.ts';
 import type { SavePmTrackerStateDto } from './dtos/save-pm-tracker-state.dto.ts';
@@ -158,5 +159,37 @@ export class PmTrackerService {
     }
 
     return boards;
+  }
+
+  async jiraSprints(
+    dto: JiraSprintsRequestDto,
+  ): Promise<Array<Record<string, unknown>>> {
+    const { baseUrl, email, token, boardId } = dto;
+
+    if (!baseUrl.includes('atlassian.net')) {
+      throw new BadRequestException(
+        'Only Atlassian Cloud URLs (*.atlassian.net) are supported',
+      );
+    }
+
+    const auth = Buffer.from(`${email}:${token}`).toString('base64');
+    const headers: Record<string, string> = {
+      // biome-ignore lint/style/useNamingConvention: HTTP header names are PascalCase by spec
+      Authorization: `Basic ${auth}`,
+      // biome-ignore lint/style/useNamingConvention: HTTP header names are PascalCase by spec
+      Accept: 'application/json',
+    };
+
+    const params = new URLSearchParams({ state: 'active,future', maxResults: '50' });
+    const url = `${baseUrl.replace(/\/$/, '')}/rest/agile/1.0/board/${boardId}/sprint?${params.toString()}`;
+    const res = await fetch(url, { headers });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new HttpException(text || res.statusText, res.status);
+    }
+
+    const data = (await res.json()) as { values?: Array<Record<string, unknown>> };
+    return data.values ?? [];
   }
 }
