@@ -74,20 +74,3 @@ export class JiraSprintsRequestDto extends BaseDto {
   @NumberField()
   boardId!: number;
 }
-
-export class JiraBoardIssuesRequestDto extends BaseDto {
-  @StringField()
-  baseUrl!: string;
-
-  @StringField()
-  email!: string;
-
-  @StringField()
-  token!: string;
-
-  @NumberField()
-  boardId!: number;
-
-  @StringField()
-  assigneeEmail!: string;
-}
