@@ -15,6 +15,7 @@ import { AuthUser } from '../../decorators/auth-user.decorator.ts';
 import { Auth } from '../../decorators/http.decorators.ts';
 import type { UserEntity } from '../user/user.entity.ts';
 import {
+  JiraBoardIssuesRequestDto,
   JiraBoardsRequestDto,
   JiraSearchRequestDto,
   JiraSearchResultDto,
@@ -89,6 +90,18 @@ export class PmTrackerController {
     @Body() dto: JiraBoardsRequestDto,
   ): Promise<Array<Record<string, unknown>>> {
     return this.pmTrackerService.jiraBoards(dto);
+  }
+
+  @Post('jira-board-issues')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Fetch issues from a specific Jira board via the Agile API',
+  })
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  jiraBoardIssues(
+    @Body() dto: JiraBoardIssuesRequestDto,
+  ): Promise<JiraSearchResultDto> {
+    return this.pmTrackerService.jiraBoardIssues(dto);
   }
 
   @Post('jira-sprints')
