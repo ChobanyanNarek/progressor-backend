@@ -162,15 +162,11 @@ export class PmTrackerService {
     return boards;
   }
 
-  async jiraBoardIssues(
-    dto: JiraBoardIssuesRequestDto,
-  ): Promise<JiraSearchResultDto> {
+  async jiraBoardIssues(dto: JiraBoardIssuesRequestDto): Promise<JiraSearchResultDto> {
     const { baseUrl, email, token, boardId, assigneeEmail } = dto;
 
     if (!baseUrl.includes('atlassian.net')) {
-      throw new BadRequestException(
-        'Only Atlassian Cloud URLs (*.atlassian.net) are supported',
-      );
+      throw new BadRequestException('Only Atlassian Cloud URLs (*.atlassian.net) are supported');
     }
 
     const auth = Buffer.from(`${email}:${token}`).toString('base64');
@@ -181,42 +177,23 @@ export class PmTrackerService {
       Accept: 'application/json',
     };
 
-    const issues: Array<Record<string, unknown>> = [];
-    let startAt = 0;
-    const maxResults = 100;
+    // Use Agile board issues endpoint filtered by assignee, active sprint
+    const params = new URLSearchParams({
+      jql: `assignee = "${assigneeEmail}" AND sprint in openSprints()`,
+      fields: 'summary,status,priority,duedate,assignee,created',
+      maxResults: '100',
+      expand: 'changelog',
+    });
+    const url = `${baseUrl.replace(/\/$/, '')}/rest/agile/1.0/board/${boardId}/issue?${params.toString()}`;
+    const res = await fetch(url, { headers });
 
-    while (true) {
-      const params = new URLSearchParams({
-        startAt: String(startAt),
-        maxResults: String(maxResults),
-        fields: 'summary,status,priority,duedate,assignee,created',
-        expand: 'changelog',
-      });
-      if (assigneeEmail) {
-        params.set('jql', `assignee = "${assigneeEmail}" AND statusCategory != Done`);
-      } else {
-        params.set('jql', 'statusCategory != Done');
-      }
-      const url = `${baseUrl.replace(/\/$/, '')}/rest/agile/1.0/board/${boardId}/issue?${params.toString()}`;
-      const res = await fetch(url, { headers });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new HttpException(text || res.statusText, res.status);
-      }
-
-      const data = (await res.json()) as {
-        issues?: Array<Record<string, unknown>>;
-        total?: number;
-      };
-
-      issues.push(...(data.issues ?? []));
-
-      if (issues.length >= (data.total ?? 0) || !(data.issues?.length)) break;
-      startAt += maxResults;
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new HttpException(text || res.statusText, res.status);
     }
 
-    return { issues } as JiraSearchResultDto;
+    const data = (await res.json()) as { issues?: Array<Record<string, unknown>> };
+    return { issues: data.issues ?? [] } as JiraSearchResultDto;
   }
 
   async jiraSprints(

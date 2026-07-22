@@ -94,13 +94,9 @@ export class PmTrackerController {
 
   @Post('jira-board-issues')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Fetch issues from a specific Jira board via the Agile API',
-  })
+  @ApiOperation({ summary: 'Fetch issues from a Jira board for a specific assignee (active sprint)' })
   @Auth([RoleType.CREATOR, RoleType.ADMIN])
-  jiraBoardIssues(
-    @Body() dto: JiraBoardIssuesRequestDto,
-  ): Promise<JiraSearchResultDto> {
+  jiraBoardIssues(@Body() dto: JiraBoardIssuesRequestDto): Promise<JiraSearchResultDto> {
     return this.pmTrackerService.jiraBoardIssues(dto);
   }
 
