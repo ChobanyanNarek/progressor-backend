@@ -201,23 +201,50 @@ export class PmTrackerService {
       Accept: 'application/json',
     };
 
-    // Use Agile board issues endpoint filtered by assignee, active sprint
-    const params = new URLSearchParams({
-      jql: `assignee = "${assigneeEmail}" AND sprint in openSprints()`,
-      fields: 'summary,status,priority,duedate,assignee,created,timeoriginalestimate,timespent,customfield_10016,customfield_10028',
-      maxResults: '100',
-      expand: 'changelog',
-    });
-    const url = `${baseUrl.replace(/\/$/, '')}/rest/agile/1.0/board/${boardId}/issue?${params.toString()}`;
-    const res = await fetch(url, { headers });
+    // Agile board issues filtered by assignee across ALL sprints AND the backlog — not just
+    // open sprints — so the tracker mirrors what the user sees on the board in Jira. Match
+    // the assignee by full email OR username (local-part) since some instances key on either.
+    // Fully paginated so boards with more than one page of issues are not truncated.
+    const localPart = assigneeEmail && assigneeEmail.includes('@')
+      ? assigneeEmail.slice(0, assigneeEmail.indexOf('@'))
+      : assigneeEmail;
+    const assigneeVals = [...new Set([assigneeEmail, localPart].filter(Boolean))]
+      .map((v) => `"${v}"`)
+      .join(', ');
+    const jql = assigneeVals ? `assignee in (${assigneeVals})` : '';
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new HttpException(text || res.statusText, res.status);
+    const allIssues: Array<Record<string, unknown>> = [];
+    let startAt = 0;
+    const maxResults = 100;
+
+    while (true) {
+      const params = new URLSearchParams({
+        fields: 'summary,status,priority,duedate,assignee,created,timeoriginalestimate,timespent,customfield_10016,customfield_10028',
+        startAt: String(startAt),
+        maxResults: String(maxResults),
+        expand: 'changelog',
+      });
+      if (jql) params.set('jql', jql);
+      const url = `${baseUrl.replace(/\/$/, '')}/rest/agile/1.0/board/${boardId}/issue?${params.toString()}`;
+      const res = await fetch(url, { headers });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new HttpException(text || res.statusText, res.status);
+      }
+
+      const data = (await res.json()) as {
+        issues?: Array<Record<string, unknown>>;
+        total?: number;
+      };
+      const issues = data.issues ?? [];
+      allIssues.push(...issues);
+
+      startAt += maxResults;
+      if (issues.length < maxResults || startAt >= (data.total ?? 0)) break;
     }
 
-    const data = (await res.json()) as { issues?: Array<Record<string, unknown>> };
-    return { issues: data.issues ?? [] } as JiraSearchResultDto;
+    return { issues: allIssues } as JiraSearchResultDto;
   }
 
   // Return the FULL set of issue keys on a board — assignee-agnostic and sprint-agnostic,
