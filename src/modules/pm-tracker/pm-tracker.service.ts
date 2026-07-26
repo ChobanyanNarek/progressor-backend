@@ -47,16 +47,7 @@ export class PmTrackerService {
       );
     }
 
-    const params = new URLSearchParams({
-      jql,
-      fields: 'summary,status,priority,duedate,assignee,created,timeoriginalestimate,timespent,customfield_10016,customfield_10028',
-      maxResults: '100',
-      expand: 'changelog',
-    });
-
-    const url = `${baseUrl.replace(/\/$/, '')}/rest/api/3/search/jql?${params.toString()}`;
     const auth = Buffer.from(`${email}:${token}`).toString('base64');
-
     const headers: Record<string, string> = {
       // biome-ignore lint/style/useNamingConvention: HTTP header names are PascalCase by spec
       Authorization: `Basic ${auth}`,
@@ -64,19 +55,40 @@ export class PmTrackerService {
       Accept: 'application/json',
     };
 
-    const res = await fetch(url, { headers });
+    // Fully paginate the new /search/jql endpoint (token-based) so results are not capped
+    // at one page of 100 — that cap silently dropped issues for every project/board.
+    const allIssues: Array<Record<string, unknown>> = [];
+    let nextPageToken: string | undefined;
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
+    do {
+      const params = new URLSearchParams({
+        jql,
+        fields: 'summary,status,priority,duedate,assignee,created,timeoriginalestimate,timespent,customfield_10016,customfield_10028',
+        maxResults: '100',
+        expand: 'changelog',
+      });
+      if (nextPageToken) params.set('nextPageToken', nextPageToken);
 
-      throw new HttpException(text || res.statusText, res.status);
-    }
+      const url = `${baseUrl.replace(/\/$/, '')}/rest/api/3/search/jql?${params.toString()}`;
+      const res = await fetch(url, { headers });
 
-    const data = (await res.json()) as {
-      issues?: Array<Record<string, unknown>>;
-    };
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new HttpException(text || res.statusText, res.status);
+      }
 
-    return { issues: data.issues ?? [] } as JiraSearchResultDto;
+      const data = (await res.json()) as {
+        issues?: Array<Record<string, unknown>>;
+        nextPageToken?: string;
+        isLast?: boolean;
+      };
+      allIssues.push(...(data.issues ?? []));
+      nextPageToken = data.isLast ? undefined : data.nextPageToken;
+      // Safety bound: never loop forever.
+      if (allIssues.length > 10000) break;
+    } while (nextPageToken);
+
+    return { issues: allIssues } as JiraSearchResultDto;
   }
 
   async jiraTimeTracking(dto: JiraStatusesRequestDto): Promise<Record<string, unknown>> {
