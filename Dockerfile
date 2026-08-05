@@ -31,7 +31,7 @@ FROM node:22-slim
 ARG PORT=3000
 
 ENV NODE_ENV=production
-ENV NODE_OPTIONS="--max-old-space-size=8192"
+ENV NODE_OPTIONS="--max-old-space-size=400"
 
 WORKDIR /usr/src/app
 

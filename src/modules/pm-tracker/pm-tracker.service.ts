@@ -205,7 +205,7 @@ export class PmTrackerService {
     // open sprints — so the tracker mirrors what the user sees on the board in Jira. Match
     // the assignee by full email OR username (local-part) since some instances key on either.
     // Fully paginated so boards with more than one page of issues are not truncated.
-    const localPart = assigneeEmail && assigneeEmail.includes('@')
+    const localPart = assigneeEmail?.includes('@')
       ? assigneeEmail.slice(0, assigneeEmail.indexOf('@'))
       : assigneeEmail;
     const assigneeVals = [...new Set([assigneeEmail, localPart].filter(Boolean))]
@@ -278,6 +278,7 @@ export class PmTrackerService {
     const keys = new Set<string>();
     let startAt = 0;
     const maxResults = 100;
+    const MAX_KEYS = 5000;
 
     while (true) {
       const params = new URLSearchParams({
@@ -304,7 +305,7 @@ export class PmTrackerService {
       }
 
       startAt += maxResults;
-      if (issues.length < maxResults || startAt >= (data.total ?? 0)) break;
+      if (issues.length < maxResults || startAt >= (data.total ?? 0) || keys.size >= MAX_KEYS) break;
     }
 
     return { keys: [...keys] };
