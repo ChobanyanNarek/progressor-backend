@@ -213,17 +213,25 @@ export class PmTrackerService {
       .join(', ');
     const jql = assigneeVals ? `assignee in (${assigneeVals})` : '';
 
+    // Memory-bounded pagination. Board fetches run per-developer and can return many issues;
+    // to avoid exhausting a small instance we (a) cap total accumulated issues, and (b) only
+    // request the heavy `expand=changelog` for the FIRST page. Status history for later-page
+    // issues is simply omitted (buildStatusHistory tolerates a missing changelog) — a fair
+    // trade to keep the service from OOM-restarting during a large sync.
     const allIssues: Array<Record<string, unknown>> = [];
     let startAt = 0;
     const maxResults = 100;
+    const MAX_TOTAL = 1500;     // hard bound so a pathological board can't OOM the instance
+    const CHANGELOG_PAGES = 3;  // expand changelog only on the first few pages
+    let page = 0;
 
     while (true) {
       const params = new URLSearchParams({
         fields: 'summary,status,priority,duedate,assignee,created,timeoriginalestimate,timespent,customfield_10016,customfield_10028',
         startAt: String(startAt),
         maxResults: String(maxResults),
-        expand: 'changelog',
       });
+      if (page < CHANGELOG_PAGES) params.set('expand', 'changelog');
       if (jql) params.set('jql', jql);
       const url = `${baseUrl.replace(/\/$/, '')}/rest/agile/1.0/board/${boardId}/issue?${params.toString()}`;
       const res = await fetch(url, { headers });
@@ -241,7 +249,8 @@ export class PmTrackerService {
       allIssues.push(...issues);
 
       startAt += maxResults;
-      if (issues.length < maxResults || startAt >= (data.total ?? 0)) break;
+      page += 1;
+      if (issues.length < maxResults || startAt >= (data.total ?? 0) || allIssues.length >= MAX_TOTAL) break;
     }
 
     return { issues: allIssues } as JiraSearchResultDto;
