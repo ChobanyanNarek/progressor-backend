@@ -16,6 +16,7 @@ import {
 } from '@nestjs/swagger';
 
 import { RoleType } from '../../constants/role-type.ts';
+import { NumberField } from '../../decorators/field.decorators.ts';
 import { Auth, UUIDParam } from '../../decorators/http.decorators.ts';
 import { AdminPaymentsDto } from '../payment/dtos/admin-payments.dto.ts';
 import { PaymentService } from '../payment/payment.service.ts';
@@ -24,6 +25,7 @@ import { AdminChangePasswordDto } from './dtos/admin-change-password.dto.ts';
 import { AdminPmTrackerUsersDto } from './dtos/admin-pm-tracker-users.dto.ts';
 
 class GrantSubscriptionDto {
+  @NumberField({ int: true, min: 1 })
   months!: number;
 }
 
