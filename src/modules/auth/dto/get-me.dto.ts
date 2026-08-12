@@ -1,6 +1,11 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Expose } from 'class-transformer';
+import { IsDate, IsOptional } from 'class-validator';
+
 import { BaseDto } from '../../../common/dto/base.dto.ts';
 import { RoleType } from '../../../constants/role-type.ts';
 import {
+  BooleanFieldOptional,
   EmailField,
   EnumField,
   StringField,
@@ -26,4 +31,19 @@ export class GetMeDto extends BaseDto {
 
   @StringFieldOptional({ nullable: true })
   avatar?: string | null;
+
+  @BooleanFieldOptional()
+  subscriptionActive?: boolean;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  @Expose()
+  @IsOptional()
+  @IsDate()
+  subscriptionUntil?: Date | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  @Expose()
+  @IsOptional()
+  @IsDate()
+  trialUntil?: Date | null;
 }

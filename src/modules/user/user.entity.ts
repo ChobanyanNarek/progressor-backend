@@ -43,6 +43,15 @@ export class UserEntity extends AbstractEntity<UserDto> {
   @Column({ nullable: true, type: 'varchar' })
   avatar!: string | null;
 
+  @Column({ type: 'boolean', default: false })
+  subscriptionActive!: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  subscriptionUntil!: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  trialUntil!: Date | null;
+
   @Column({ type: 'timestamp', default: () => 'now()' })
   lastLogin!: Date;
 

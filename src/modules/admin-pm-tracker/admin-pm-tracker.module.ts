@@ -3,6 +3,7 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { PmTrackerStateEntity } from '../pm-tracker/pm-tracker-state.entity.ts';
+import { PaymentModule } from '../payment/payment.module.ts';
 import { DeleteUserHandler } from '../user/commands/delete-user/delete-user.handler.ts';
 import { UserEntity } from '../user/user.entity.ts';
 import { AdminPmTrackerController } from './admin-pm-tracker.controller.ts';
@@ -15,6 +16,7 @@ import { GetAdminUsersHandler } from './queries/get-admin-users/get-admin-users.
   imports: [
     CqrsModule,
     TypeOrmModule.forFeature([UserEntity, PmTrackerStateEntity]),
+    PaymentModule,
   ],
   controllers: [AdminPmTrackerController],
   providers: [

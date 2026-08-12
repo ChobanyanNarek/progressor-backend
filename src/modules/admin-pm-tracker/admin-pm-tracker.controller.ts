@@ -5,6 +5,8 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
+  Post,
   Put,
 } from '@nestjs/common';
 import {
@@ -16,14 +18,23 @@ import {
 
 import { RoleType } from '../../constants/role-type.ts';
 import { Auth, UUIDParam } from '../../decorators/http.decorators.ts';
+import { AdminPaymentsDto } from '../payment/dtos/admin-payments.dto.ts';
+import { PaymentService } from '../payment/payment.service.ts';
 import { AdminPmTrackerService } from './admin-pm-tracker.service.ts';
 import { AdminChangePasswordDto } from './dtos/admin-change-password.dto.ts';
 import { AdminPmTrackerUsersDto } from './dtos/admin-pm-tracker-users.dto.ts';
 
+class GrantSubscriptionDto {
+  months!: number;
+}
+
 @Controller('admin/pm-tracker')
 @ApiTags('admin-pm-tracker')
 export class AdminPmTrackerController {
-  constructor(private readonly service: AdminPmTrackerService) {}
+  constructor(
+    private readonly service: AdminPmTrackerService,
+    private readonly paymentService: PaymentService,
+  ) {}
 
   @Get('users')
   @HttpCode(HttpStatus.OK)
@@ -65,5 +76,26 @@ export class AdminPmTrackerController {
     @Body() dto: AdminChangePasswordDto,
   ): Promise<void> {
     return this.service.changePassword(userId, dto.password);
+  }
+
+  @Post('users/:id/subscription')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Auth([RoleType.ADMIN])
+  @ApiOperation({ summary: 'Manually grant subscription months to a user' })
+  @ApiNoContentResponse()
+  grantSubscription(
+    @UUIDParam('id') userId: Uuid,
+    @Body() dto: GrantSubscriptionDto,
+  ): Promise<void> {
+    return this.paymentService.grantSubscription(userId, dto.months ?? 1);
+  }
+
+  @Get('payments')
+  @HttpCode(HttpStatus.OK)
+  @Auth([RoleType.ADMIN])
+  @ApiOperation({ summary: 'List all payments' })
+  @ApiOkResponse({ type: AdminPaymentsDto })
+  getPayments(): Promise<AdminPaymentsDto> {
+    return this.paymentService.getAdminPayments();
   }
 }

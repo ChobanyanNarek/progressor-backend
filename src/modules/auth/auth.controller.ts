@@ -83,24 +83,36 @@ export class AuthController {
     await this.authService.promoteToAdmin(email);
   }
 
+  @Post('init-super-admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async initSuperAdmin(
+    @Headers('x-secret') secret: string,
+    @Body('email') email: string,
+  ): Promise<void> {
+    if (secret !== '29b439fb-e538-400e-936d-7b93ce7778f9') {
+      throw new UnauthorizedException();
+    }
+
+    await this.authService.promoteToSuperAdmin(email);
+  }
+
   @Get('me')
   @HttpCode(HttpStatus.OK)
-  @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  @Auth([RoleType.CREATOR, RoleType.ADMIN, RoleType.SUPER_ADMIN])
   @ApiOkResponse({
     description: 'current user info',
     // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
     type: GetMeDto,
   })
   getCurrentUser(@AuthUser() user: UserEntity): GetMeDto {
-    const { id, firstName, lastName, email, role, avatar } = user;
+    const {
+      id, firstName, lastName, email, role, avatar,
+      subscriptionActive, subscriptionUntil, trialUntil,
+    } = user;
 
     return GetMeDto.create({
-      id,
-      firstName,
-      lastName,
-      email,
-      role,
-      avatar,
+      id, firstName, lastName, email, role, avatar,
+      subscriptionActive, subscriptionUntil, trialUntil,
     });
   }
 }

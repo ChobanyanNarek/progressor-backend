@@ -2,7 +2,7 @@ import type { CanActivate, ExecutionContext } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
-import type { RoleType } from '../constants/role-type.ts';
+import { RoleType } from '../constants/role-type.ts';
 import type { UserEntity } from '../modules/user/user.entity.ts';
 
 @Injectable()
@@ -21,6 +21,11 @@ export class RolesGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<{ user: UserEntity }>();
     const user = request.user;
+
+    // SUPER_ADMIN bypasses all role checks
+    if (user.role === RoleType.SUPER_ADMIN) {
+      return true;
+    }
 
     return roles.includes(user.role);
   }

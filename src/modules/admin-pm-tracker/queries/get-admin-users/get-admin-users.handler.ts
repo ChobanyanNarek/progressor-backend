@@ -62,6 +62,9 @@ export class GetAdminUsersHandler
         jiraConnected: hasActive('jiraConnections'),
         gitlabConnected: hasActive('gitlabConnections'),
         githubConnected: hasActive('githubConnections'),
+        subscriptionActive: user.subscriptionActive,
+        subscriptionUntil: user.subscriptionUntil,
+        trialUntil: user.trialUntil,
       });
     });
 

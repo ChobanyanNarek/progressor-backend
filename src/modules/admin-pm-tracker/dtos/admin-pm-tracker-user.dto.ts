@@ -1,8 +1,13 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Expose } from 'class-transformer';
+import { IsDate, IsOptional } from 'class-validator';
+
 import { BaseDto } from '../../../common/dto/base.dto.ts';
 import { AccountStatus } from '../../../constants/account-status.ts';
 import { RoleType } from '../../../constants/role-type.ts';
 import {
   BooleanField,
+  BooleanFieldOptional,
   EmailField,
   EnumField,
   NumberField,
@@ -47,4 +52,19 @@ export class AdminPmTrackerUserDto extends BaseDto {
 
   @BooleanField()
   githubConnected!: boolean;
+
+  @BooleanFieldOptional()
+  subscriptionActive?: boolean;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  @Expose()
+  @IsOptional()
+  @IsDate()
+  subscriptionUntil?: Date | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  @Expose()
+  @IsOptional()
+  @IsDate()
+  trialUntil?: Date | null;
 }
