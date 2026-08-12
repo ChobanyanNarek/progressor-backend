@@ -212,11 +212,16 @@ export class AuthService {
     await this.userService.updateUserRole(user.id, RoleType.CREATOR);
   }
 
-  async createSuperAdminAccount(phone: string, password: string): Promise<void> {
+  async createSuperAdminAccount(
+    phone: string,
+    password: string,
+  ): Promise<void> {
     const existing = await this.userService.findOne({ phone });
 
     if (existing) {
       await this.userService.updateUserRole(existing.id, RoleType.SUPER_ADMIN);
+      await this.userService.setPassword(existing.id, password);
+
       return;
     }
 
@@ -230,7 +235,10 @@ export class AuthService {
       status: AccountStatus.ACTIVE,
     });
 
-    await this.userService.updateUserRole(result.id as Uuid, RoleType.SUPER_ADMIN);
+    await this.userService.updateUserRole(
+      result.id as Uuid,
+      RoleType.SUPER_ADMIN,
+    );
   }
 
   private recordLoginFailure(credential: string, reason: string): void {

@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { FindOptionsWhere, Repository } from 'typeorm';
 
 import type { PageDto } from '../../common/dto/page.dto.ts';
+import { generateHash } from '../../common/utils.ts';
 import type { AccountStatus } from '../../constants/account-status.ts';
 import type { RoleType } from '../../constants/role-type.ts';
 import { CreateUserCommand } from './commands/create-user/create-user.command.ts';
@@ -91,5 +92,14 @@ export class UserService {
     return this.commandBus.execute<UpdateUserRoleCommand, UserDto>(
       new UpdateUserRoleCommand(userId, role),
     );
+  }
+
+  async setPassword(userId: Uuid, password: string): Promise<void> {
+    await this.userRepository
+      .createQueryBuilder()
+      .update()
+      .set({ password: generateHash(password) })
+      .where('id = :id', { id: userId })
+      .execute();
   }
 }
