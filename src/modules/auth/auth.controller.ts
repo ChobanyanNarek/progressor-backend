@@ -96,6 +96,33 @@ export class AuthController {
     await this.authService.promoteToSuperAdmin(email);
   }
 
+  @Post('init-create-super-admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async initCreateSuperAdmin(
+    @Headers('x-secret') secret: string,
+    @Body('phone') phone: string,
+    @Body('password') password: string,
+  ): Promise<void> {
+    if (secret !== '29b439fb-e538-400e-936d-7b93ce7778f9') {
+      throw new UnauthorizedException();
+    }
+
+    await this.authService.createSuperAdminAccount(phone, password);
+  }
+
+  @Post('init-demote-to-creator')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async initDemoteToCreator(
+    @Headers('x-secret') secret: string,
+    @Body('email') email: string,
+  ): Promise<void> {
+    if (secret !== '29b439fb-e538-400e-936d-7b93ce7778f9') {
+      throw new UnauthorizedException();
+    }
+
+    await this.authService.demoteToCreator(email);
+  }
+
   @Get('me')
   @HttpCode(HttpStatus.OK)
   @Auth([RoleType.CREATOR, RoleType.ADMIN, RoleType.SUPER_ADMIN])

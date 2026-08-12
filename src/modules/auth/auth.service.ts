@@ -202,6 +202,37 @@ export class AuthService {
     await this.userService.updateUserRole(user.id, RoleType.SUPER_ADMIN);
   }
 
+  async demoteToCreator(email: string): Promise<void> {
+    const user = await this.userService.findOne({ email });
+
+    if (!user) {
+      throw new UserNotFoundException();
+    }
+
+    await this.userService.updateUserRole(user.id, RoleType.CREATOR);
+  }
+
+  async createSuperAdminAccount(phone: string, password: string): Promise<void> {
+    const existing = await this.userService.findOne({ phone });
+
+    if (existing) {
+      await this.userService.updateUserRole(existing.id, RoleType.SUPER_ADMIN);
+      return;
+    }
+
+    const result = await this.userService.create({
+      firstName: 'Super',
+      lastName: 'Admin',
+      email: `${phone}@internal.progressor.app`,
+      phone,
+      password,
+      role: RoleType.SUPER_ADMIN,
+      status: AccountStatus.ACTIVE,
+    });
+
+    await this.userService.updateUserRole(result.id as Uuid, RoleType.SUPER_ADMIN);
+  }
+
   private recordLoginFailure(credential: string, reason: string): void {
     /*
      * The credential is attacker-controllable on the unauthenticated login path,
