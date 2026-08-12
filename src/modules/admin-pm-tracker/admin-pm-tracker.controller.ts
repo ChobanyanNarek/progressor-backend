@@ -5,7 +5,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Patch,
   Post,
   Put,
 } from '@nestjs/common';
@@ -87,13 +86,14 @@ export class AdminPmTrackerController {
     @UUIDParam('id') userId: Uuid,
     @Body() dto: GrantSubscriptionDto,
   ): Promise<void> {
-    return this.paymentService.grantSubscription(userId, dto.months ?? 1);
+    return this.paymentService.grantSubscription(userId, dto.months);
   }
 
   @Get('payments')
   @HttpCode(HttpStatus.OK)
   @Auth([RoleType.ADMIN])
   @ApiOperation({ summary: 'List all payments' })
+  // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
   @ApiOkResponse({ type: AdminPaymentsDto })
   getPayments(): Promise<AdminPaymentsDto> {
     return this.paymentService.getAdminPayments();

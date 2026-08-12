@@ -16,12 +16,9 @@ import { InitPaymentDto } from './dtos/init-payment.dto.ts';
 import { PaymentStatusDto } from './dtos/payment-status.dto.ts';
 import { PaymentService } from './payment.service.ts';
 
-class InitPaymentBodyDto {
-  plan!: string;
-}
-
 class ConfirmPaymentBodyDto {
   orderId!: string;
+
   paymentId!: string;
 }
 
@@ -33,7 +30,10 @@ export class PaymentController {
   @Post('init')
   @HttpCode(HttpStatus.OK)
   @Auth([RoleType.CREATOR, RoleType.ADMIN, RoleType.SUPER_ADMIN])
-  @ApiOperation({ summary: 'Initiate a payment — returns Ameriabank redirect URL' })
+  @ApiOperation({
+    summary: 'Initiate a payment — returns Ameriabank redirect URL',
+  })
+  // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
   @ApiOkResponse({ type: InitPaymentDto })
   initPayment(@AuthUser() user: UserEntity): Promise<InitPaymentDto> {
     return this.paymentService.initPayment(user.id);
@@ -47,13 +47,18 @@ export class PaymentController {
     @AuthUser() user: UserEntity,
     @Body() body: ConfirmPaymentBodyDto,
   ): Promise<{ ok: boolean }> {
-    return this.paymentService.confirmPayment(user.id, body.orderId, body.paymentId);
+    return this.paymentService.confirmPayment(
+      user.id,
+      body.orderId,
+      body.paymentId,
+    );
   }
 
   @Get('status')
   @HttpCode(HttpStatus.OK)
   @Auth([RoleType.CREATOR, RoleType.ADMIN, RoleType.SUPER_ADMIN])
   @ApiOperation({ summary: 'Get current user subscription status' })
+  // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
   @ApiOkResponse({ type: PaymentStatusDto })
   getStatus(@AuthUser() user: UserEntity): Promise<PaymentStatusDto> {
     return this.paymentService.getStatus(user.id);

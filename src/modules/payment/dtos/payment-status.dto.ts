@@ -1,9 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose, Type } from 'class-transformer';
-import { IsBoolean, IsDate, IsOptional } from 'class-validator';
+import { IsDate, IsOptional } from 'class-validator';
 
 import { BaseDto } from '../../../common/dto/base.dto.ts';
-import { BooleanField, NumberField, StringFieldOptional } from '../../../decorators/field.decorators.ts';
+import {
+  BooleanField,
+  NumberField,
+  StringFieldOptional,
+} from '../../../decorators/field.decorators.ts';
 
 export class LastPaymentDto extends BaseDto {
   @NumberField()

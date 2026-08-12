@@ -33,6 +33,7 @@ export class GetUserStatsHandler
     const counts: Record<RoleType, number> = {
       [RoleType.CREATOR]: 0,
       [RoleType.ADMIN]: 0,
+      [RoleType.SUPER_ADMIN]: 0,
     };
 
     let total = 0;
