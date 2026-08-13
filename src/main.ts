@@ -44,9 +44,21 @@ export async function bootstrap(): Promise<NestExpressApplication> {
    */
   const expressInstance = express();
   expressInstance.disable('x-powered-by');
-
   expressInstance.use(express.json({ limit: '10mb' }));
   expressInstance.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+  /*
+   * In production, start listening before NestJS init so Render health checks
+   * pass during the module bootstrap phase. NestJS registers its routes on
+   * expressInstance (not on a new server), so no second listen() is needed.
+   */
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (isProduction) {
+    const earlyPort = Number(process.env.PORT ?? 3000);
+    expressInstance.listen(earlyPort, '0.0.0.0');
+    expressInstance.get('/health', (_req, res) => res.json({ status: 'ok' }));
+  }
 
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule,
@@ -116,9 +128,15 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   const viteEnv = (import.meta as unknown as IViteImportMeta).env;
 
   if (!viteEnv?.DEV) {
-    // Bind the port now — NestJS already registered all routes on expressInstance
-    // during create() above, so this single listen() serves everything.
-    await app.listen(appPort, '0.0.0.0');
+    if (!isProduction) {
+      // Dev without Vite: bind the port normally.
+      await app.listen(appPort, '0.0.0.0');
+    }
+
+    /*
+     * Production: already listening via earlyPort above — NestJS routes are now
+     * registered on expressInstance, so the early server serves everything.
+     */
     console.info(`server running on http://localhost:${appPort}`);
   }
 
