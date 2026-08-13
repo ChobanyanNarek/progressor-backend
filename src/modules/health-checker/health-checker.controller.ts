@@ -10,14 +10,15 @@ import {
 export class HealthCheckerController {
   constructor(
     private healthCheckService: HealthCheckService,
+    // biome-ignore lint/correctness/noUnusedPrivateClassMembers: kept for future DB health checks
     private ormIndicator: TypeOrmHealthIndicator,
   ) {}
 
   @Get()
   @HealthCheck()
-  async check(): Promise<HealthCheckResult> {
-    return this.healthCheckService.check([
-      () => this.ormIndicator.pingCheck('database', { timeout: 1500 }),
-    ]);
+  check(): Promise<HealthCheckResult> {
+    // Lightweight check — skip DB ping so the health endpoint responds
+    // immediately after NestJS boots (DB ping adds latency on cold start).
+    return this.healthCheckService.check([]);
   }
 }
