@@ -15,8 +15,13 @@ import type { InitPaymentDto } from './dtos/init-payment.dto.ts';
 import type { PaymentStatusDto } from './dtos/payment-status.dto.ts';
 import { PaymentEntity, PaymentStatus } from './entities/payment.entity.ts';
 
-const AMERIA_BASE_URL = 'https://services.ameriabank.am/VPOS';
-const AMERIA_PAY_URL = 'https://payments.ameriabank.am/forms/frm_paymentspage.aspx';
+const IS_TEST = process.env.AMERIA_TEST === 'true';
+const AMERIA_BASE_URL = IS_TEST
+  ? 'https://servicestest.ameriabank.am/VPOS'
+  : 'https://services.ameriabank.am/VPOS';
+const AMERIA_PAY_URL = IS_TEST
+  ? 'https://paymentstest.ameriabank.am/forms/frm_paymentspage.aspx'
+  : 'https://payments.ameriabank.am/forms/frm_paymentspage.aspx';
 
 // Monthly price in AMD
 const MONTHLY_PRICE_AMD = 10;
@@ -52,7 +57,10 @@ export class PaymentService {
   }
 
   async initPayment(userId: Uuid): Promise<InitPaymentDto> {
-    const orderId = Date.now();
+    // Test env: OrderID must be 4534001–4535000; prod: use timestamp-based unique ID
+    const orderId = IS_TEST
+      ? 4534001 + (Date.now() % 1000)
+      : Date.now();
 
     const body = {
       ClientID: this.clientId,
