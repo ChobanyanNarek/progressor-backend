@@ -29,13 +29,6 @@ import { TranslationService } from './shared/services/translation.service.ts';
 import { SharedModule } from './shared/shared.module.ts';
 
 export async function bootstrap(): Promise<NestExpressApplication> {
-  /*
-   * In production on Render Starter (512 MB), NestJS cold start takes 40-90 s
-   * which exceeds Render's 30 s health-check window.  Start a bare HTTP server
-   * on the app port immediately so /health responds with 200 during bootstrap.
-   * NestJS registers its routes on the same expressInstance, so no duplicate
-   * server exists — the early server IS the production server.
-   */
   const isProduction = process.env.NODE_ENV === 'production';
   const appPort = Number(process.env.PORT ?? 3000);
 
@@ -44,18 +37,26 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   expressInstance.use(express.json({ limit: '10mb' }));
   expressInstance.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-  let earlyServer: http.Server | null = null;
+  /*
+   * On Render Starter (512 MB RAM), NestJS cold start takes 40-90 s which
+   * exceeds Render's 30 s health-check window.  Bind the production port
+   * immediately and register /health so Render's rolling-deploy health checks
+   * pass during bootstrap.  NestJS registers its own routes onto the same
+   * expressInstance later, so app.init() (not app.listen()) is used to avoid
+   * a duplicate port bind.
+   */
   if (isProduction) {
-    // Register /health before listen so the very first request is answered.
     expressInstance.get('/health', (_req, res) => {
-      res.json({ status: 'ok' });
+      res.status(200).json({ status: 'ok' });
     });
-    // Bind the port synchronously — awaiting is not needed; listen is sync.
-    earlyServer = http.createServer(expressInstance);
-    await new Promise<void>((resolve) => {
-      earlyServer!.listen(appPort, '0.0.0.0', () => resolve());
+
+    await new Promise<void>((resolve, reject) => {
+      const srv = expressInstance.listen(appPort, '0.0.0.0', () => {
+        console.info(`[boot] health endpoint ready on :${appPort}`);
+        resolve();
+      });
+      srv.on('error', reject);
     });
-    console.info(`[boot] health server listening on :${appPort}`);
   }
 
   if (isProduction) {
@@ -68,7 +69,7 @@ export async function bootstrap(): Promise<NestExpressApplication> {
     AppModule,
     new ExpressAdapter(expressInstance),
     {
-      bodyParser: false, // body parser already added above
+      bodyParser: false,
       cors: {
         origin: parseCorsOrigins(process.env.CORS_ORIGINS),
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
@@ -125,11 +126,9 @@ export async function bootstrap(): Promise<NestExpressApplication> {
 
   if (!viteEnv?.DEV) {
     if (isProduction) {
-      // Production: already listening via earlyServer above.
-      // NestJS routes are now registered on expressInstance.
-      // Call app.init() instead of app.listen() to skip re-binding the port.
+      // Port already bound above; just initialize NestJS without re-listening.
       await app.init();
-      console.info(`server running on http://localhost:${appPort}`);
+      console.info(`server fully initialized on http://localhost:${appPort}`);
     } else {
       await app.listen(appPort, '0.0.0.0');
       console.info(`server running on http://localhost:${appPort}`);
