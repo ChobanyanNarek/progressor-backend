@@ -58,8 +58,24 @@ export class PaymentService {
 
   async initPayment(userId: Uuid): Promise<InitPaymentDto> {
     // Test env: OrderID must be 4534001–4535000; prod: use timestamp-based unique ID
+    // Test env: OrderID must be in range 4534001–4535000
+    // Cancel any existing pending payment for this user to free up the OrderID slot
+    const existingPending = await this.paymentRepo.findOne({
+      where: { userId, status: PaymentStatus.PENDING },
+    });
+    if (existingPending) {
+      try {
+        await fetch(`${AMERIA_BASE_URL}/api/VPOS/CancelPayment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ PaymentID: existingPending.paymentId, Username: this.username, Password: this.password }),
+        });
+      } catch { /* ignore cancel errors */ }
+      await this.paymentRepo.delete({ id: existingPending.id });
+    }
+
     const orderId = IS_TEST
-      ? 4534001 + (Date.now() % 1000)
+      ? 4534001 + (Math.floor(Date.now() / 1000) % 999)
       : Date.now();
 
     const body = {
@@ -131,10 +147,13 @@ export class PaymentService {
       throw new InternalServerErrorException('Payment gateway unavailable');
     }
 
-    const responseCode = details['ResponseCode'] as string;
+    this.logger.log(`GetPaymentDetails response: ${JSON.stringify(details)}`);
+
+    const responseCode = String(details['ResponseCode'] ?? '');
     const orderStatus = Number(details['OrderStatus']);
 
     // OrderStatus 2 = deposited/paid; ResponseCode '00' = success
+    // PaymentState string also checked as fallback
     const paid = responseCode === '00' && orderStatus === 2;
 
     if (!paid) {
