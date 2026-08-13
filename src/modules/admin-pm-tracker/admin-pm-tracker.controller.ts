@@ -91,6 +91,15 @@ export class AdminPmTrackerController {
     return this.paymentService.grantSubscription(userId, dto.months);
   }
 
+  @Delete('users/:id/subscription')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Auth([RoleType.ADMIN])
+  @ApiOperation({ summary: 'Revoke subscription from a user' })
+  @ApiNoContentResponse()
+  revokeSubscription(@UUIDParam('id') userId: Uuid): Promise<void> {
+    return this.paymentService.revokeSubscription(userId);
+  }
+
   @Get('payments')
   @HttpCode(HttpStatus.OK)
   @Auth([RoleType.ADMIN])

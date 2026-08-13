@@ -272,4 +272,16 @@ export class PaymentService {
       .where('id = :userId', { userId })
       .execute();
   }
+
+  async revokeSubscription(userId: Uuid): Promise<void> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new BadRequestException('User not found');
+
+    await this.userRepo
+      .createQueryBuilder()
+      .update()
+      .set({ subscriptionActive: false, subscriptionUntil: null })
+      .where('id = :userId', { userId })
+      .execute();
+  }
 }
