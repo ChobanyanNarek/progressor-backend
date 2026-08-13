@@ -47,6 +47,12 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   expressInstance.use(express.json({ limit: '10mb' }));
   expressInstance.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+  /*
+   * Respond to health checks immediately so Render rolling deploys don't time out
+   * while NestJS is still initialising (TypeORM startup + migrations).
+   */
+  expressInstance.get('/health', (_req, res) => res.json({ status: 'ok' }));
+
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule,
     new ExpressAdapter(expressInstance),
