@@ -28,43 +28,22 @@ import { TranslationService } from './shared/services/translation.service.ts';
 import { SharedModule } from './shared/shared.module.ts';
 
 export async function bootstrap(): Promise<NestExpressApplication> {
-  /*
-   * Load runtime config from Secret Manager BEFORE the app module is created,
-   * so ConfigModule/ApiConfigService read the merged process.env.
-   */
   if (process.env.NODE_ENV === 'production') {
     await loadSecrets();
   }
 
   initializeTransactionalContext();
 
-  /*
-   * Pre-configure Express with a larger body limit before NestJS registers routes,
-   * so the 10 MB cap is in place before the default 100 KB parser can reject requests.
-   */
   const expressInstance = express();
   expressInstance.disable('x-powered-by');
   expressInstance.use(express.json({ limit: '10mb' }));
   expressInstance.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-  /*
-   * In production, start listening before NestJS init so Render health checks
-   * pass during the module bootstrap phase. NestJS registers its routes on
-   * expressInstance (not on a new server), so no second listen() is needed.
-   */
-  const isProduction = process.env.NODE_ENV === 'production';
-
-  if (isProduction) {
-    const earlyPort = Number(process.env.PORT ?? 3000);
-    expressInstance.listen(earlyPort, '0.0.0.0');
-    expressInstance.get('/health', (_req, res) => res.json({ status: 'ok' }));
-  }
-
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule,
     new ExpressAdapter(expressInstance),
     {
-      bodyParser: false, // body parser already added above
+      bodyParser: false,
       cors: {
         origin: parseCorsOrigins(process.env.CORS_ORIGINS),
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
@@ -74,7 +53,6 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   );
   app.enable('trust proxy');
   app.use(helmet());
-  // app.setGlobalPrefix('/api'); use api as global prefix if you don't have subdomain
   app.use(compression());
   app.use(morgan('combined'));
   app.enableVersioning();
@@ -110,17 +88,12 @@ export async function bootstrap(): Promise<NestExpressApplication> {
     setupSwagger(app);
   }
 
-  // Starts listening for shutdown hooks
   if (!configService.isDevelopment) {
     app.enableShutdownHooks();
   }
 
   const appPort = configService.appConfig.port;
 
-  /*
-   * Vite plugin binds the server in dev mode (PROD===false); in all other
-   * runtimes import.meta.env is undefined.
-   */
   interface IViteImportMeta {
     // biome-ignore lint/style/useNamingConvention: PROD/DEV are Vite's injected env keys
     env?: { DEV?: boolean; PROD?: boolean };
@@ -128,15 +101,7 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   const viteEnv = (import.meta as unknown as IViteImportMeta).env;
 
   if (!viteEnv?.DEV) {
-    if (!isProduction) {
-      // Dev without Vite: bind the port normally.
-      await app.listen(appPort, '0.0.0.0');
-    }
-
-    /*
-     * Production: already listening via earlyPort above — NestJS routes are now
-     * registered on expressInstance, so the early server serves everything.
-     */
+    await app.listen(appPort, '0.0.0.0');
     console.info(`server running on http://localhost:${appPort}`);
   }
 
