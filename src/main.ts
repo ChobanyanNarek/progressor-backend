@@ -44,6 +44,12 @@ export async function bootstrap(): Promise<NestExpressApplication> {
    */
   const expressInstance = express();
   expressInstance.disable('x-powered-by');
+
+  // Respond to Render health checks immediately so rolling deploys don't time out
+  // while NestJS is still initializing modules and connecting to the database.
+  const port = Number(process.env.PORT ?? 3000);
+  const earlyServer = expressInstance.listen(port, '0.0.0.0');
+  expressInstance.get('/health', (_req, res) => { res.json({ status: 'ok' }); });
   expressInstance.use(express.json({ limit: '10mb' }));
   expressInstance.use(express.urlencoded({ limit: '10mb', extended: true }));
 
@@ -115,6 +121,9 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   const viteEnv = (import.meta as unknown as IViteImportMeta).env;
 
   if (!viteEnv?.DEV) {
+    await new Promise<void>((resolve, reject) => {
+      earlyServer.close((err) => { if (err) reject(err); else resolve(); });
+    });
     await app.listen(appPort, '0.0.0.0');
     console.info(`server running on http://localhost:${appPort}`);
   }
