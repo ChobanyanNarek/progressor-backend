@@ -1,5 +1,7 @@
 import './boilerplate.polyfill';
 
+import type { Socket } from 'node:net';
+
 import {
   ClassSerializerInterceptor,
   HttpStatus,
@@ -50,7 +52,12 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   const port = Number(process.env.PORT ?? 3000);
 
   // Start listening immediately so Render health checks pass while NestJS inits.
+  const bootstrapSockets = new Set<Socket>();
   const bootstrapServer = expressInstance.listen(port, '0.0.0.0');
+  bootstrapServer.on('connection', (s: Socket) => {
+    bootstrapSockets.add(s);
+    s.on('close', () => bootstrapSockets.delete(s));
+  });
   expressInstance.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
   const app = await NestFactory.create<NestExpressApplication>(
@@ -121,12 +128,15 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   const viteEnv = (import.meta as unknown as IViteImportMeta).env;
 
   if (!viteEnv?.DEV) {
-    // Close the early bootstrap server before NestJS binds the same port.
-    await new Promise<void>((resolve) =>
+    await new Promise<void>((resolve) => {
       bootstrapServer.close(() => {
         resolve();
-      }),
-    );
+      });
+
+      for (const s of bootstrapSockets) {
+        s.destroy();
+      }
+    });
     await app.listen(appPort, '0.0.0.0');
     console.info(`server running on http://localhost:${appPort}`);
   }
