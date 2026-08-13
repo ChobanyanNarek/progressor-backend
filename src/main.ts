@@ -1,6 +1,5 @@
 import './boilerplate.polyfill';
 
-import http from 'node:http';
 import {
   ClassSerializerInterceptor,
   HttpStatus,
