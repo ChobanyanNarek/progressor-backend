@@ -47,10 +47,10 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   expressInstance.use(express.json({ limit: '10mb' }));
   expressInstance.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-  /*
-   * Respond to health checks immediately so Render rolling deploys don't time out
-   * while NestJS is still initialising (TypeORM startup + migrations).
-   */
+  const port = Number(process.env.PORT ?? 3000);
+
+  // Start listening immediately so Render health checks pass while NestJS inits.
+  const bootstrapServer = expressInstance.listen(port, '0.0.0.0');
   expressInstance.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
   const app = await NestFactory.create<NestExpressApplication>(
@@ -108,7 +108,7 @@ export async function bootstrap(): Promise<NestExpressApplication> {
     app.enableShutdownHooks();
   }
 
-  const port = configService.appConfig.port;
+  const appPort = configService.appConfig.port;
 
   /*
    * Vite plugin binds the server in dev mode (PROD===false); in all other
@@ -121,8 +121,14 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   const viteEnv = (import.meta as unknown as IViteImportMeta).env;
 
   if (!viteEnv?.DEV) {
-    await app.listen(port, '0.0.0.0');
-    console.info(`server running on http://localhost:${port}`);
+    // Close the early bootstrap server before NestJS binds the same port.
+    await new Promise<void>((resolve) =>
+      bootstrapServer.close(() => {
+        resolve();
+      }),
+    );
+    await app.listen(appPort, '0.0.0.0');
+    console.info(`server running on http://localhost:${appPort}`);
   }
 
   return app;
