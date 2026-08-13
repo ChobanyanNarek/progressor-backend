@@ -1,5 +1,6 @@
 import './boilerplate.polyfill';
 
+import http from 'node:http';
 import {
   ClassSerializerInterceptor,
   HttpStatus,
@@ -28,22 +29,46 @@ import { TranslationService } from './shared/services/translation.service.ts';
 import { SharedModule } from './shared/shared.module.ts';
 
 export async function bootstrap(): Promise<NestExpressApplication> {
-  if (process.env.NODE_ENV === 'production') {
-    await loadSecrets();
-  }
-
-  initializeTransactionalContext();
+  /*
+   * In production on Render Starter (512 MB), NestJS cold start takes 40-90 s
+   * which exceeds Render's 30 s health-check window.  Start a bare HTTP server
+   * on the app port immediately so /health responds with 200 during bootstrap.
+   * NestJS registers its routes on the same expressInstance, so no duplicate
+   * server exists — the early server IS the production server.
+   */
+  const isProduction = process.env.NODE_ENV === 'production';
+  const appPort = Number(process.env.PORT ?? 3000);
 
   const expressInstance = express();
   expressInstance.disable('x-powered-by');
   expressInstance.use(express.json({ limit: '10mb' }));
   expressInstance.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+  let earlyServer: http.Server | null = null;
+  if (isProduction) {
+    // Register /health before listen so the very first request is answered.
+    expressInstance.get('/health', (_req, res) => {
+      res.json({ status: 'ok' });
+    });
+    // Bind the port synchronously — awaiting is not needed; listen is sync.
+    earlyServer = http.createServer(expressInstance);
+    await new Promise<void>((resolve) => {
+      earlyServer!.listen(appPort, '0.0.0.0', () => resolve());
+    });
+    console.info(`[boot] health server listening on :${appPort}`);
+  }
+
+  if (isProduction) {
+    await loadSecrets();
+  }
+
+  initializeTransactionalContext();
+
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule,
     new ExpressAdapter(expressInstance),
     {
-      bodyParser: false,
+      bodyParser: false, // body parser already added above
       cors: {
         origin: parseCorsOrigins(process.env.CORS_ORIGINS),
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
@@ -92,8 +117,6 @@ export async function bootstrap(): Promise<NestExpressApplication> {
     app.enableShutdownHooks();
   }
 
-  const appPort = configService.appConfig.port;
-
   interface IViteImportMeta {
     // biome-ignore lint/style/useNamingConvention: PROD/DEV are Vite's injected env keys
     env?: { DEV?: boolean; PROD?: boolean };
@@ -101,8 +124,16 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   const viteEnv = (import.meta as unknown as IViteImportMeta).env;
 
   if (!viteEnv?.DEV) {
-    await app.listen(appPort, '0.0.0.0');
-    console.info(`server running on http://localhost:${appPort}`);
+    if (isProduction) {
+      // Production: already listening via earlyServer above.
+      // NestJS routes are now registered on expressInstance.
+      // Call app.init() instead of app.listen() to skip re-binding the port.
+      await app.init();
+      console.info(`server running on http://localhost:${appPort}`);
+    } else {
+      await app.listen(appPort, '0.0.0.0');
+      console.info(`server running on http://localhost:${appPort}`);
+    }
   }
 
   return app;
