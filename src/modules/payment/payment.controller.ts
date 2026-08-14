@@ -17,9 +17,13 @@ import { InitPaymentDto } from './dtos/init-payment.dto.ts';
 import { PaymentStatusDto } from './dtos/payment-status.dto.ts';
 import { PaymentService } from './payment.service.ts';
 
+import { IsString } from 'class-validator';
+
 class ConfirmPaymentBodyDto {
+  @IsString()
   orderId!: string;
 
+  @IsString()
   paymentId!: string;
 }
 
