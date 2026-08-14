@@ -100,7 +100,9 @@
           "level": "error",
           "options": {
             "requireAscii": true,
-            "filenameCases": ["kebab-case"]
+            "filenameCases": [
+              "kebab-case"
+            ]
           }
         },
         "useForOf": "error",
@@ -115,33 +117,46 @@
                   "kind": "interface"
                 },
                 "match": "(?:I)(.*)",
-                "formats": ["PascalCase"]
+                "formats": [
+                  "PascalCase"
+                ]
               },
               {
                 "selector": {
                   "kind": "enumMember"
                 },
-                "formats": ["CONSTANT_CASE"]
+                "formats": [
+                  "CONSTANT_CASE"
+                ]
               },
               {
                 "selector": {
                   "kind": "variable"
                 },
-                "formats": ["camelCase", "CONSTANT_CASE"]
+                "formats": [
+                  "camelCase",
+                  "CONSTANT_CASE"
+                ]
               },
               {
                 "selector": {
                   "kind": "typeLike"
                 },
-                "formats": ["PascalCase"]
+                "formats": [
+                  "PascalCase"
+                ]
               },
               {
                 "selector": {
                   "kind": "classMember",
-                  "modifiers": ["private"]
+                  "modifiers": [
+                    "private"
+                  ]
                 },
                 "match": "([^_]*)",
-                "formats": ["camelCase"]
+                "formats": [
+                  "camelCase"
+                ]
               }
             ]
           }
@@ -227,7 +242,9 @@
     "formatter": {
       "quoteStyle": "single"
     },
-    "globals": ["exports"],
+    "globals": [
+      "exports"
+    ],
     "parser": {
       "unsafeParameterDecoratorsEnabled": true
     }
@@ -239,7 +256,12 @@
   },
   "overrides": [
     {
-      "includes": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+      "includes": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mts",
+        "**/*.cts"
+      ],
       "linter": {
         "rules": {
           "complexity": {
@@ -275,7 +297,12 @@
       }
     },
     {
-      "includes": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+      "includes": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mts",
+        "**/*.cts"
+      ],
       "linter": {
         "rules": {
           "complexity": {
@@ -311,7 +338,12 @@
       }
     },
     {
-      "includes": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+      "includes": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mts",
+        "**/*.cts"
+      ],
       "linter": {
         "rules": {
           "complexity": {
@@ -347,7 +379,12 @@
       }
     },
     {
-      "includes": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+      "includes": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mts",
+        "**/*.cts"
+      ],
       "linter": {
         "rules": {
           "complexity": {
@@ -383,7 +420,9 @@
       }
     },
     {
-      "includes": ["src/shared/services/aws-s3.service.ts"],
+      "includes": [
+        "src/shared/services/aws-s3.service.ts"
+      ],
       "linter": {
         "rules": {
           "style": {
@@ -393,11 +432,28 @@
       }
     },
     {
-      "includes": ["src/constants/credits.constants.ts"],
+      "includes": [
+        "src/constants/credits.constants.ts"
+      ],
       "linter": {
         "rules": {
           "style": {
             "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/modules/payment/payment.service.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          },
+          "complexity": {
+            "useLiteralKeys": "off"
           }
         }
       }

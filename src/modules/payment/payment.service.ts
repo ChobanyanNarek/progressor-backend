@@ -128,15 +128,16 @@ export class PaymentService {
   }
 
   async confirmPayment(orderId: string, paymentId: string): Promise<{ ok: boolean }> {
-    // Look up userId from the payment record — no auth token needed on callback
-    const payment = await this.paymentRepo.findOne({ where: { paymentId } });
+    // Ameriabank sends paymentId in lowercase in the callback URL but DB stores uppercase
+    const normalizedId = paymentId.toUpperCase();
+    const payment = await this.paymentRepo.findOne({ where: { paymentId: normalizedId } });
     if (!payment) {
       this.logger.warn(`confirmPayment: no payment record found for paymentId=${paymentId}`);
       return { ok: false };
     }
     const userId = payment.userId;
     const body = {
-      PaymentID: paymentId,
+      PaymentID: normalizedId,
       Username: this.username,
       Password: this.password,
     };
@@ -185,7 +186,7 @@ export class PaymentService {
         approvalCode: (details['ApprovalCode'] as string | null) ?? null,
         rrn: (details['rrn'] as string | null) ?? null,
       })
-      .where('payment_id = :paymentId', { paymentId })
+      .where('payment_id = :paymentId', { paymentId: normalizedId })
       .execute();
 
     // Activate subscription on user
