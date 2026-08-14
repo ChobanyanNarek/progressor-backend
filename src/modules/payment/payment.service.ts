@@ -20,7 +20,7 @@ const AMERIA_BASE_URL = IS_TEST
   ? 'https://servicestest.ameriabank.am/VPOS'
   : 'https://services.ameriabank.am/VPOS';
 const AMERIA_PAY_URL = IS_TEST
-  ? 'https://vpos-epg.test.ameriabank.am/payments/pay'
+  ? 'https://servicestest.ameriabank.am/VPOS/Payments/Pay'
   : 'https://payments.ameriabank.am/forms/frm_paymentspage.aspx';
 
 // Monthly price in AMD
