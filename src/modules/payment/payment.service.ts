@@ -127,7 +127,14 @@ export class PaymentService {
     return { paymentUrl, paymentId, orderId: String(orderId) } as InitPaymentDto;
   }
 
-  async confirmPayment(userId: Uuid, orderId: string, paymentId: string): Promise<{ ok: boolean }> {
+  async confirmPayment(orderId: string, paymentId: string): Promise<{ ok: boolean }> {
+    // Look up userId from the payment record — no auth token needed on callback
+    const payment = await this.paymentRepo.findOne({ where: { paymentId } });
+    if (!payment) {
+      this.logger.warn(`confirmPayment: no payment record found for paymentId=${paymentId}`);
+      return { ok: false };
+    }
+    const userId = payment.userId;
     const body = {
       PaymentID: paymentId,
       Username: this.username,

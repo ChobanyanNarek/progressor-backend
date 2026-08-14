@@ -12,6 +12,7 @@ import { RoleType } from '../../constants/role-type.ts';
 import { AuthUser } from '../../decorators/auth-user.decorator.ts';
 import { Auth } from '../../decorators/http.decorators.ts';
 import type { UserEntity } from '../user/user.entity.ts';
+// confirm endpoint is intentionally public — paymentId is a secret UUID from Ameriabank
 import { InitPaymentDto } from './dtos/init-payment.dto.ts';
 import { PaymentStatusDto } from './dtos/payment-status.dto.ts';
 import { PaymentService } from './payment.service.ts';
@@ -41,14 +42,11 @@ export class PaymentController {
 
   @Post('confirm')
   @HttpCode(HttpStatus.OK)
-  @Auth([RoleType.CREATOR, RoleType.ADMIN, RoleType.SUPER_ADMIN])
-  @ApiOperation({ summary: 'Confirm payment after Ameriabank redirect' })
+  @ApiOperation({ summary: 'Confirm payment after Ameriabank redirect — no auth required, looks up user by paymentId' })
   confirmPayment(
-    @AuthUser() user: UserEntity,
     @Body() body: ConfirmPaymentBodyDto,
   ): Promise<{ ok: boolean }> {
     return this.paymentService.confirmPayment(
-      user.id,
       body.orderId,
       body.paymentId,
     );
