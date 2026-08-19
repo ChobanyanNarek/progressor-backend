@@ -319,4 +319,41 @@ export class PaymentService {
       .where('id = :userId', { userId })
       .execute();
   }
+
+  async getHistory(userId: Uuid): Promise<PaymentEntity[]> {
+    return this.paymentRepo.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async refundPayment(paymentId: string, userId: Uuid): Promise<{ ok: boolean; message?: string }> {
+    const normalizedId = paymentId.toUpperCase();
+    const payment = await this.paymentRepo.findOne({ where: { paymentId: normalizedId, userId } });
+
+    if (!payment) throw new BadRequestException('Payment not found');
+    if (payment.status !== PaymentStatus.COMPLETED) throw new BadRequestException('Only completed payments can be refunded');
+
+    try {
+      const res = await fetch(`${AMERIA_BASE_URL}/api/VPOS/CancelPayment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ PaymentID: normalizedId, Username: this.username, Password: this.password }),
+      });
+      const data = await res.json() as { ResponseCode?: number; ResponseMessage?: string };
+      this.logger.log(`CancelPayment response: ${JSON.stringify(data)}`);
+
+      if (data.ResponseCode !== 1) {
+        return { ok: false, message: data.ResponseMessage ?? 'Refund rejected by gateway' };
+      }
+    } catch (err) {
+      this.logger.error('Ameria CancelPayment error', err);
+      throw new InternalServerErrorException('Payment gateway unavailable');
+    }
+
+    await this.paymentRepo.createQueryBuilder().update().set({ status: PaymentStatus.REFUNDED }).where('payment_id = :id', { id: normalizedId }).execute();
+    await this.userRepo.createQueryBuilder().update().set({ subscriptionActive: false, subscriptionUntil: null }).where('id = :userId', { userId }).execute();
+
+    return { ok: true };
+  }
 }

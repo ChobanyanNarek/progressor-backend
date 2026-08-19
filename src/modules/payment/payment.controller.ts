@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -64,5 +65,24 @@ export class PaymentController {
   @ApiOkResponse({ type: PaymentStatusDto })
   getStatus(@AuthUser() user: UserEntity): Promise<PaymentStatusDto> {
     return this.paymentService.getStatus(user.id);
+  }
+
+  @Get('history')
+  @HttpCode(HttpStatus.OK)
+  @Auth([RoleType.CREATOR, RoleType.ADMIN, RoleType.SUPER_ADMIN])
+  @ApiOperation({ summary: 'Get payment history for current user' })
+  getHistory(@AuthUser() user: UserEntity) {
+    return this.paymentService.getHistory(user.id);
+  }
+
+  @Post('refund/:paymentId')
+  @HttpCode(HttpStatus.OK)
+  @Auth([RoleType.CREATOR, RoleType.ADMIN, RoleType.SUPER_ADMIN])
+  @ApiOperation({ summary: 'Refund a completed payment and revoke subscription' })
+  refundPayment(
+    @Param('paymentId') paymentId: string,
+    @AuthUser() user: UserEntity,
+  ): Promise<{ ok: boolean; message?: string }> {
+    return this.paymentService.refundPayment(paymentId, user.id);
   }
 }
