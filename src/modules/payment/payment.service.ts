@@ -24,7 +24,7 @@ const AMERIA_PAY_URL = IS_TEST
   : 'https://payments.ameriabank.am/forms/frm_paymentspage.aspx';
 
 // Monthly price in AMD
-const MONTHLY_PRICE_AMD = 100;
+const MONTHLY_PRICE_AMD = IS_TEST ? 10 : 100;
 const SUBSCRIPTION_MONTHS = 1;
 
 @Injectable()
