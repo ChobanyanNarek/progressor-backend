@@ -75,14 +75,14 @@ export class PaymentController {
     return this.paymentService.getHistory(user.id);
   }
 
+  // Admin-only: refund any payment by paymentId (no userId check)
   @Post('refund/:paymentId')
   @HttpCode(HttpStatus.OK)
-  @Auth([RoleType.CREATOR, RoleType.ADMIN, RoleType.SUPER_ADMIN])
-  @ApiOperation({ summary: 'Refund a completed payment and revoke subscription' })
+  @Auth([RoleType.SUPER_ADMIN])
+  @ApiOperation({ summary: 'Admin: refund any payment by paymentId' })
   refundPayment(
     @Param('paymentId') paymentId: string,
-    @AuthUser() user: UserEntity,
   ): Promise<{ ok: boolean; message?: string }> {
-    return this.paymentService.refundPayment(paymentId, user.id);
+    return this.paymentService.refundPayment(paymentId);
   }
 }

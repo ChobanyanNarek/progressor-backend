@@ -327,9 +327,10 @@ export class PaymentService {
     });
   }
 
-  async refundPayment(paymentId: string, userId: Uuid): Promise<{ ok: boolean; message?: string }> {
+  async refundPayment(paymentId: string, userId?: Uuid): Promise<{ ok: boolean; message?: string }> {
     const normalizedId = paymentId.toUpperCase();
-    const payment = await this.paymentRepo.findOne({ where: { paymentId: normalizedId, userId } });
+    const where = userId ? { paymentId: normalizedId, userId } : { paymentId: normalizedId };
+    const payment = await this.paymentRepo.findOne({ where });
 
     if (!payment) throw new BadRequestException('Payment not found');
     if (payment.status !== PaymentStatus.COMPLETED) throw new BadRequestException('Only completed payments can be refunded');
