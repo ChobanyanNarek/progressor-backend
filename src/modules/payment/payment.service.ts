@@ -353,7 +353,7 @@ export class PaymentService {
     }
 
     await this.paymentRepo.createQueryBuilder().update().set({ status: PaymentStatus.REFUNDED }).where('payment_id = :id', { id: normalizedId }).execute();
-    await this.userRepo.createQueryBuilder().update().set({ subscriptionActive: false, subscriptionUntil: null }).where('id = :userId', { userId }).execute();
+    await this.userRepo.createQueryBuilder().update().set({ subscriptionActive: false, subscriptionUntil: null }).where('id = :userId', { userId: payment.userId }).execute();
 
     return { ok: true };
   }
