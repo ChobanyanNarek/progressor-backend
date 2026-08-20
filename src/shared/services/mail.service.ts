@@ -109,6 +109,54 @@ export class MailService {
     this.logger.log(`Verification code sent to ${email}`);
   }
 
+  async sendSubscriptionReminder(
+    email: string,
+    firstName: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    const dateStr = fmt(expiresAt);
+    const name = firstName || 'there';
+    await this.transporter.sendMail({
+      from: this.fromAddress,
+      to: email,
+      subject: `Your ProgressOr subscription ends tomorrow`,
+      attachments: [
+        {
+          filename: 'logo.gif',
+          content: LOGO_GIF,
+          contentType: 'image/gif',
+          cid: 'logo@progressor',
+        },
+      ],
+      html: `
+<div style="font-family:Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;background:#ffffff">
+  <div style="padding:28px 40px 20px;background:#ffffff">
+    <img src="cid:logo@progressor" width="180" alt="ProgressOr" style="display:block" />
+  </div>
+  <div style="padding:0 40px 40px;background:#ffffff">
+    <p style="font-size:20px;font-weight:800;color:#111827;margin:0 0 12px;line-height:1.3">
+      Hi ${name}, your subscription ends tomorrow 👋
+    </p>
+    <p style="font-size:15px;color:#374151;margin:0 0 8px;line-height:1.6">
+      Your ProgressOr subscription expires on <strong>${dateStr}</strong>.
+      After that, you'll lose access to your boards and dashboards.
+    </p>
+    <p style="font-size:15px;color:#374151;margin:0 0 28px;line-height:1.6">
+      Renew now to keep everything running without interruption.
+    </p>
+    <a href="https://progressor.work/billing" style="display:inline-block;padding:12px 24px;
+background:#4f46e5;color:#ffffff;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none">
+      Renew my subscription →
+    </a>
+    <p style="font-size:12px;color:#9ca3af;margin:28px 0 0">
+      Questions? <a href="mailto:progressor.tracker@gmail.com" style="color:#4f46e5;text-decoration:none">progressor.tracker@gmail.com</a>
+    </p>
+  </div>
+</div>`,
+    });
+    this.logger.log(`Subscription reminder sent to ${email}`);
+  }
+
   async sendPaymentReceipt(
     payment: PaymentEntity,
     user: UserEntity,
