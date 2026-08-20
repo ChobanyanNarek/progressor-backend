@@ -144,7 +144,7 @@ export class MailService {
     <p style="font-size:15px;color:#374151;margin:0 0 28px;line-height:1.6">
       Renew now to keep everything running without interruption.
     </p>
-    <a href="https://progressor.work/billing" style="display:inline-block;padding:12px 24px;
+    <a href="https://progressor.work/?billing=1" style="display:inline-block;padding:12px 24px;
 background:#4f46e5;color:#ffffff;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none">
       Renew my subscription →
     </a>
