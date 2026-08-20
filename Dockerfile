@@ -36,6 +36,7 @@ ENV NODE_OPTIONS="--max-old-space-size=300"
 WORKDIR /usr/src/app
 
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/src/shared/services/logo-wordmark.gif ./dist/shared/services/logo-wordmark.gif
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY package.json ./
 
