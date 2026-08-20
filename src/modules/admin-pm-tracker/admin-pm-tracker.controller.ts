@@ -16,7 +16,7 @@ import {
 } from '@nestjs/swagger';
 
 import { RoleType } from '../../constants/role-type.ts';
-import { NumberField } from '../../decorators/field.decorators.ts';
+import { NumberFieldOptional } from '../../decorators/field.decorators.ts';
 import { Auth, UUIDParam } from '../../decorators/http.decorators.ts';
 import { AdminPaymentsDto } from '../payment/dtos/admin-payments.dto.ts';
 import { PaymentService } from '../payment/payment.service.ts';
@@ -25,8 +25,11 @@ import { AdminChangePasswordDto } from './dtos/admin-change-password.dto.ts';
 import { AdminPmTrackerUsersDto } from './dtos/admin-pm-tracker-users.dto.ts';
 
 class GrantSubscriptionDto {
-  @NumberField({ int: true, min: 1 })
-  months!: number;
+  @NumberFieldOptional({ int: true, min: 0 })
+  months?: number;
+
+  @NumberFieldOptional({ int: true, min: 0 })
+  days?: number;
 }
 
 @Controller('admin/pm-tracker')
@@ -88,7 +91,11 @@ export class AdminPmTrackerController {
     @UUIDParam('id') userId: Uuid,
     @Body() dto: GrantSubscriptionDto,
   ): Promise<void> {
-    return this.paymentService.grantSubscription(userId, dto.months);
+    return this.paymentService.grantSubscription(
+      userId,
+      dto.months ?? 0,
+      dto.days ?? 0,
+    );
   }
 
   @Delete('users/:id/subscription')

@@ -8,24 +8,24 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
+import { MailService } from '../../shared/services/mail.service.ts';
 import { UserEntity } from '../user/user.entity.ts';
 import type { AdminPaymentsDto } from './dtos/admin-payments.dto.ts';
 import { AdminPaymentDto } from './dtos/admin-payments.dto.ts';
 import type { InitPaymentDto } from './dtos/init-payment.dto.ts';
 import type { PaymentStatusDto } from './dtos/payment-status.dto.ts';
 import { PaymentEntity, PaymentStatus } from './entities/payment.entity.ts';
-import { MailService } from '../../shared/services/mail.service.ts';
 
-const IS_TEST = process.env.AMERIA_TEST === 'true';
-const AMERIA_BASE_URL = IS_TEST
+const isTest = process.env.AMERIA_TEST === 'true';
+const AMERIA_BASE_URL = isTest
   ? 'https://servicestest.ameriabank.am/VPOS'
   : 'https://services.ameriabank.am/VPOS';
-const AMERIA_PAY_URL = IS_TEST
+const AMERIA_PAY_URL = isTest
   ? 'https://servicestest.ameriabank.am/VPOS/Payments/Pay'
   : 'https://payments.ameriabank.am/forms/frm_paymentspage.aspx';
 
 // Monthly price in AMD
-const MONTHLY_PRICE_AMD = IS_TEST ? 10 : 100;
+const MONTHLY_PRICE_AMD = isTest ? 10 : 100;
 const SUBSCRIPTION_MONTHS = 1;
 
 @Injectable()
@@ -54,29 +54,45 @@ export class PaymentService {
   }
 
   private get backUrl(): string {
-    const frontendUrl = this.configService.get('FRONTEND_URL') ?? 'https://progressor.vercel.app';
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') ??
+      'https://progressor.vercel.app';
+
     return `${frontendUrl}/payment/callback`;
   }
 
   async initPayment(userId: Uuid): Promise<InitPaymentDto> {
-    // Test env: OrderID must be 4534001–4535000; prod: use timestamp-based unique ID
-    // Test env: OrderID must be in range 4534001–4535000
-    // Cancel any existing pending payment for this user to free up the OrderID slot
-    const existingPending = await this.paymentRepo.findOne({
-      where: { userId, status: PaymentStatus.PENDING },
-    });
+    /*
+     * Test env: OrderID must be 4534001–4535000; prod: use timestamp-based unique ID
+     * Test env: OrderID must be in range 4534001–4535000
+     * Cancel any existing pending payment for this user to free up the OrderID slot
+     */
+    const existingPending = await this.paymentRepo
+      .createQueryBuilder('payment')
+      .where('payment.userId = :userId', { userId })
+      .andWhere('payment.status = :status', { status: PaymentStatus.PENDING })
+      .getOne();
+
     if (existingPending) {
       try {
         await fetch(`${AMERIA_BASE_URL}/api/VPOS/CancelPayment`, {
           method: 'POST',
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ PaymentID: existingPending.paymentId, Username: this.username, Password: this.password }),
+          body: JSON.stringify({
+            PaymentID: existingPending.paymentId,
+            Username: this.username,
+            Password: this.password,
+          }),
         });
-      } catch { /* ignore cancel errors */ }
+      } catch {
+        /* ignore cancel errors */
+      }
+
       await this.paymentRepo.delete({ id: existingPending.id });
     }
 
-    const orderId = IS_TEST
+    const orderId = isTest
       ? 4534001 + (Math.floor(Date.now() / 1000) % 999)
       : Date.now();
 
@@ -93,22 +109,36 @@ export class PaymentService {
     };
 
     let paymentId: string;
+
     try {
       const res = await fetch(`${AMERIA_BASE_URL}/api/VPOS/InitPayment`, {
         method: 'POST',
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const data = await res.json() as { PaymentID: string; ResponseCode: number; ResponseMessage: string };
+      const data = (await res.json()) as {
+        PaymentID: string;
+        ResponseCode: number;
+        ResponseMessage: string;
+      };
 
       if (data.ResponseCode !== 1) {
         this.logger.error(`Ameria InitPayment failed: ${data.ResponseMessage}`);
-        throw new BadRequestException(`Payment init failed: ${data.ResponseMessage}`);
+
+        throw new BadRequestException(
+          `Payment init failed: ${data.ResponseMessage}`,
+        );
       }
+
       paymentId = data.PaymentID;
-    } catch (err) {
-      if (err instanceof BadRequestException) throw err;
-      this.logger.error('Ameria InitPayment request error', err);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      this.logger.error('Ameria InitPayment request error', error);
+
       throw new InternalServerErrorException('Payment gateway unavailable');
     }
 
@@ -126,17 +156,32 @@ export class PaymentService {
 
     const paymentUrl = `${AMERIA_PAY_URL}?id=${paymentId}&lang=en`;
 
-    return { paymentUrl, paymentId, orderId: String(orderId) } as InitPaymentDto;
+    return {
+      paymentUrl,
+      paymentId,
+      orderId: String(orderId),
+    } as InitPaymentDto;
   }
 
-  async confirmPayment(orderId: string, paymentId: string): Promise<{ ok: boolean }> {
+  async confirmPayment(
+    orderId: string,
+    paymentId: string,
+  ): Promise<{ ok: boolean }> {
     // Ameriabank sends paymentId in lowercase in the callback URL but DB stores uppercase
     const normalizedId = paymentId.toUpperCase();
-    const payment = await this.paymentRepo.findOne({ where: { paymentId: normalizedId } });
+    const payment = await this.paymentRepo
+      .createQueryBuilder('payment')
+      .where('payment.paymentId = :paymentId', { paymentId: normalizedId })
+      .getOne();
+
     if (!payment) {
-      this.logger.warn(`confirmPayment: no payment record found for paymentId=${paymentId}`);
+      this.logger.warn(
+        `confirmPayment: no payment record found for paymentId=${paymentId}`,
+      );
+
       return { ok: false };
     }
+
     const userId = payment.userId;
     const body = {
       PaymentID: normalizedId,
@@ -145,29 +190,38 @@ export class PaymentService {
     };
 
     let details: Record<string, unknown>;
+
     try {
       const res = await fetch(`${AMERIA_BASE_URL}/api/VPOS/GetPaymentDetails`, {
         method: 'POST',
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      details = await res.json() as Record<string, unknown>;
-    } catch (err) {
-      this.logger.error('Ameria GetPaymentDetails error', err);
+      details = (await res.json()) as Record<string, unknown>;
+    } catch (error) {
+      this.logger.error('Ameria GetPaymentDetails error', error);
+
       throw new InternalServerErrorException('Payment gateway unavailable');
     }
 
     this.logger.log(`GetPaymentDetails response: ${JSON.stringify(details)}`);
 
-    const responseCode = String(details['ResponseCode'] ?? '');
-    const orderStatus = Number(details['OrderStatus']);
+    const responseCode =
+      typeof details.ResponseCode === 'string' ? details.ResponseCode : '';
+    const orderStatus = Number(details.OrderStatus);
 
-    // OrderStatus 2 = deposited/paid; ResponseCode '00' = success
-    // PaymentState string also checked as fallback
-    const paid = responseCode === '00' && orderStatus === 2;
+    /*
+     * OrderStatus 2 = deposited/paid; ResponseCode '00' = success
+     * PaymentState string also checked as fallback
+     */
+    const isPaid = responseCode === '00' && orderStatus === 2;
 
-    if (!paid) {
-      this.logger.warn(`Payment not confirmed: orderId=${orderId} status=${orderStatus} rc=${responseCode}`);
+    if (!isPaid) {
+      this.logger.warn(
+        `Payment not confirmed: orderId=${orderId} status=${orderStatus} rc=${responseCode}`,
+      );
+
       return { ok: false };
     }
 
@@ -183,10 +237,10 @@ export class PaymentService {
         status: PaymentStatus.COMPLETED,
         completedAt: now,
         subscriptionUntil: subUntil,
-        cardNumber: (details['CardNumber'] as string | null) ?? null,
-        cardHolderName: (details['ClientName'] as string | null) ?? null,
-        approvalCode: (details['ApprovalCode'] as string | null) ?? null,
-        rrn: (details['rrn'] as string | null) ?? null,
+        cardNumber: (details.CardNumber as string | null) ?? null,
+        cardHolderName: (details.ClientName as string | null) ?? null,
+        approvalCode: (details.ApprovalCode as string | null) ?? null,
+        rrn: (details.rrn as string | null) ?? null,
       })
       .where('payment_id = :paymentId', { paymentId: normalizedId })
       .execute();
@@ -200,8 +254,17 @@ export class PaymentService {
       .execute();
 
     // Send receipt email (non-blocking — failure must not break confirmation)
-    const updatedPayment = await this.paymentRepo.findOne({ where: { paymentId: normalizedId } });
-    const userEntity = await this.userRepo.findOne({ where: { id: userId } });
+    const [updatedPayment, userEntity] = await Promise.all([
+      this.paymentRepo
+        .createQueryBuilder('payment')
+        .where('payment.paymentId = :paymentId', { paymentId: normalizedId })
+        .getOne(),
+      this.userRepo
+        .createQueryBuilder('user')
+        .where('user.id = :id', { id: userId })
+        .getOne(),
+    ]);
+
     if (updatedPayment && userEntity) {
       void this.mailService.sendPaymentReceipt(updatedPayment, userEntity);
     }
@@ -210,14 +273,35 @@ export class PaymentService {
   }
 
   async getStatus(userId: Uuid): Promise<PaymentStatusDto> {
-    const user = await this.userRepo.findOne({ where: { id: userId } });
-    if (!user) return { subscriptionActive: false, subscriptionUntil: null, trialUntil: null, lastPayment: null } as unknown as PaymentStatusDto;
+    const user = await this.userRepo
+      .createQueryBuilder('user')
+      .where('user.id = :id', { id: userId })
+      .getOne();
+
+    if (!user) {
+      return {
+        subscriptionActive: false,
+        subscriptionUntil: null,
+        trialUntil: null,
+        lastPayment: null,
+      } as unknown as PaymentStatusDto;
+    }
 
     // Auto-expire subscription if past date
-    let active = user.subscriptionActive;
-    if (active && user.subscriptionUntil && user.subscriptionUntil < new Date()) {
-      active = false;
-      await this.userRepo.createQueryBuilder().update().set({ subscriptionActive: false }).where('id = :userId', { userId }).execute();
+    let isActive = user.subscriptionActive;
+
+    if (
+      isActive &&
+      user.subscriptionUntil &&
+      user.subscriptionUntil < new Date()
+    ) {
+      isActive = false;
+      await this.userRepo
+        .createQueryBuilder()
+        .update()
+        .set({ subscriptionActive: false })
+        .where('id = :userId', { userId })
+        .execute();
     }
 
     const lastPayment = await this.paymentRepo
@@ -227,12 +311,12 @@ export class PaymentService {
       .getOne();
 
     return {
-      subscriptionActive: active,
+      subscriptionActive: isActive,
       subscriptionUntil: user.subscriptionUntil,
       trialUntil: user.trialUntil,
       lastPayment: lastPayment
         ? {
-            amount: Number(lastPayment.amount),
+            amount: lastPayment.amount,
             currency: lastPayment.currency,
             status: lastPayment.status,
             completedAt: lastPayment.completedAt,
@@ -250,7 +334,7 @@ export class PaymentService {
         'p.id as id',
         'p.user_id as "userId"',
         'u.email as "userEmail"',
-        "CONCAT(u.first_name, ' ', u.last_name) as \"userName\"",
+        'CONCAT(u.first_name, \' \', u.last_name) as "userName"',
         'p.amount as amount',
         'p.currency as currency',
         'p.status as status',
@@ -282,32 +366,56 @@ export class PaymentService {
       AdminPaymentDto.create({
         id: p.id as Uuid,
         userId: p.userId as Uuid,
-        userEmail: p.userEmail ?? '',
-        userName: p.userName ?? '',
+        userEmail: p.userEmail || '',
+        userName: p.userName || '',
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-conversion
         amount: Number(p.amount),
         currency: p.currency,
         status: p.status,
-        paymentId: p.paymentId ?? '',
-        orderId: p.orderId ?? '',
+        paymentId: p.paymentId || '',
+        orderId: p.orderId || '',
         cardNumber: p.cardNumber,
         completedAt: p.completedAt,
         subscriptionUntil: p.subscriptionUntil,
       }),
     );
 
-    return { payments: dtos, total: dtos.length } as unknown as AdminPaymentsDto;
+    return {
+      payments: dtos,
+      total: dtos.length,
+    } as unknown as AdminPaymentsDto;
   }
 
-  async grantSubscription(userId: Uuid, months: number): Promise<void> {
-    const user = await this.userRepo.findOne({ where: { id: userId } });
-    if (!user) throw new BadRequestException('User not found');
+  async grantSubscription(
+    userId: Uuid,
+    months: number,
+    days = 0,
+  ): Promise<void> {
+    const user = await this.userRepo
+      .createQueryBuilder('user')
+      .where('user.id = :id', { id: userId })
+      .getOne();
 
-    const base = user.subscriptionActive && user.subscriptionUntil && user.subscriptionUntil > new Date()
-      ? user.subscriptionUntil
-      : new Date();
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const base =
+      user.subscriptionActive &&
+      user.subscriptionUntil &&
+      user.subscriptionUntil > new Date()
+        ? user.subscriptionUntil
+        : new Date();
 
     const subUntil = new Date(base);
-    subUntil.setMonth(subUntil.getMonth() + months);
+
+    if (months > 0) {
+      subUntil.setMonth(subUntil.getMonth() + months);
+    }
+
+    if (days > 0) {
+      subUntil.setDate(subUntil.getDate() + days);
+    }
 
     await this.userRepo
       .createQueryBuilder()
@@ -318,8 +426,14 @@ export class PaymentService {
   }
 
   async revokeSubscription(userId: Uuid): Promise<void> {
-    const user = await this.userRepo.findOne({ where: { id: userId } });
-    if (!user) throw new BadRequestException('User not found');
+    const user = await this.userRepo
+      .createQueryBuilder('user')
+      .where('user.id = :id', { id: userId })
+      .getOne();
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
 
     await this.userRepo
       .createQueryBuilder()
@@ -329,44 +443,79 @@ export class PaymentService {
       .execute();
   }
 
-  async getHistory(userId: Uuid): Promise<PaymentEntity[]> {
-    return this.paymentRepo.find({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-    });
+  getHistory(userId: Uuid): Promise<PaymentEntity[]> {
+    return this.paymentRepo
+      .createQueryBuilder('payment')
+      .where('payment.userId = :userId', { userId })
+      .orderBy('payment.createdAt', 'DESC')
+      .getMany();
   }
 
-  async refundPayment(paymentId: string, userId?: Uuid): Promise<{ ok: boolean; message?: string }> {
+  async refundPayment(
+    paymentId: string,
+    userId?: Uuid,
+  ): Promise<{ ok: boolean; message?: string }> {
     const normalizedId = paymentId.toUpperCase();
-    const where = userId ? { paymentId: normalizedId, userId } : { paymentId: normalizedId };
-    const payment = await this.paymentRepo.findOne({ where });
+    const payment = await this.paymentRepo
+      .createQueryBuilder('p')
+      .where('p.payment_id = :id', { id: normalizedId })
+      .andWhere(userId ? 'p.user_id = :userId' : '1=1', { userId })
+      .getOne();
 
-    if (!payment) throw new BadRequestException('Payment not found');
-    if (payment.status !== PaymentStatus.COMPLETED) throw new BadRequestException('Only completed payments can be refunded');
+    if (!payment) {
+      throw new BadRequestException('Payment not found');
+    }
 
-    if (!IS_TEST) {
+    if (payment.status !== PaymentStatus.COMPLETED) {
+      throw new BadRequestException('Only completed payments can be refunded');
+    }
+
+    if (isTest) {
+      this.logger.log(
+        `CancelPayment skipped in test mode for paymentId=${normalizedId}`,
+      );
+    } else {
       try {
         const res = await fetch(`${AMERIA_BASE_URL}/api/VPOS/CancelPayment`, {
           method: 'POST',
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ PaymentID: normalizedId, Username: this.username, Password: this.password }),
+          body: JSON.stringify({
+            PaymentID: normalizedId,
+            Username: this.username,
+            Password: this.password,
+          }),
         });
-        const data = await res.json() as { ResponseCode?: number; ResponseMessage?: string };
+        const data = (await res.json()) as {
+          ResponseCode?: number;
+          ResponseMessage?: string;
+        };
         this.logger.log(`CancelPayment response: ${JSON.stringify(data)}`);
+
         // Log gateway result but don't block — admin decision is authoritative
         if (data.ResponseCode !== 1) {
-          this.logger.warn(`CancelPayment gateway rejected: ${data.ResponseMessage}`);
+          this.logger.warn(
+            `CancelPayment gateway rejected: ${data.ResponseMessage}`,
+          );
         }
-      } catch (err) {
-        this.logger.error('Ameria CancelPayment error', err);
+      } catch (error) {
+        this.logger.error('Ameria CancelPayment error', error);
         // Continue anyway — admin explicitly requested refund
       }
-    } else {
-      this.logger.log(`CancelPayment skipped in test mode for paymentId=${normalizedId}`);
     }
 
-    await this.paymentRepo.createQueryBuilder().update().set({ status: PaymentStatus.REFUNDED }).where('payment_id = :id', { id: normalizedId }).execute();
-    await this.userRepo.createQueryBuilder().update().set({ subscriptionActive: false, subscriptionUntil: null }).where('id = :userId', { userId: payment.userId }).execute();
+    await this.paymentRepo
+      .createQueryBuilder()
+      .update()
+      .set({ status: PaymentStatus.REFUNDED })
+      .where('payment_id = :id', { id: normalizedId })
+      .execute();
+    await this.userRepo
+      .createQueryBuilder()
+      .update()
+      .set({ subscriptionActive: false, subscriptionUntil: null })
+      .where('id = :userId', { userId: payment.userId })
+      .execute();
 
     return { ok: true };
   }
