@@ -5,6 +5,7 @@ import PDFDocument from 'pdfkit';
 
 import type { PaymentEntity } from '../../modules/payment/entities/payment.entity.ts';
 import type { UserEntity } from '../../modules/user/user.entity.ts';
+import { LOGO_GIF_DATA_URI } from './logo-wordmark-b64.ts';
 
 function fmt(date: Date | null | undefined): string {
   if (!date) {
@@ -63,7 +64,7 @@ export class MailService {
       html: `
         <div style="font-family:Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;background:#ffffff">
           <div style="padding:28px 40px 20px">
-            <img src="https://progressor.work/logo-wordmark.gif" width="180" alt="ProgressOr" style="display:block" />
+            <img src="${LOGO_GIF_DATA_URI}" width="180" alt="ProgressOr" style="display:block" />
           </div>
           <div style="padding:8px 40px 40px">
             <p style="font-size:16px;font-weight:700;color:#111827;margin:0 0 8px">

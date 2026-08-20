@@ -18,6 +18,11 @@
         "include": "i18n/**/*",
         "outDir": "dist/i18n",
         "watchAssets": true
+      },
+      {
+        "include": "shared/services/logo-wordmark.gif",
+        "outDir": "dist/shared/services",
+        "watchAssets": true
       }
     ]
   }
