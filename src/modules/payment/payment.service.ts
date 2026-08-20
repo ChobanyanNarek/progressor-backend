@@ -335,21 +335,25 @@ export class PaymentService {
     if (!payment) throw new BadRequestException('Payment not found');
     if (payment.status !== PaymentStatus.COMPLETED) throw new BadRequestException('Only completed payments can be refunded');
 
-    try {
-      const res = await fetch(`${AMERIA_BASE_URL}/api/VPOS/CancelPayment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ PaymentID: normalizedId, Username: this.username, Password: this.password }),
-      });
-      const data = await res.json() as { ResponseCode?: number; ResponseMessage?: string };
-      this.logger.log(`CancelPayment response: ${JSON.stringify(data)}`);
+    if (!IS_TEST) {
+      try {
+        const res = await fetch(`${AMERIA_BASE_URL}/api/VPOS/CancelPayment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ PaymentID: normalizedId, Username: this.username, Password: this.password }),
+        });
+        const data = await res.json() as { ResponseCode?: number; ResponseMessage?: string };
+        this.logger.log(`CancelPayment response: ${JSON.stringify(data)}`);
 
-      if (data.ResponseCode !== 1) {
-        return { ok: false, message: data.ResponseMessage ?? 'Refund rejected by gateway' };
+        if (data.ResponseCode !== 1) {
+          return { ok: false, message: data.ResponseMessage ?? 'Refund rejected by gateway' };
+        }
+      } catch (err) {
+        this.logger.error('Ameria CancelPayment error', err);
+        throw new InternalServerErrorException('Payment gateway unavailable');
       }
-    } catch (err) {
-      this.logger.error('Ameria CancelPayment error', err);
-      throw new InternalServerErrorException('Payment gateway unavailable');
+    } else {
+      this.logger.log(`CancelPayment skipped in test mode for paymentId=${normalizedId}`);
     }
 
     await this.paymentRepo.createQueryBuilder().update().set({ status: PaymentStatus.REFUNDED }).where('payment_id = :id', { id: normalizedId }).execute();
