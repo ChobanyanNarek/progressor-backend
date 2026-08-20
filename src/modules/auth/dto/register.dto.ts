@@ -20,4 +20,7 @@ export class RegisterDto extends BaseDto {
 
   @StringField({ minLength: 6 })
   readonly password!: string;
+
+  @StringField({ minLength: 6, maxLength: 6 })
+  readonly code!: string;
 }

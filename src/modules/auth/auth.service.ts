@@ -18,6 +18,7 @@ import { AccountDisabledException } from '../../exceptions/account-disabled.exce
 import { InvalidCredentialsException } from '../../exceptions/invalid-credentials.exception.ts';
 import { UserNotFoundException } from '../../exceptions/user-not-found.exception.ts';
 import { ApiConfigService } from '../../shared/services/api-config.service.ts';
+import { MailService } from '../../shared/services/mail.service.ts';
 import { AdminLogsService } from '../admin-logs/admin-logs.service.ts';
 import type { UserEntity } from '../user/user.entity.ts';
 import { UserService } from '../user/user.service.ts';
@@ -26,13 +27,19 @@ import type { RegisterDto } from './dto/register.dto.ts';
 import { TokenPayloadDto } from './dto/token-payload.dto.ts';
 import type { UserLoginDto } from './dto/user-login.dto.ts';
 
+const CODE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+interface PendingCode { code: string; expiresAt: number }
+
 @Injectable()
 export class AuthService {
+  private readonly pendingCodes = new Map<string, PendingCode>();
+
   constructor(
     private jwtService: JwtService,
     private configService: ApiConfigService,
     private userService: UserService,
     private adminLogsService: AdminLogsService,
+    private mailService: MailService,
   ) {}
 
   async createAccessToken(data: {
@@ -103,7 +110,25 @@ export class AuthService {
     return user;
   }
 
+  async sendRegistrationCode(email: string): Promise<void> {
+    const code = String(Math.floor(100_000 + Math.random() * 900_000));
+    this.pendingCodes.set(email.toLowerCase(), { code, expiresAt: Date.now() + CODE_TTL_MS });
+    await this.mailService.sendVerificationCode(email, code);
+  }
+
   async register(dto: RegisterDto): Promise<LoginPayloadDto> {
+    const key = dto.email.toLowerCase();
+    const pending = this.pendingCodes.get(key);
+
+    if (!pending) throw new BadRequestException('error.invalidVerificationCode');
+    if (Date.now() > pending.expiresAt) {
+      this.pendingCodes.delete(key);
+      throw new BadRequestException('error.verificationCodeExpired');
+    }
+    if (pending.code !== dto.code) throw new BadRequestException('error.invalidVerificationCode');
+
+    this.pendingCodes.delete(key);
+
     const result = await this.userService.create({
       firstName: dto.firstName,
       lastName: dto.lastName,

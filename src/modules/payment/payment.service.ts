@@ -14,6 +14,7 @@ import { AdminPaymentDto } from './dtos/admin-payments.dto.ts';
 import type { InitPaymentDto } from './dtos/init-payment.dto.ts';
 import type { PaymentStatusDto } from './dtos/payment-status.dto.ts';
 import { PaymentEntity, PaymentStatus } from './entities/payment.entity.ts';
+import { MailService } from '../../shared/services/mail.service.ts';
 
 const IS_TEST = process.env.AMERIA_TEST === 'true';
 const AMERIA_BASE_URL = IS_TEST
@@ -37,6 +38,7 @@ export class PaymentService {
     @InjectRepository(UserEntity)
     private readonly userRepo: Repository<UserEntity>,
     private readonly configService: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
   private get clientId(): string {
@@ -196,6 +198,13 @@ export class PaymentService {
       .set({ subscriptionActive: true, subscriptionUntil: subUntil })
       .where('id = :userId', { userId })
       .execute();
+
+    // Send receipt email (non-blocking — failure must not break confirmation)
+    const updatedPayment = await this.paymentRepo.findOne({ where: { paymentId: normalizedId } });
+    const userEntity = await this.userRepo.findOne({ where: { id: userId } });
+    if (updatedPayment && userEntity) {
+      void this.mailService.sendPaymentReceipt(updatedPayment, userEntity);
+    }
 
     return { ok: true };
   }

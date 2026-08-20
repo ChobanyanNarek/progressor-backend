@@ -8,6 +8,7 @@ import {
   Post,
   UnauthorizedException,
 } from '@nestjs/common';
+import { IsEmail } from 'class-validator';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { RoleType } from '../../constants/role-type.ts';
@@ -16,6 +17,11 @@ import { Auth } from '../../decorators/http.decorators.ts';
 import type { UserEntity } from '../user/user.entity.ts';
 import { AuthService } from './auth.service.ts';
 import { GetMeDto } from './dto/get-me.dto.ts';
+
+class SendRegistrationCodeDto {
+  @IsEmail()
+  email!: string;
+}
 import { GoogleTokenDto } from './dto/google-token.dto.ts';
 import { LoginPayloadDto } from './dto/login-payload.dto.ts';
 import { RegisterDto } from './dto/register.dto.ts';
@@ -44,6 +50,12 @@ export class AuthController {
     });
 
     return LoginPayloadDto.create({ accessToken });
+  }
+
+  @Post('send-registration-code')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  sendRegistrationCode(@Body() dto: SendRegistrationCodeDto): Promise<void> {
+    return this.authService.sendRegistrationCode(dto.email);
   }
 
   @Post('register')
