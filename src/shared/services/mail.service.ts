@@ -116,23 +116,76 @@ export class MailService {
     try {
       const pdf = await this.buildReceiptPdf(payment, user);
 
+      const receiptNum = String(payment.orderId).slice(-6).toUpperCase();
+      const fullName =
+        [user.firstName, user.lastName].filter(Boolean).join(' ') || 'there';
+      const cardLast4 = payment.cardNumber
+        ? `•••• ${payment.cardNumber.replaceAll(/\s/g, '').slice(-4)}`
+        : null;
+      const tdL = 'style="font-size:13px;color:#6b7280;padding:6px 0"';
+      const tdR =
+        'style="font-size:13px;color:#111827;font-weight:600;text-align:right;padding:6px 0"';
+      const tdTotalL =
+        'style="font-size:15px;color:#111827;font-weight:700;padding:14px 0 6px"';
+      const tdTotalR =
+        'style="font-size:15px;color:#111827;font-weight:700;text-align:right;padding:14px 0 6px"';
+      const cardRow = cardLast4
+        ? `<tr><td ${tdL}>Card</td><td ${tdR}>${cardLast4}</td></tr>`
+        : '';
+      const receiptHtml = `
+<div style="font-family:Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;background:#ffffff">
+  <div style="padding:28px 40px 20px;background:#ffffff">
+    <img src="cid:logo@progressor" width="180" alt="ProgressOr" style="display:block" />
+  </div>
+  <div style="padding:0 40px 40px;background:#ffffff">
+    <p style="font-size:24px;font-weight:800;color:#111827;margin:0 0 12px;line-height:1.3">
+      Welcome aboard, ${fullName}! 🎉
+    </p>
+    <p style="font-size:15px;color:#374151;margin:0 0 8px;line-height:1.6">
+      Your subscription is live and you now have full access to everything ProgressOr has to offer.
+      We're genuinely excited to have you with us — thank you for your trust.
+    </p>
+    <p style="font-size:15px;color:#374151;margin:0 0 28px;line-height:1.6">
+      Your receipt is attached below for your records.
+    </p>
+    <div style="background:#f9fafb;border-radius:12px;padding:24px;margin-bottom:28px">
+      <table style="width:100%;border-collapse:collapse">
+        <tr><td ${tdL}>Plan</td><td ${tdR}>Monthly subscription</td></tr>
+        <tr><td ${tdL}>Date</td><td ${tdR}>${fmt(payment.completedAt ?? payment.createdAt)}</td></tr>
+        <tr><td ${tdL}>Receipt</td><td ${tdR}>#${receiptNum}</td></tr>
+        ${cardRow}
+        <tr style="border-top:1px solid #e5e7eb">
+          <td ${tdTotalL}>Total paid</td>
+          <td ${tdTotalR}>${payment.amount.toLocaleString()} ${payment.currency}</td>
+        </tr>
+      </table>
+    </div>
+    <p style="font-size:14px;color:#374151;margin:0 0 4px">Any questions? We're always here —</p>
+    <a href="mailto:progressor.tracker@gmail.com"
+      style="font-size:14px;color:#4f46e5;text-decoration:none;font-weight:600">
+      progressor.tracker@gmail.com
+    </a>
+  </div>
+</div>`;
+
       await this.transporter.sendMail({
         from: this.fromAddress,
         to: user.email,
-        subject: `Your ProgressOr receipt — #${String(payment.orderId).slice(-6).toUpperCase()}`,
-        text: [
-          `Hi ${[user.firstName, user.lastName].filter(Boolean).join(' ') || 'there'},`,
-          'Thank you for subscribing to ProgressOr. Please find your receipt attached.',
-          'For support: progressor.tracker@gmail.com',
-          'The ProgressOr team',
-        ].join('\n\n'),
+        subject: `You're in! Welcome to ProgressOr 🎉`,
         attachments: [
           {
-            filename: `progressor-receipt-${String(payment.orderId).slice(-6)}.pdf`,
+            filename: 'logo.gif',
+            content: LOGO_GIF,
+            contentType: 'image/gif',
+            cid: 'logo@progressor',
+          },
+          {
+            filename: `progressor-receipt-${receiptNum}.pdf`,
             content: pdf,
             contentType: 'application/pdf',
           },
         ],
+        html: receiptHtml,
       });
 
       this.logger.log(
