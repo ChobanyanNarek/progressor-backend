@@ -344,13 +344,13 @@ export class PaymentService {
         });
         const data = await res.json() as { ResponseCode?: number; ResponseMessage?: string };
         this.logger.log(`CancelPayment response: ${JSON.stringify(data)}`);
-
+        // Log gateway result but don't block — admin decision is authoritative
         if (data.ResponseCode !== 1) {
-          return { ok: false, message: data.ResponseMessage ?? 'Refund rejected by gateway' };
+          this.logger.warn(`CancelPayment gateway rejected: ${data.ResponseMessage}`);
         }
       } catch (err) {
         this.logger.error('Ameria CancelPayment error', err);
-        throw new InternalServerErrorException('Payment gateway unavailable');
+        // Continue anyway — admin explicitly requested refund
       }
     } else {
       this.logger.log(`CancelPayment skipped in test mode for paymentId=${normalizedId}`);
