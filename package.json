@@ -45,6 +45,7 @@
     "migration:revert": "pnpm run typeorm migration:revert -d ormconfig.ts",
     "migration:show": "pnpm run typeorm migration:show -d ormconfig.ts",
     "schema:drop": "pnpm run typeorm schema:drop -d ormconfig.ts",
+    "backfill:pm-tracker-tasks": "node --loader ts-node/esm scripts/backfill-pm-tracker-tasks.ts",
     "dev": "concurrently \"pnpm run nest:start\" \"pnpm run tunnel\"",
     "dev:watch": "pnpm run nest:watch",
     "tunnel": "cloudflared tunnel run --token $CLOUDFLARE_TUNNEL_TOKEN Pixera_Local_API",
