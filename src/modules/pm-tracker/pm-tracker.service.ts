@@ -1,6 +1,7 @@
 import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 
+import type { PageDto } from '../../common/dto/page.dto.ts';
 import { SavePmTrackerStateCommand } from './commands/save-state/save-pm-tracker-state.command.ts';
 import type {
   JiraBoardIssuesRequestDto,
@@ -10,9 +11,15 @@ import type {
   JiraSprintsRequestDto,
   JiraStatusesRequestDto,
 } from './dtos/jira-proxy.dto.ts';
+import type { PmTrackerTaskDto } from './dtos/pm-tracker-task.dto.ts';
+import type { ReleaseNoteTaskDto } from './dtos/release-note-task.dto.ts';
+import type { ReleaseNoteTasksPageOptionsDto } from './dtos/release-note-tasks-page-options.dto.ts';
 import type { SavePmTrackerStateDto } from './dtos/save-pm-tracker-state.dto.ts';
+import type { SearchTasksPageOptionsDto } from './dtos/search-tasks-page-options.dto.ts';
 import type { PmTrackerStateEntity } from './pm-tracker-state.entity.ts';
 import { GetPmTrackerStateQuery } from './queries/get-state/get-pm-tracker-state.query.ts';
+import { ReleaseNoteTasksQuery } from './queries/release-note-tasks/release-note-tasks.query.ts';
+import { SearchTasksQuery } from './queries/search-tasks/search-tasks.query.ts';
 
 @Injectable()
 export class PmTrackerService {
@@ -36,6 +43,25 @@ export class PmTrackerService {
       SavePmTrackerStateCommand,
       SavePmTrackerStateDto
     >(new SavePmTrackerStateCommand(userId, data));
+  }
+
+  searchTasks(
+    userId: Uuid,
+    pageOptionsDto: SearchTasksPageOptionsDto,
+  ): Promise<PageDto<PmTrackerTaskDto>> {
+    return this.queryBus.execute<SearchTasksQuery, PageDto<PmTrackerTaskDto>>(
+      new SearchTasksQuery(userId, pageOptionsDto),
+    );
+  }
+
+  releaseNoteTasks(
+    userId: Uuid,
+    pageOptionsDto: ReleaseNoteTasksPageOptionsDto,
+  ): Promise<PageDto<ReleaseNoteTaskDto>> {
+    return this.queryBus.execute<
+      ReleaseNoteTasksQuery,
+      PageDto<ReleaseNoteTaskDto>
+    >(new ReleaseNoteTasksQuery(userId, pageOptionsDto));
   }
 
   async jiraSearch(dto: JiraSearchRequestDto): Promise<JiraSearchResultDto> {
