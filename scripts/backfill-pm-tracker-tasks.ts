@@ -10,15 +10,37 @@
  * Usage: pnpm exec ts-node scripts/backfill-pm-tracker-tasks.ts
  * (reads DB_* env vars the same way ormconfig.ts does — run with the same
  * .env as the app, against the target environment's database)
+ *
+ * NOTE: this builds its own DataSource instead of importing the one from
+ * ormconfig.ts — ormconfig.ts is deliberately kept outside the normal
+ * TS project graph (see its allowDefaultProject entry in eslint.config.mjs),
+ * and importing it from an in-project file breaks that assumption.
  */
+import * as dotenv from 'dotenv';
+import { DataSource } from 'typeorm';
+
 import '../src/boilerplate.polyfill.ts';
 
-import { dataSource } from '../ormconfig.ts';
 import { PmTrackerTaskEntity } from '../src/modules/pm-tracker/entities/pm-tracker-task.entity.ts';
 import { PmTrackerStateEntity } from '../src/modules/pm-tracker/pm-tracker-state.entity.ts';
+import { SnakeNamingStrategy } from '../src/snake-naming.strategy.ts';
 import { syncTasksFromState } from '../src/modules/pm-tracker/commands/sync-tasks/sync-tasks-from-state.ts';
 
-async function main() {
+dotenv.config();
+
+const dataSource = new DataSource({
+  type: 'postgres',
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT),
+  username: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  namingStrategy: new SnakeNamingStrategy(),
+  entities: [PmTrackerStateEntity, PmTrackerTaskEntity],
+});
+
+async function main(): Promise<void> {
   await dataSource.initialize();
 
   const stateRepo = dataSource.getRepository(PmTrackerStateEntity);
