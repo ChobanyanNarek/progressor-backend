@@ -75,7 +75,7 @@ export class PmTrackerService {
 
     const params = new URLSearchParams({
       jql,
-      fields: 'summary,status,priority,duedate,assignee,created,timeoriginalestimate,timespent,customfield_10016,customfield_10028',
+      fields: 'summary,status,priority,duedate,assignee,created,timeoriginalestimate,timespent,customfield_10016,customfield_10028,issuetype',
       maxResults: '100',
       expand: 'changelog',
     });
@@ -253,7 +253,7 @@ export class PmTrackerService {
 
     while (true) {
       const params = new URLSearchParams({
-        fields: 'summary,status,priority,duedate,assignee,created,timeoriginalestimate,timespent,customfield_10016,customfield_10028',
+        fields: 'summary,status,priority,duedate,assignee,created,timeoriginalestimate,timespent,customfield_10016,customfield_10028,issuetype',
         startAt: String(startAt),
         maxResults: String(maxResults),
       });
