@@ -73,18 +73,7 @@ export class PmTrackerService {
       );
     }
 
-    const params = new URLSearchParams({
-      jql,
-      fields: 'summary,status,priority,duedate,assignee,created,timeoriginalestimate,timespent,customfield_10016,customfield_10028,issuetype',
-      // A single, non-paginated request with full changelog on every result — kept modest
-      // to bound memory (tightened after a production OOM restart on this instance).
-      maxResults: '50',
-      expand: 'changelog',
-    });
-
-    const url = `${baseUrl.replace(/\/$/, '')}/rest/api/3/search/jql?${params.toString()}`;
     const auth = Buffer.from(`${email}:${token}`).toString('base64');
-
     const headers: Record<string, string> = {
       // biome-ignore lint/style/useNamingConvention: HTTP header names are PascalCase by spec
       Authorization: `Basic ${auth}`,
@@ -92,25 +81,52 @@ export class PmTrackerService {
       Accept: 'application/json',
     };
 
-    const res = await fetch(url, { headers });
+    // Cursor-paginated (this endpoint uses nextPageToken, not startAt) so a developer with
+    // more than one page of matching issues doesn't get silently cut off — a fixed single
+    // page previously caused issues beyond it to look "unassigned" and be pruned in
+    // production. Memory-bounded the same way as jiraBoardIssues: cap total accumulated
+    // issues, and only request the heavy `expand=changelog` for the first page.
+    const allIssues: Array<Record<string, unknown>> = [];
+    const maxResults = 50;
+    const MAX_TOTAL = 400;
+    const CHANGELOG_PAGES = 1;
+    let pageToken: string | undefined;
+    let page = 0;
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
+    while (true) {
+      const params = new URLSearchParams({
+        jql,
+        fields: 'summary,status,priority,duedate,assignee,created,timeoriginalestimate,timespent,customfield_10016,customfield_10028,issuetype',
+        maxResults: String(maxResults),
+      });
+      if (page < CHANGELOG_PAGES) params.set('expand', 'changelog');
+      if (pageToken) params.set('nextPageToken', pageToken);
 
-      throw new HttpException(text || res.statusText, res.status);
+      const url = `${baseUrl.replace(/\/$/, '')}/rest/api/3/search/jql?${params.toString()}`;
+      const res = await fetch(url, { headers });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new HttpException(text || res.statusText, res.status);
+      }
+
+      const data = (await res.json()) as {
+        issues?: Array<Record<string, unknown>>;
+        isLast?: boolean;
+        nextPageToken?: string;
+      };
+      const issues = data.issues ?? [];
+      allIssues.push(...issues);
+      page += 1;
+
+      const exhausted = data.isLast !== false && !data.nextPageToken;
+      if (exhausted || allIssues.length >= MAX_TOTAL) {
+        // truncated only when the cap cut us off before Jira's own results ran out —
+        // callers must not treat an absent issue as "no longer assigned" in that case.
+        return { issues: allIssues, truncated: !exhausted } as JiraSearchResultDto;
+      }
+      pageToken = data.nextPageToken;
     }
-
-    const data = (await res.json()) as {
-      issues?: Array<Record<string, unknown>>;
-      isLast?: boolean;
-    };
-
-    // isLast === false means Jira had more matches than this single, capped request
-    // returned — callers must not treat an absent issue as "no longer assigned" in that case.
-    return {
-      issues: data.issues ?? [],
-      truncated: data.isLast === false,
-    } as JiraSearchResultDto;
   }
 
   async jiraTimeTracking(dto: JiraStatusesRequestDto): Promise<Record<string, unknown>> {
