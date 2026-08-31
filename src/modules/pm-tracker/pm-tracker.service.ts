@@ -76,7 +76,9 @@ export class PmTrackerService {
     const params = new URLSearchParams({
       jql,
       fields: 'summary,status,priority,duedate,assignee,created,timeoriginalestimate,timespent,customfield_10016,customfield_10028,issuetype',
-      maxResults: '100',
+      // A single, non-paginated request with full changelog on every result — kept modest
+      // to bound memory (tightened after a production OOM restart on this instance).
+      maxResults: '50',
       expand: 'changelog',
     });
 
@@ -243,12 +245,15 @@ export class PmTrackerService {
     // to avoid exhausting a small instance we (a) cap total accumulated issues, and (b) only
     // request the heavy `expand=changelog` for the FIRST page. Status history for later-page
     // issues is simply omitted (buildStatusHistory tolerates a missing changelog) — a fair
-    // trade to keep the service from OOM-restarting during a large sync.
+    // trade to keep the service from OOM-restarting during a large sync. A single developer's
+    // actual assigned-issue count on one board is realistically in the tens to low hundreds,
+    // so these are a safety backstop against a pathological board, not a normal-case limit —
+    // tightened from 1500/3 pages after a production OOM restart traced in part to this fetch.
     const allIssues: Array<Record<string, unknown>> = [];
     let startAt = 0;
-    const maxResults = 100;
-    const MAX_TOTAL = 1500;     // hard bound so a pathological board can't OOM the instance
-    const CHANGELOG_PAGES = 3;  // expand changelog only on the first few pages
+    const maxResults = 50;
+    const MAX_TOTAL = 400;
+    const CHANGELOG_PAGES = 1;  // expand changelog only on the very first page
     let page = 0;
 
     while (true) {
