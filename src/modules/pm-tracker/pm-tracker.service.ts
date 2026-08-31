@@ -102,9 +102,15 @@ export class PmTrackerService {
 
     const data = (await res.json()) as {
       issues?: Array<Record<string, unknown>>;
+      isLast?: boolean;
     };
 
-    return { issues: data.issues ?? [] } as JiraSearchResultDto;
+    // isLast === false means Jira had more matches than this single, capped request
+    // returned — callers must not treat an absent issue as "no longer assigned" in that case.
+    return {
+      issues: data.issues ?? [],
+      truncated: data.isLast === false,
+    } as JiraSearchResultDto;
   }
 
   async jiraTimeTracking(dto: JiraStatusesRequestDto): Promise<Record<string, unknown>> {
@@ -281,10 +287,13 @@ export class PmTrackerService {
 
       startAt += maxResults;
       page += 1;
-      if (issues.length < maxResults || startAt >= (data.total ?? 0) || allIssues.length >= MAX_TOTAL) break;
+      const exhausted = issues.length < maxResults || startAt >= (data.total ?? 0);
+      if (exhausted || allIssues.length >= MAX_TOTAL) {
+        // truncated only when the cap cut us off before Jira's own results ran out —
+        // callers must not treat an absent issue as "no longer assigned" in that case.
+        return { issues: allIssues, truncated: !exhausted } as JiraSearchResultDto;
+      }
     }
-
-    return { issues: allIssues } as JiraSearchResultDto;
   }
 
   // Return the FULL set of issue keys on a board — assignee-agnostic and sprint-agnostic,
