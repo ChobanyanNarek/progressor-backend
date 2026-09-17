@@ -45,6 +45,28 @@ export class ApiConfigService {
     return num;
   }
 
+  /*
+   * Like getNumber, but falls back instead of throwing when the variable is unset.
+   * Used for settings added after deployment, so a missing env var can't crash boot.
+   */
+  private getNumberOrDefault(key: string, fallback: number): number {
+    const value = this.configService.get<string>(key);
+
+    if (value == null || value === '') {
+      return fallback;
+    }
+
+    const num = Number(value);
+
+    if (Number.isNaN(num)) {
+      throw new TypeError(
+        `Environment variable ${key} must be a number. Received: ${value}`,
+      );
+    }
+
+    return num;
+  }
+
   private getDuration(
     key: string,
     format?: Parameters<typeof parse>[1],
@@ -153,6 +175,13 @@ export class ApiConfigService {
       privateKey: this.getString('JWT_PRIVATE_KEY'),
       publicKey: this.getString('JWT_PUBLIC_KEY'),
       jwtExpirationTime: this.getNumber('JWT_EXPIRATION_TIME'),
+      // Refresh tokens outlive access tokens by design: the short-lived access token
+      // limits the damage of a leak, while this keeps the user signed in. Defaults to
+      // 30 days so an unset env var can't silently shorten sessions.
+      jwtRefreshExpirationTime: this.getNumberOrDefault(
+        'JWT_REFRESH_EXPIRATION_TIME',
+        60 * 60 * 24 * 30,
+      ),
     };
   }
 
