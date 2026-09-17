@@ -9,7 +9,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { IsEmail } from 'class-validator';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { RoleType } from '../../constants/role-type.ts';
 import { AuthUser } from '../../decorators/auth-user.decorator.ts';
@@ -24,6 +24,10 @@ class SendRegistrationCodeDto {
 }
 import { GoogleTokenDto } from './dto/google-token.dto.ts';
 import { LoginPayloadDto } from './dto/login-payload.dto.ts';
+import {
+  RefreshPayloadDto,
+  RefreshTokenDto,
+} from './dto/refresh-token.dto.ts';
 import { RegisterDto } from './dto/register.dto.ts';
 import { UserLoginDto } from './dto/user-login.dto.ts';
 
@@ -44,12 +48,32 @@ export class AuthController {
   ): Promise<LoginPayloadDto> {
     const userEntity = await this.authService.validateUser(userLoginDto);
 
-    const accessToken = await this.authService.createAccessToken({
-      userId: userEntity.id,
-      role: userEntity.role,
-    });
+    const [accessToken, refreshToken] = await Promise.all([
+      this.authService.createAccessToken({
+        userId: userEntity.id,
+        role: userEntity.role,
+      }),
+      this.authService.createRefreshToken({ userId: userEntity.id }),
+    ]);
 
-    return LoginPayloadDto.create({ accessToken });
+    return LoginPayloadDto.create({ accessToken, refreshToken });
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Exchange a refresh token for a fresh access token',
+  })
+  @ApiOkResponse({
+    type: RefreshPayloadDto,
+    description: 'New access token and a rotated refresh token',
+  })
+  async refresh(@Body() dto: RefreshTokenDto): Promise<RefreshPayloadDto> {
+    const { accessToken, refreshToken } = await this.authService.refreshTokens(
+      dto.refreshToken,
+    );
+
+    return RefreshPayloadDto.create({ accessToken, refreshToken });
   }
 
   @Post('send-registration-code')

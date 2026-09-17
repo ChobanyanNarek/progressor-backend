@@ -60,6 +60,68 @@ export class AuthService {
     });
   }
 
+  /*
+   * Long-lived token whose ONLY power is minting fresh access tokens — JwtStrategy
+   * rejects it for normal API calls because its type is not ACCESS_TOKEN. Deliberately
+   * carries no role claim: the role is re-read from the database on each refresh, so a
+   * role change (or demotion) takes effect without waiting for the token to expire.
+   */
+  async createRefreshToken(data: { userId: Uuid }): Promise<TokenPayloadDto> {
+    return TokenPayloadDto.create({
+      expiresIn: this.configService.authConfig.jwtRefreshExpirationTime,
+      token: await this.jwtService.signAsync(
+        {
+          userId: data.userId,
+          type: TokenType.REFRESH_TOKEN,
+        },
+        { expiresIn: this.configService.authConfig.jwtRefreshExpirationTime },
+      ),
+    });
+  }
+
+  /*
+   * Exchange a refresh token for a new access token (and a rotated refresh token).
+   * Every failure path returns the same generic 401 so a caller can't use this to
+   * probe which user ids or account states exist.
+   */
+  async refreshTokens(refreshToken: string): Promise<{
+    accessToken: TokenPayloadDto;
+    refreshToken: TokenPayloadDto;
+    user: UserEntity;
+  }> {
+    let payload: { userId?: Uuid; type?: TokenType };
+
+    try {
+      payload = await this.jwtService.verifyAsync(refreshToken);
+    } catch {
+      throw new UnauthorizedException();
+    }
+
+    if (payload.type !== TokenType.REFRESH_TOKEN || !payload.userId) {
+      throw new UnauthorizedException();
+    }
+
+    const user = await this.userService.findOne({ id: payload.userId });
+
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    // A disabled account must not be able to keep refreshing its way back in.
+    if (user.status === AccountStatus.DISABLED) {
+      throw new UnauthorizedException();
+    }
+
+    const [accessToken, rotated] = await Promise.all([
+      this.createAccessToken({ userId: user.id, role: user.role }),
+      // Rotate: a refresh token is single-use in practice, so a leaked one has a
+      // bounded lifetime rather than remaining valid for the full 30 days.
+      this.createRefreshToken({ userId: user.id }),
+    ]);
+
+    return { accessToken, refreshToken: rotated, user };
+  }
+
   async validateUser(userLoginDto: UserLoginDto): Promise<UserEntity> {
     const credential = userLoginDto.credential.trim();
     const isEmail = credential.includes('@');
@@ -139,12 +201,15 @@ export class AuthService {
       status: AccountStatus.ACTIVE,
     });
 
-    const accessToken = await this.createAccessToken({
-      userId: result.id as Uuid,
-      role: RoleType.CREATOR,
-    });
+    const [accessToken, refreshToken] = await Promise.all([
+      this.createAccessToken({
+        userId: result.id as Uuid,
+        role: RoleType.CREATOR,
+      }),
+      this.createRefreshToken({ userId: result.id as Uuid }),
+    ]);
 
-    return LoginPayloadDto.create({ accessToken });
+    return LoginPayloadDto.create({ accessToken, refreshToken });
   }
 
   async googleLogin(idToken: string): Promise<LoginPayloadDto> {
@@ -199,12 +264,12 @@ export class AuthService {
       throw new AccountDisabledException();
     }
 
-    const accessToken = await this.createAccessToken({
-      userId: user.id,
-      role: user.role,
-    });
+    const [accessToken, refreshToken] = await Promise.all([
+      this.createAccessToken({ userId: user.id, role: user.role }),
+      this.createRefreshToken({ userId: user.id }),
+    ]);
 
-    return LoginPayloadDto.create({ accessToken });
+    return LoginPayloadDto.create({ accessToken, refreshToken });
   }
 
   async promoteToAdmin(email: string): Promise<void> {
