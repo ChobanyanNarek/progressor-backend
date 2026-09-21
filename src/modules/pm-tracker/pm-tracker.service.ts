@@ -96,7 +96,8 @@ export class PmTrackerService {
     while (true) {
       const params = new URLSearchParams({
         jql,
-        fields: 'summary,status,priority,duedate,assignee,created,timeoriginalestimate,timespent,customfield_10016,customfield_10028,issuetype',
+        fields:
+          'summary,status,priority,duedate,assignee,created,timeoriginalestimate,timespent,customfield_10016,customfield_10028,issuetype,parent',
         maxResults: String(maxResults),
       });
       if (page < CHANGELOG_PAGES) params.set('expand', 'changelog');
@@ -280,7 +281,8 @@ export class PmTrackerService {
 
     while (true) {
       const params = new URLSearchParams({
-        fields: 'summary,status,priority,duedate,assignee,created,timeoriginalestimate,timespent,customfield_10016,customfield_10028,issuetype',
+        fields:
+          'summary,status,priority,duedate,assignee,created,timeoriginalestimate,timespent,customfield_10016,customfield_10028,issuetype,parent',
         startAt: String(startAt),
         maxResults: String(maxResults),
       });
