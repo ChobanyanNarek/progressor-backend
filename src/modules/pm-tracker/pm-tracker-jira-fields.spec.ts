@@ -77,3 +77,37 @@ describe('PmTrackerService Jira field list', () => {
     }
   });
 });
+
+describe('PmTrackerService issue cap', () => {
+  it('accumulates well past 400 issues before truncating', async () => {
+    // Jira orders by `updated DESC`, so a cap that is too low silently drops an open,
+    // assigned issue off the end and it looks like the issue does not exist at all.
+    const pageOf = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ key: `COM-${i}`, fields: {} }));
+    let calls = 0;
+    const fetchMock = jest.fn(() => {
+      calls += 1;
+
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            issues: pageOf(50),
+            isLast: false,
+            nextPageToken: `t${calls}`,
+          }),
+        text: () => Promise.resolve(''),
+      });
+    });
+    globalThis.fetch = fetchMock as never;
+
+    const result = await service().jiraSearch({
+      ...CREDS,
+      jql: 'project = COM',
+    } as never);
+
+    expect(result.issues.length).toBeGreaterThan(400);
+    expect(result.truncated).toBe(true);
+  });
+});

@@ -88,7 +88,12 @@ export class PmTrackerService {
     // issues, and only request the heavy `expand=changelog` for the first page.
     const allIssues: Array<Record<string, unknown>> = [];
     const maxResults = 50;
-    const MAX_TOTAL = 400;
+    // 1000 issues x ~2.5KB is ~2.4MB peak per request, which the 512MB instance absorbs
+    // comfortably -- the memory risk is the changelog expansion (first page only) and the
+    // number of concurrent syncs, not the issue count. At 400 an open, assigned issue on a
+    // busy developer fell off the end of the `updated DESC` ordering and never arrived,
+    // which looks identical to the issue not existing.
+    const MAX_TOTAL = 1000;
     const CHANGELOG_PAGES = 1;
     let pageToken: string | undefined;
     let page = 0;
@@ -275,7 +280,12 @@ export class PmTrackerService {
     const allIssues: Array<Record<string, unknown>> = [];
     let startAt = 0;
     const maxResults = 50;
-    const MAX_TOTAL = 400;
+    // 1000 issues x ~2.5KB is ~2.4MB peak per request, which the 512MB instance absorbs
+    // comfortably -- the memory risk is the changelog expansion (first page only) and the
+    // number of concurrent syncs, not the issue count. At 400 an open, assigned issue on a
+    // busy developer fell off the end of the `updated DESC` ordering and never arrived,
+    // which looks identical to the issue not existing.
+    const MAX_TOTAL = 1000;
     const CHANGELOG_PAGES = 1;  // expand changelog only on the very first page
     let page = 0;
 
