@@ -4,4 +4,6 @@ export enum LogSource {
   DID = 'did',
   MAPS = 'maps',
   AUTH = 'auth',
+  // Errors reported by the pm-tracker web app from users' browsers.
+  WEB = 'web',
 }

@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { AdminLogsModule } from '../admin-logs/admin-logs.module.ts';
+import { ReportClientErrorHandler } from './commands/report-client-error/report-client-error.handler.ts';
 import { SavePmTrackerStateHandler } from './commands/save-state/save-pm-tracker-state.handler.ts';
 import { PmTrackerTaskEntity } from './entities/pm-tracker-task.entity.ts';
 import { PmTrackerController } from './pm-tracker.controller.ts';
@@ -13,6 +15,7 @@ import { SearchTasksHandler } from './queries/search-tasks/search-tasks.handler.
 
 @Module({
   imports: [
+    AdminLogsModule,
     CqrsModule,
     TypeOrmModule.forFeature([PmTrackerStateEntity, PmTrackerTaskEntity]),
   ],
@@ -20,6 +23,7 @@ import { SearchTasksHandler } from './queries/search-tasks/search-tasks.handler.
   providers: [
     PmTrackerService,
     SavePmTrackerStateHandler,
+    ReportClientErrorHandler,
     GetPmTrackerStateHandler,
     SearchTasksHandler,
     ReleaseNoteTasksHandler,

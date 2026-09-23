@@ -2,15 +2,18 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   NotFoundException,
   Post,
   Put,
   Query,
+  UseGuards,
   ValidationPipe,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 import type { PageDto } from '../../common/dto/page.dto.ts';
 import { RoleType } from '../../constants/role-type.ts';
@@ -30,6 +33,7 @@ import type { PmTrackerStateDto } from './dtos/pm-tracker-state.dto.ts';
 import { PmTrackerTaskDto } from './dtos/pm-tracker-task.dto.ts';
 import { ReleaseNoteTaskDto } from './dtos/release-note-task.dto.ts';
 import { ReleaseNoteTasksPageOptionsDto } from './dtos/release-note-tasks-page-options.dto.ts';
+import { ReportClientErrorDto } from './dtos/report-client-error.dto.ts';
 import type { SavePmTrackerStateDto } from './dtos/save-pm-tracker-state.dto.ts';
 import { SearchTasksPageOptionsDto } from './dtos/search-tasks-page-options.dto.ts';
 import { PmTrackerService } from './pm-tracker.service.ts';
@@ -53,6 +57,25 @@ export class PmTrackerController {
     }
 
     return entity.toDto();
+  }
+
+  /*
+   * Errors from users' browsers, recorded in the admin log for the admin panel. Throttled
+   * per client so a page stuck in an error loop cannot flood the log; the client also
+   * de-duplicates and caps what it sends.
+   */
+  @Post('client-errors')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Report an error raised in the web app' })
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  reportClientError(
+    @AuthUser() user: UserEntity,
+    @Body() report: ReportClientErrorDto,
+    @Headers('user-agent') userAgent: string | undefined,
+  ): Promise<void> {
+    return this.pmTrackerService.reportClientError(user.id, report, userAgent);
   }
 
   @Put('state')

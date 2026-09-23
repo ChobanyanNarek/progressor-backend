@@ -2,6 +2,7 @@ import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 
 import type { PageDto } from '../../common/dto/page.dto.ts';
+import { ReportClientErrorCommand } from './commands/report-client-error/report-client-error.command.ts';
 import { SavePmTrackerStateCommand } from './commands/save-state/save-pm-tracker-state.command.ts';
 import type {
   JiraBoardIssuesRequestDto,
@@ -14,6 +15,7 @@ import type {
 import type { PmTrackerTaskDto } from './dtos/pm-tracker-task.dto.ts';
 import type { ReleaseNoteTaskDto } from './dtos/release-note-task.dto.ts';
 import type { ReleaseNoteTasksPageOptionsDto } from './dtos/release-note-tasks-page-options.dto.ts';
+import type { ReportClientErrorDto } from './dtos/report-client-error.dto.ts';
 import type { SavePmTrackerStateDto } from './dtos/save-pm-tracker-state.dto.ts';
 import type { SearchTasksPageOptionsDto } from './dtos/search-tasks-page-options.dto.ts';
 import type { PmTrackerStateEntity } from './pm-tracker-state.entity.ts';
@@ -27,6 +29,16 @@ export class PmTrackerService {
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
   ) {}
+
+  reportClientError(
+    userId: Uuid,
+    report: ReportClientErrorDto,
+    userAgent: string | undefined,
+  ): Promise<void> {
+    return this.commandBus.execute(
+      new ReportClientErrorCommand(userId, report, userAgent),
+    );
+  }
 
   getState(userId: Uuid): Promise<PmTrackerStateEntity | null> {
     return this.queryBus.execute<
