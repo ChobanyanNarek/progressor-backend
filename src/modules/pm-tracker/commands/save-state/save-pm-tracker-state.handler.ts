@@ -26,12 +26,18 @@ export class SavePmTrackerStateHandler
   async execute(
     command: SavePmTrackerStateCommand,
   ): Promise<SavePmTrackerStateDto> {
+    /*
+     * Select the row's identity only. getOne() on the full entity pulled the entire
+     * existing blob (several MB of JSONB) out of Postgres and parsed it, purely to learn
+     * its id -- one more full copy of the state held in memory on every save.
+     */
     const existing = await this.repo
       .createQueryBuilder('s')
+      .select(['s.id', 's.createdAt', 's.updatedAt'])
       .where('s.user_id = :userId', { userId: command.userId })
       .getOne();
 
-    let result: SavePmTrackerStateDto;
+    let saved: PmTrackerStateEntity;
 
     if (existing) {
       await this.repo
@@ -42,35 +48,41 @@ export class SavePmTrackerStateHandler
         .where('id = :id', { id: existing.id })
         .execute();
 
-      existing.data = command.data;
-
-      result = existing.toDto() as unknown as SavePmTrackerStateDto;
+      saved = existing;
     } else {
-      const entity = this.repo.create({
-        userId: command.userId,
-        workspaceKey: null,
-        data: command.data,
-      });
-
-      const saved = await this.repo.save(entity);
-
-      result = saved.toDto() as unknown as SavePmTrackerStateDto;
+      saved = await this.repo.save(
+        this.repo.create({
+          userId: command.userId,
+          workspaceKey: null,
+          data: command.data,
+        }),
+      );
     }
 
     /*
-     * Dual-write into the pm_tracker_task mirror table used by
-     * Search/Release-Notes pagination. Best-effort: a failure here must not
-     * fail the blob save (the blob is still the frontend's source of truth),
-     * so it's logged rather than thrown — the mirror self-heals on the next save.
+     * Reply without the blob. The response used to echo the whole saved state back,
+     * so the client had to download several MB again before its save counted as done,
+     * inside its request timeout, and the server serialised a further full copy. The
+     * client reads only the status code; the state itself is fetched with GET /state.
      */
-    try {
-      await syncTasksFromState(this.taskRepo, command.userId, command.data);
-    } catch (error) {
-      this.logger.error(
-        `Failed to sync pm_tracker_task for user ${command.userId}`,
-        error instanceof Error ? error.stack : String(error),
-      );
-    }
+    saved.data = {};
+
+    const result = saved.toDto() as unknown as SavePmTrackerStateDto;
+
+    /*
+     * Refresh the pm_tracker_task mirror AFTER replying. It rewrites every task row, and
+     * awaiting it made each save wait on a full table sync before the client heard back.
+     * Best-effort as before: the blob is the source of truth and the mirror self-heals on
+     * the next save.
+     */
+    void syncTasksFromState(this.taskRepo, command.userId, command.data).catch(
+      (error: unknown) => {
+        this.logger.error(
+          `Failed to sync pm_tracker_task for user ${command.userId}`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      },
+    );
 
     return result;
   }

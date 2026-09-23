@@ -60,6 +60,14 @@ function toTaskRow(userId: Uuid, raw: IFrontendTask): TaskRow | null {
  * (carried-over/duplicated/deleted tasks all resolve correctly this way,
  * since the blob is always the frontend's full, authoritative task list).
  */
+/*
+ * Postgres caps a single statement at 65535 bind parameters. A task row binds about ten, so
+ * writing every task in one upsert failed outright past ~6500 tasks, and the NOT IN list for
+ * stale rows had the same ceiling. Both are now done in bounded chunks.
+ */
+const UPSERT_CHUNK = 500;
+const DELETE_CHUNK = 1000;
+
 export async function syncTasksFromState(
   taskRepository: Repository<PmTrackerTaskEntity>,
   userId: Uuid,
@@ -75,22 +83,37 @@ export async function syncTasksFromState(
     .map((raw) => toTaskRow(userId, raw))
     .filter((row): row is TaskRow => row !== null);
 
-  if (rows.length > 0) {
-    await taskRepository.upsert(rows, ['userId', 'clientId']);
+  for (let i = 0; i < rows.length; i += UPSERT_CHUNK) {
+    // eslint-disable-next-line no-await-in-loop -- sequential by design: bounds memory and parameter count
+    await taskRepository.upsert(rows.slice(i, i + UPSERT_CHUNK), [
+      'userId',
+      'clientId',
+    ]);
   }
 
-  const seenClientIds = rows.map((row) => row.clientId as string);
+  /*
+   * Work out stale rows in memory from the ids alone, rather than a NOT IN over every
+   * current id: that keeps the statement size independent of how many tasks the user has.
+   */
+  const current = new Set(rows.map((row) => row.clientId as string));
+  const existing = await taskRepository
+    .createQueryBuilder('t')
+    .select('t.client_id', 'clientId')
+    .where('t.user_id = :userId', { userId })
+    .getRawMany<{ clientId: string }>();
+  const stale = existing
+    .map((row) => row.clientId)
+    .filter((clientId) => !current.has(clientId));
 
-  const deleteQuery = taskRepository
-    .createQueryBuilder()
-    .delete()
-    .where('user_id = :userId', { userId });
-
-  await (
-    seenClientIds.length > 0
-      ? deleteQuery.andWhere('client_id NOT IN (:...seenClientIds)', {
-          seenClientIds,
-        })
-      : deleteQuery
-  ).execute();
+  for (let i = 0; i < stale.length; i += DELETE_CHUNK) {
+    // eslint-disable-next-line no-await-in-loop -- sequential by design: bounds parameter count
+    await taskRepository
+      .createQueryBuilder()
+      .delete()
+      .where('user_id = :userId', { userId })
+      .andWhere('client_id IN (:...ids)', {
+        ids: stale.slice(i, i + DELETE_CHUNK),
+      })
+      .execute();
+  }
 }

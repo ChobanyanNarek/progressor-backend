@@ -8,22 +8,29 @@ describe('syncTasksFromState', () => {
   let upsert: jest.Mock<() => Promise<number>>;
   let execute: jest.Mock<() => Promise<number>>;
   let andWhere: jest.Mock;
+  let existingIds: string[];
   let repo: Record<string, unknown>;
 
   beforeEach(() => {
     upsert = jest.fn<() => Promise<number>>().mockResolvedValue(1);
     execute = jest.fn<() => Promise<number>>().mockResolvedValue(1);
+    existingIds = [];
 
-    const deleteQb: Record<string, unknown> = {};
-    deleteQb.delete = jest.fn().mockReturnValue(deleteQb);
-    deleteQb.where = jest.fn().mockReturnValue(deleteQb);
-    andWhere = jest.fn().mockReturnValue(deleteQb);
-    deleteQb.andWhere = andWhere;
-    deleteQb.execute = execute;
+    // One builder serves both the id lookup and the chunked deletes.
+    const qb: Record<string, unknown> = {};
+    qb.select = jest.fn().mockReturnValue(qb);
+    qb.delete = jest.fn().mockReturnValue(qb);
+    qb.where = jest.fn().mockReturnValue(qb);
+    andWhere = jest.fn().mockReturnValue(qb);
+    qb.andWhere = andWhere;
+    qb.execute = execute;
+    qb.getRawMany = jest.fn(() =>
+      Promise.resolve(existingIds.map((clientId) => ({ clientId }))),
+    );
 
     repo = {
       upsert,
-      createQueryBuilder: jest.fn().mockReturnValue(deleteQb),
+      createQueryBuilder: jest.fn().mockReturnValue(qb),
     };
   });
 
@@ -85,23 +92,59 @@ describe('syncTasksFromState', () => {
     );
   });
 
-  it('deletes rows for this user whose clientId is no longer present', async () => {
+  it('deletes only rows whose clientId is no longer present', async () => {
+    existingIds = ['task-1', 'gone-1', 'gone-2'];
+
     await syncTasksFromState(repo as never, USER_ID, {
       tasks: [{ id: 'task-1', devId: 'dev-1', date: '2026-01-15' }],
     });
 
-    expect(andWhere).toHaveBeenCalledWith(
-      'client_id NOT IN (:...seenClientIds)',
-      { seenClientIds: ['task-1'] },
-    );
+    expect(andWhere).toHaveBeenCalledWith('client_id IN (:...ids)', {
+      ids: ['gone-1', 'gone-2'],
+    });
     expect(execute).toHaveBeenCalledTimes(1);
   });
 
+  it('deletes nothing when every stored row is still present', async () => {
+    existingIds = ['task-1'];
+
+    await syncTasksFromState(repo as never, USER_ID, {
+      tasks: [{ id: 'task-1', devId: 'dev-1', date: '2026-01-15' }],
+    });
+
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it("deletes all of the user's rows when the blob has zero valid tasks", async () => {
+    existingIds = ['old-1', 'old-2'];
+
     await syncTasksFromState(repo as never, USER_ID, { tasks: [] });
 
     expect(upsert).not.toHaveBeenCalled();
-    expect(andWhere).not.toHaveBeenCalled();
-    expect(execute).toHaveBeenCalledTimes(1);
+    expect(andWhere).toHaveBeenCalledWith('client_id IN (:...ids)', {
+      ids: ['old-1', 'old-2'],
+    });
+  });
+
+  it('writes large task lists in bounded chunks', async () => {
+    /*
+     * Postgres rejects a statement with more than 65535 bind parameters. A single upsert
+     * of every task hit that past ~6500 tasks, failing the whole mirror sync.
+     */
+    const tasks = Array.from({ length: 1201 }, (_, i) => ({
+      id: `task-${i}`,
+      devId: 'dev-1',
+      date: '2026-01-15',
+    }));
+
+    await syncTasksFromState(repo as never, USER_ID, { tasks });
+
+    expect(upsert).toHaveBeenCalledTimes(3);
+
+    for (const call of upsert.mock.calls) {
+      expect(((call as unknown[])[0] as unknown[]).length).toBeLessThanOrEqual(
+        500,
+      );
+    }
   });
 });
