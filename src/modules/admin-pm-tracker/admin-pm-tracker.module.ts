@@ -2,8 +2,9 @@ import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { PmTrackerStateEntity } from '../pm-tracker/pm-tracker-state.entity.ts';
 import { PaymentModule } from '../payment/payment.module.ts';
+import { PmTrackerCredentialEntity } from '../pm-tracker/entities/pm-tracker-credential.entity.ts';
+import { PmTrackerStateEntity } from '../pm-tracker/pm-tracker-state.entity.ts';
 import { DeleteUserHandler } from '../user/commands/delete-user/delete-user.handler.ts';
 import { UserEntity } from '../user/user.entity.ts';
 import { AdminPmTrackerController } from './admin-pm-tracker.controller.ts';
@@ -15,7 +16,11 @@ import { GetAdminUsersHandler } from './queries/get-admin-users/get-admin-users.
 @Module({
   imports: [
     CqrsModule,
-    TypeOrmModule.forFeature([UserEntity, PmTrackerStateEntity]),
+    TypeOrmModule.forFeature([
+      UserEntity,
+      PmTrackerStateEntity,
+      PmTrackerCredentialEntity,
+    ]),
     PaymentModule,
   ],
   controllers: [AdminPmTrackerController],

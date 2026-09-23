@@ -29,6 +29,7 @@ Format: [MADR 3.0](https://adr.github.io/madr/). New ADRs copy
 | [0014](./0014-awesome-nest-custom-lint-rules.md) | Architectural conventions enforced as `@m-one-dev/awesome-nest-eslint` rules | Accepted |
 | [0015](./0015-api-errors-return-codes-not-translations.md) | API errors return stable codes, not server-side translations | Accepted |
 | [0016](./0016-endpoints-return-dto-or-pagedto.md) | API endpoints return a `Dto` or `PageDto<Dto>` (no bare arrays/interfaces) | Accepted |
+| [0017](./0017-integration-tokens-encrypted-server-side.md) | Integration tokens are stored encrypted server-side and never returned | Accepted |
 
 ## How to add an ADR
 

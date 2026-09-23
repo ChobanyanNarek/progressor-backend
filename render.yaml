@@ -53,6 +53,9 @@ services:
 
       # Secrets — add these in the Render dashboard (never commit real values)
       # JWT_PRIVATE_KEY, JWT_PUBLIC_KEY, CORS_ORIGINS, FRONTEND_URL
+      # PM_TRACKER_CREDENTIALS_KEY -- AES-256 key for the integration token vault:
+      #   openssl rand -base64 32
+      #   Without it the vault stays off and clients keep their tokens locally.
 
 databases:
   - name: ghost-app-db

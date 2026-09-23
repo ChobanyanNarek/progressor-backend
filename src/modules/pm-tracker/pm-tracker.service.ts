@@ -2,7 +2,9 @@ import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 
 import type { PageDto } from '../../common/dto/page.dto.ts';
+import { DeleteCredentialCommand } from './commands/delete-credential/delete-credential.command.ts';
 import { ReportClientErrorCommand } from './commands/report-client-error/report-client-error.command.ts';
+import { SaveCredentialCommand } from './commands/save-credential/save-credential.command.ts';
 import { SavePmTrackerStateCommand } from './commands/save-state/save-pm-tracker-state.command.ts';
 import type {
   JiraBoardIssuesRequestDto,
@@ -12,16 +14,47 @@ import type {
   JiraSprintsRequestDto,
   JiraStatusesRequestDto,
 } from './dtos/jira-proxy.dto.ts';
+import type { PmTrackerCredentialListDto } from './dtos/pm-tracker-credential-list.dto.ts';
 import type { PmTrackerTaskDto } from './dtos/pm-tracker-task.dto.ts';
+import {
+  type GithubProxyRequestDto,
+  GithubProxyResultDto,
+  type GitlabProxyRequestDto,
+  GitlabProxyResultDto,
+} from './dtos/provider-proxy.dto.ts';
 import type { ReleaseNoteTaskDto } from './dtos/release-note-task.dto.ts';
 import type { ReleaseNoteTasksPageOptionsDto } from './dtos/release-note-tasks-page-options.dto.ts';
 import type { ReportClientErrorDto } from './dtos/report-client-error.dto.ts';
+import type { SavePmTrackerCredentialDto } from './dtos/save-pm-tracker-credential.dto.ts';
 import type { SavePmTrackerStateDto } from './dtos/save-pm-tracker-state.dto.ts';
 import type { SearchTasksPageOptionsDto } from './dtos/search-tasks-page-options.dto.ts';
 import type { PmTrackerStateEntity } from './pm-tracker-state.entity.ts';
 import { GetPmTrackerStateQuery } from './queries/get-state/get-pm-tracker-state.query.ts';
+import { ListCredentialsQuery } from './queries/list-credentials/list-credentials.query.ts';
 import { ReleaseNoteTasksQuery } from './queries/release-note-tasks/release-note-tasks.query.ts';
+import { ResolveCredentialQuery } from './queries/resolve-credential/resolve-credential.query.ts';
 import { SearchTasksQuery } from './queries/search-tasks/search-tasks.query.ts';
+
+/*
+ * The only provider endpoints the web app calls. A proxy path must match one of these, on
+ * the provider's fixed API host, so a stored token can only be used the way the app uses
+ * it -- never to reach an arbitrary URL, and never for a write.
+ */
+export const GITHUB_PATHS: RegExp[] = [
+  /^\/repos(?:\/[\w.-]+){2}\/pul{2}s(\/\d+)?(\?[^#]*)?$/,
+  /^\/(orgs|users)\/[\w.-]+\/repos(\?[^#]*)?$/,
+  /^\/search\/issues(\?[^#]*)?$/,
+];
+
+export const GITLAB_PATHS: RegExp[] = [
+  /^\/api\/v4\/(groups|projects|users)\/[\w%.-]+\/merge_requests(\?[^#]*)?$/,
+];
+
+export function assertAllowedPath(path: string, allowed: RegExp[]): void {
+  if (path.includes('..') || !allowed.some((re) => re.test(path))) {
+    throw new BadRequestException('error.proxyPathNotAllowed');
+  }
+}
 
 @Injectable()
 export class PmTrackerService {
@@ -74,6 +107,93 @@ export class PmTrackerService {
       ReleaseNoteTasksQuery,
       PageDto<ReleaseNoteTaskDto>
     >(new ReleaseNoteTasksQuery(userId, pageOptionsDto));
+  }
+
+  /*
+   * Fill in the token for a proxy call: taken from the request while the client still
+   * holds it, otherwise decrypted from the vault by connection id. Credentials are always
+   * looked up under the calling user, so a connection id cannot reach another user's token.
+   */
+  async withResolvedToken<T extends { token?: string; connectionId?: string }>(
+    userId: Uuid,
+    dto: T,
+  ): Promise<T & { token: string }> {
+    if (dto.token) {
+      return { ...dto, token: dto.token };
+    }
+
+    if (!dto.connectionId) {
+      throw new BadRequestException('error.credentialRequired');
+    }
+
+    const token = await this.queryBus.execute<ResolveCredentialQuery, string>(
+      new ResolveCredentialQuery(userId, dto.connectionId),
+    );
+
+    return { ...dto, token };
+  }
+
+  saveCredential(
+    userId: Uuid,
+    connectionId: string,
+    dto: SavePmTrackerCredentialDto,
+  ): Promise<void> {
+    return this.commandBus.execute(
+      new SaveCredentialCommand(userId, connectionId, dto.provider, dto.secret),
+    );
+  }
+
+  deleteCredential(userId: Uuid, connectionId: string): Promise<void> {
+    return this.commandBus.execute(
+      new DeleteCredentialCommand(userId, connectionId),
+    );
+  }
+
+  listCredentials(userId: Uuid): Promise<PmTrackerCredentialListDto> {
+    return this.queryBus.execute<
+      ListCredentialsQuery,
+      PmTrackerCredentialListDto
+    >(new ListCredentialsQuery(userId));
+  }
+
+  async githubProxy(
+    userId: Uuid,
+    dto: GithubProxyRequestDto,
+  ): Promise<GithubProxyResultDto> {
+    assertAllowedPath(dto.path, GITHUB_PATHS);
+    const { token } = await this.withResolvedToken(userId, dto);
+    // HTTP header names aren't identifiers, so they're built from pairs.
+    const res = await fetch(`https://api.github.com${dto.path}`, {
+      headers: Object.fromEntries([
+        ['Authorization', `Bearer ${token}`],
+        ['Accept', 'application/vnd.github+json'],
+        ['X-GitHub-Api-Version', '2022-11-28'],
+      ]),
+    });
+
+    return GithubProxyResultDto.create({
+      status: res.status,
+      data: await res.json().catch(() => null),
+    });
+  }
+
+  async gitlabProxy(
+    userId: Uuid,
+    dto: GitlabProxyRequestDto,
+  ): Promise<GitlabProxyResultDto> {
+    assertAllowedPath(dto.path, GITLAB_PATHS);
+    const { token } = await this.withResolvedToken(userId, dto);
+    const res = await fetch(`https://gitlab.com${dto.path}`, {
+      headers: Object.fromEntries([
+        ['PRIVATE-TOKEN', token],
+        ['Accept', 'application/json'],
+      ]),
+    });
+
+    return GitlabProxyResultDto.create({
+      status: res.status,
+      data: await res.json().catch(() => null),
+    });
   }
 
   async jiraSearch(dto: JiraSearchRequestDto): Promise<JiraSearchResultDto> {

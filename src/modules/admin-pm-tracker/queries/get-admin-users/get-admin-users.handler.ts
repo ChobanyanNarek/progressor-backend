@@ -2,6 +2,7 @@ import { type IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
+import { PmTrackerCredentialEntity } from '../../../pm-tracker/entities/pm-tracker-credential.entity.ts';
 import { PmTrackerStateEntity } from '../../../pm-tracker/pm-tracker-state.entity.ts';
 import { UserEntity } from '../../../user/user.entity.ts';
 import { AdminPmTrackerUserDto } from '../../dtos/admin-pm-tracker-user.dto.ts';
@@ -17,6 +18,8 @@ export class GetAdminUsersHandler
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(PmTrackerStateEntity)
     private readonly stateRepository: Repository<PmTrackerStateEntity>,
+    @InjectRepository(PmTrackerCredentialEntity)
+    private readonly credentialRepository: Repository<PmTrackerCredentialEntity>,
   ) {}
 
   async execute(): Promise<AdminPmTrackerUsersDto> {
@@ -37,6 +40,27 @@ export class GetAdminUsersHandler
 
     const stateMap = new Map(states.map((s) => [s.userId, s]));
 
+    /*
+     * Tokens now live in the credential vault, not in the state blob, so a connection
+     * counts as connected when either holds its token. Ids only -- secrets are never read.
+     */
+    const vaulted =
+      userIds.length > 0
+        ? await this.credentialRepository
+            .createQueryBuilder('c')
+            .select(['c.userId', 'c.connectionId'])
+            .where('c.user_id IN (:...userIds)', { userIds })
+            .getMany()
+        : [];
+    const vaultedByUser = new Map<string, Set<string>>();
+
+    for (const row of vaulted) {
+      const ids = vaultedByUser.get(row.userId) ?? new Set<string>();
+
+      ids.add(row.connectionId);
+      vaultedByUser.set(row.userId, ids);
+    }
+
     const userDtos = users.map((user) => {
       const state = stateMap.get(user.id) ?? null;
       const data = state?.data;
@@ -44,9 +68,11 @@ export class GetAdminUsersHandler
       const asArr = (key: string): unknown[] =>
         Array.isArray(data?.[key]) ? (data[key] as unknown[]) : [];
 
+      const vaultedIds = vaultedByUser.get(user.id) ?? new Set<string>();
       const hasActive = (key: string): boolean =>
         (asArr(key) as Array<Record<string, unknown>>).some(
-          (c) => c.enabled && c.token,
+          (c) =>
+            c.enabled && (Boolean(c.token) || vaultedIds.has(String(c.id))),
         );
 
       return AdminPmTrackerUserDto.create({

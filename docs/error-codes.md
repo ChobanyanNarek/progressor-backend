@@ -19,6 +19,11 @@ This page is the contract: the list of codes the frontend must handle. The
 | `error.fileNotImage` | 422 | Uploaded file is not a valid image |
 | `error.payloadTooLarge` | 413 | Request body exceeds the 20mb limit (measured after gzip decompression) |
 | `error.invalidBody` | 400 | Request body is malformed JSON or uses an unsupported encoding |
+| `error.credentialVaultUnavailable` | 503 | The integration token vault has no encryption key configured |
+| `error.credentialNotFound` | 404 | No stored token for this connection (for the calling user) |
+| `error.credentialRequired` | 400 | A proxy call carried neither a token nor a connection id |
+| `error.invalidProvider` | 400 | Credential provider is not one of jira, github, gitlab |
+| `error.proxyPathNotAllowed` | 400 | A GitHub/GitLab proxy path is outside the read-only allow-list |
 | `error.phoneNumber` | 422 | Phone number failed validation |
 | `error.pageType` | 500 | Internal pagination misuse |
 | `error.memoryPointNotFound` | 404 | No memory point matches the id (or not owned) |

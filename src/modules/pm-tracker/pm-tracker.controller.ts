@@ -1,11 +1,13 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   HttpCode,
   HttpStatus,
   NotFoundException,
+  Param,
   Post,
   Put,
   Query,
@@ -29,11 +31,19 @@ import {
   JiraSprintsRequestDto,
   JiraStatusesRequestDto,
 } from './dtos/jira-proxy.dto.ts';
+import { PmTrackerCredentialListDto } from './dtos/pm-tracker-credential-list.dto.ts';
 import type { PmTrackerStateDto } from './dtos/pm-tracker-state.dto.ts';
 import { PmTrackerTaskDto } from './dtos/pm-tracker-task.dto.ts';
+import {
+  GithubProxyRequestDto,
+  GithubProxyResultDto,
+  GitlabProxyRequestDto,
+  GitlabProxyResultDto,
+} from './dtos/provider-proxy.dto.ts';
 import { ReleaseNoteTaskDto } from './dtos/release-note-task.dto.ts';
 import { ReleaseNoteTasksPageOptionsDto } from './dtos/release-note-tasks-page-options.dto.ts';
 import { ReportClientErrorDto } from './dtos/report-client-error.dto.ts';
+import { SavePmTrackerCredentialDto } from './dtos/save-pm-tracker-credential.dto.ts';
 import type { SavePmTrackerStateDto } from './dtos/save-pm-tracker-state.dto.ts';
 import { SearchTasksPageOptionsDto } from './dtos/search-tasks-page-options.dto.ts';
 import { PmTrackerService } from './pm-tracker.service.ts';
@@ -76,6 +86,69 @@ export class PmTrackerController {
     @Headers('user-agent') userAgent: string | undefined,
   ): Promise<void> {
     return this.pmTrackerService.reportClientError(user.id, report, userAgent);
+  }
+
+  /*
+   * Credential vault. Integration tokens are stored encrypted server-side and are never
+   * returned: the list reports which connections have one, not what it is.
+   */
+  @Get('credentials')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'List which connections have a stored token' })
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  listCredentials(
+    @AuthUser() user: UserEntity,
+  ): Promise<PmTrackerCredentialListDto> {
+    return this.pmTrackerService.listCredentials(user.id);
+  }
+
+  @Put('credentials/:connectionId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Store or replace the token for a connection' })
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  saveCredential(
+    @AuthUser() user: UserEntity,
+    @Param('connectionId') connectionId: string,
+    @Body() dto: SavePmTrackerCredentialDto,
+  ): Promise<void> {
+    return this.pmTrackerService.saveCredential(user.id, connectionId, dto);
+  }
+
+  @Delete('credentials/:connectionId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete the token for a connection' })
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  deleteCredential(
+    @AuthUser() user: UserEntity,
+    @Param('connectionId') connectionId: string,
+  ): Promise<void> {
+    return this.pmTrackerService.deleteCredential(user.id, connectionId);
+  }
+
+  @Post('github')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Proxy an allow-listed GitHub read with a vaulted token',
+  })
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  githubProxy(
+    @AuthUser() user: UserEntity,
+    @Body() dto: GithubProxyRequestDto,
+  ): Promise<GithubProxyResultDto> {
+    return this.pmTrackerService.githubProxy(user.id, dto);
+  }
+
+  @Post('gitlab')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Proxy an allow-listed GitLab read with a vaulted token',
+  })
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  gitlabProxy(
+    @AuthUser() user: UserEntity,
+    @Body() dto: GitlabProxyRequestDto,
+  ): Promise<GitlabProxyResultDto> {
+    return this.pmTrackerService.gitlabProxy(user.id, dto);
   }
 
   @Put('state')
@@ -133,8 +206,13 @@ export class PmTrackerController {
     summary: 'Proxy a Jira issue search to avoid browser CORS restrictions',
   })
   @Auth([RoleType.CREATOR, RoleType.ADMIN])
-  jiraSearch(@Body() dto: JiraSearchRequestDto): Promise<JiraSearchResultDto> {
-    return this.pmTrackerService.jiraSearch(dto);
+  async jiraSearch(
+    @AuthUser() user: UserEntity,
+    @Body() dto: JiraSearchRequestDto,
+  ): Promise<JiraSearchResultDto> {
+    return this.pmTrackerService.jiraSearch(
+      await this.pmTrackerService.withResolvedToken(user.id, dto),
+    );
   }
 
   @Post('jira-statuses')
@@ -143,10 +221,13 @@ export class PmTrackerController {
     summary: 'Fetch all Jira statuses for a workspace to build status mappings',
   })
   @Auth([RoleType.CREATOR, RoleType.ADMIN])
-  jiraStatuses(
+  async jiraStatuses(
+    @AuthUser() user: UserEntity,
     @Body() dto: JiraStatusesRequestDto,
   ): Promise<Array<Record<string, unknown>>> {
-    return this.pmTrackerService.jiraStatuses(dto);
+    return this.pmTrackerService.jiraStatuses(
+      await this.pmTrackerService.withResolvedToken(user.id, dto),
+    );
   }
 
   @Post('jira-boards')
@@ -155,10 +236,13 @@ export class PmTrackerController {
     summary: 'Fetch all Jira boards for a workspace to filter synced issues',
   })
   @Auth([RoleType.CREATOR, RoleType.ADMIN])
-  jiraBoards(
+  async jiraBoards(
+    @AuthUser() user: UserEntity,
     @Body() dto: JiraBoardsRequestDto,
   ): Promise<Array<Record<string, unknown>>> {
-    return this.pmTrackerService.jiraBoards(dto);
+    return this.pmTrackerService.jiraBoards(
+      await this.pmTrackerService.withResolvedToken(user.id, dto),
+    );
   }
 
   @Post('jira-board-issues')
@@ -168,10 +252,13 @@ export class PmTrackerController {
       'Fetch issues from a Jira board for a specific assignee (active sprint)',
   })
   @Auth([RoleType.CREATOR, RoleType.ADMIN])
-  jiraBoardIssues(
+  async jiraBoardIssues(
+    @AuthUser() user: UserEntity,
     @Body() dto: JiraBoardIssuesRequestDto,
   ): Promise<JiraSearchResultDto> {
-    return this.pmTrackerService.jiraBoardIssues(dto);
+    return this.pmTrackerService.jiraBoardIssues(
+      await this.pmTrackerService.withResolvedToken(user.id, dto),
+    );
   }
 
   @Post('jira-board-keys')
@@ -181,10 +268,13 @@ export class PmTrackerController {
       'Fetch ALL issue keys on a Jira board (assignee-agnostic, sprint-agnostic, paginated) for board membership',
   })
   @Auth([RoleType.CREATOR, RoleType.ADMIN])
-  jiraBoardKeys(
+  async jiraBoardKeys(
+    @AuthUser() user: UserEntity,
     @Body() dto: JiraSprintsRequestDto,
   ): Promise<{ keys: string[] }> {
-    return this.pmTrackerService.jiraBoardKeys(dto);
+    return this.pmTrackerService.jiraBoardKeys(
+      await this.pmTrackerService.withResolvedToken(user.id, dto),
+    );
   }
 
   @Post('jira-time-tracking')
@@ -193,10 +283,13 @@ export class PmTrackerController {
     summary: 'Fetch Jira time tracking configuration (workingHoursPerDay)',
   })
   @Auth([RoleType.CREATOR, RoleType.ADMIN])
-  jiraTimeTracking(
+  async jiraTimeTracking(
+    @AuthUser() user: UserEntity,
     @Body() dto: JiraStatusesRequestDto,
   ): Promise<Record<string, unknown>> {
-    return this.pmTrackerService.jiraTimeTracking(dto);
+    return this.pmTrackerService.jiraTimeTracking(
+      await this.pmTrackerService.withResolvedToken(user.id, dto),
+    );
   }
 
   @Post('jira-sprints')
@@ -205,9 +298,12 @@ export class PmTrackerController {
     summary: 'Fetch active/future sprints for a Jira board',
   })
   @Auth([RoleType.CREATOR, RoleType.ADMIN])
-  jiraSprints(
+  async jiraSprints(
+    @AuthUser() user: UserEntity,
     @Body() dto: JiraSprintsRequestDto,
   ): Promise<Array<Record<string, unknown>>> {
-    return this.pmTrackerService.jiraSprints(dto);
+    return this.pmTrackerService.jiraSprints(
+      await this.pmTrackerService.withResolvedToken(user.id, dto),
+    );
   }
 }

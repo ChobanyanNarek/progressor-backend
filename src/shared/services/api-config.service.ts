@@ -109,6 +109,30 @@ export class ApiConfigService {
     return value.replaceAll(String.raw`\n`, '\n');
   }
 
+  /*
+   * AES-256 key for the pm-tracker credential vault (32 bytes, base64). Deliberately NOT
+   * required at boot: returning null switches the vault off, and the client keeps its
+   * tokens where they are until the key is configured -- a deploy made before the key was
+   * added must not crash the service. A key that is present but malformed is an error.
+   */
+  get pmTrackerCredentialsKey(): Buffer | null {
+    const raw = this.configService.get<string>('PM_TRACKER_CREDENTIALS_KEY');
+
+    if (raw == null || raw.trim() === '') {
+      return null;
+    }
+
+    const key = Buffer.from(raw.trim(), 'base64');
+
+    if (key.length !== 32) {
+      throw new Error(
+        'PM_TRACKER_CREDENTIALS_KEY must be 32 bytes encoded as base64 (openssl rand -base64 32)',
+      );
+    }
+
+    return key;
+  }
+
   get nodeEnv(): string {
     return this.getString('NODE_ENV');
   }
@@ -175,9 +199,11 @@ export class ApiConfigService {
       privateKey: this.getString('JWT_PRIVATE_KEY'),
       publicKey: this.getString('JWT_PUBLIC_KEY'),
       jwtExpirationTime: this.getNumber('JWT_EXPIRATION_TIME'),
-      // Refresh tokens outlive access tokens by design: the short-lived access token
-      // limits the damage of a leak, while this keeps the user signed in. Defaults to
-      // 30 days so an unset env var can't silently shorten sessions.
+      /*
+       * Refresh tokens outlive access tokens by design: the short-lived access token
+       * limits the damage of a leak, while this keeps the user signed in. Defaults to
+       * 30 days so an unset env var can't silently shorten sessions.
+       */
       jwtRefreshExpirationTime: this.getNumberOrDefault(
         'JWT_REFRESH_EXPIRATION_TIME',
         60 * 60 * 24 * 30,
