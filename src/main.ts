@@ -16,6 +16,7 @@ import morgan from 'morgan';
 import { initializeTransactionalContext } from 'typeorm-transactional';
 
 import { AppModule } from './app.module.ts';
+import { bodyParserErrorHandler } from './common/middleware/body-parser-error.middleware.ts';
 import { parseCorsOrigins } from './common/utils.ts';
 import { HttpExceptionFilter } from './filters/bad-request.filter.ts';
 import { QueryFailedFilter } from './filters/query-failed.filter.ts';
@@ -36,8 +37,20 @@ export async function bootstrap(): Promise<NestExpressApplication> {
 
   const expressInstance = express();
   expressInstance.disable('x-powered-by');
-  expressInstance.use(express.json({ limit: '10mb' }));
-  expressInstance.use(express.urlencoded({ limit: '10mb', extended: true }));
+  /*
+   * The limit applies to the DECOMPRESSED body. The pm-tracker state is one full-blob PUT
+   * that grows with the user's history, and a gzip upload of a few hundred KB can inflate
+   * past 10mb -- every save was then rejected. 20mb is affordable now that a save no
+   * longer reloads the existing blob or echoes it back, which removed two full copies of
+   * the state from each request.
+   */
+  expressInstance.use(express.json({ limit: '20mb' }));
+  expressInstance.use(express.urlencoded({ limit: '20mb', extended: true }));
+
+  // Keep CORS headers on body-parser errors so a rejected save reports its real status.
+  expressInstance.use(
+    bodyParserErrorHandler(new Set(parseCorsOrigins(process.env.CORS_ORIGINS))),
+  );
 
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule,

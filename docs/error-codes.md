@@ -17,6 +17,8 @@ This page is the contract: the list of codes the frontend must handle. The
 | `error.accountDisabled` | 403 | Account is DISABLED; login refused (pre-existing tokens are rejected with a bare 401) |
 | `error.invalidTmpKey` | 422 | Temporary upload key is invalid/expired |
 | `error.fileNotImage` | 422 | Uploaded file is not a valid image |
+| `error.payloadTooLarge` | 413 | Request body exceeds the 20mb limit (measured after gzip decompression) |
+| `error.invalidBody` | 400 | Request body is malformed JSON or uses an unsupported encoding |
 | `error.phoneNumber` | 422 | Phone number failed validation |
 | `error.pageType` | 500 | Internal pagination misuse |
 | `error.memoryPointNotFound` | 404 | No memory point matches the id (or not owned) |
