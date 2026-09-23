@@ -3,15 +3,20 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AdminLogsModule } from '../admin-logs/admin-logs.module.ts';
+import { CommitRecordsHandler } from './commands/commit-records/commit-records.handler.ts';
 import { DeleteCredentialHandler } from './commands/delete-credential/delete-credential.handler.ts';
+import { MigrateStateToRecordsHandler } from './commands/migrate-state/migrate-state-to-records.handler.ts';
 import { ReportClientErrorHandler } from './commands/report-client-error/report-client-error.handler.ts';
 import { SaveCredentialHandler } from './commands/save-credential/save-credential.handler.ts';
 import { SavePmTrackerStateHandler } from './commands/save-state/save-pm-tracker-state.handler.ts';
 import { PmTrackerCredentialEntity } from './entities/pm-tracker-credential.entity.ts';
+import { PmTrackerDocEntity } from './entities/pm-tracker-doc.entity.ts';
 import { PmTrackerTaskEntity } from './entities/pm-tracker-task.entity.ts';
+import { PmTrackerTombstoneEntity } from './entities/pm-tracker-tombstone.entity.ts';
 import { PmTrackerController } from './pm-tracker.controller.ts';
 import { PmTrackerService } from './pm-tracker.service.ts';
 import { PmTrackerStateEntity } from './pm-tracker-state.entity.ts';
+import { GetRecordsHandler } from './queries/get-records/get-records.handler.ts';
 import { GetPmTrackerStateHandler } from './queries/get-state/get-pm-tracker-state.handler.ts';
 import { ListCredentialsHandler } from './queries/list-credentials/list-credentials.handler.ts';
 import { ReleaseNoteTasksHandler } from './queries/release-note-tasks/release-note-tasks.handler.ts';
@@ -27,6 +32,8 @@ import { CredentialCipherService } from './services/credential-cipher.service.ts
       PmTrackerStateEntity,
       PmTrackerTaskEntity,
       PmTrackerCredentialEntity,
+      PmTrackerDocEntity,
+      PmTrackerTombstoneEntity,
     ]),
   ],
   controllers: [PmTrackerController],
@@ -40,6 +47,9 @@ import { CredentialCipherService } from './services/credential-cipher.service.ts
     ListCredentialsHandler,
     ResolveCredentialHandler,
     GetPmTrackerStateHandler,
+    GetRecordsHandler,
+    MigrateStateToRecordsHandler,
+    CommitRecordsHandler,
     SearchTasksHandler,
     ReleaseNoteTasksHandler,
   ],

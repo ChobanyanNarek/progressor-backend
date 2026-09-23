@@ -15,4 +15,11 @@ export class PmTrackerStateEntity extends AbstractEntity<PmTrackerStateDto> {
 
   @Column({ type: 'jsonb' })
   data!: Record<string, unknown>;
+
+  /*
+   * Set once the blob has been copied into per-record storage (ADR-0018). From then on
+   * the records are the source of truth and this row is kept untouched as the backup.
+   */
+  @Column({ type: 'timestamp', nullable: true })
+  migratedAt!: Date | null;
 }

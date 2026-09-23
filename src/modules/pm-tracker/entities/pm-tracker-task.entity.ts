@@ -3,12 +3,13 @@ import { Column, Entity, Index } from 'typeorm';
 import { AbstractEntity } from '../../../common/abstract.entity.ts';
 import { UseDto } from '../../../decorators/use-dto.decorator.ts';
 import { PmTrackerTaskDto } from '../dtos/pm-tracker-task.dto.ts';
+import { revisionColumn } from './revision.transformer.ts';
 
 /**
- * Read-model copy of a frontend Task, kept alongside the pm_tracker_state
- * JSONB blob (not replacing it) so Search and Release Notes can query/paginate
- * server-side instead of pulling every task into the browser. Synced by
- * SavePmTrackerStateHandler whenever a state save includes `data.tasks`.
+ * One frontend Task. Since ADR-0018 this table is the source of truth for a
+ * migrated user's tasks (written through POST /pm-tracker/records/commit, each
+ * write checked against `revision`); for a user still on the pm_tracker_state
+ * blob it remains the blob-derived mirror Search and Release Notes read.
  *
  * `jiras` and `rest` stay JSONB rather than being modeled column-by-column:
  * the frontend's JiraIssue shape (status history, PR entries, custom fields)
@@ -28,6 +29,7 @@ import { PmTrackerTaskDto } from '../dtos/pm-tracker-task.dto.ts';
  */
 @Entity({ name: 'pm_tracker_task' })
 @Index(['userId', 'date'])
+@Index('IDX_pm_tracker_task_user_revision', ['userId', 'revision'])
 @Index('IDX_pm_tracker_task_user_client', ['userId', 'clientId'], {
   unique: true,
 })
@@ -63,4 +65,8 @@ export class PmTrackerTaskEntity extends AbstractEntity<PmTrackerTaskDto> {
 
   @Column({ type: 'jsonb', default: () => "'{}'" })
   rest!: Record<string, unknown>;
+
+  // Stamped on every write; see ADR-0018 and records/record-mapping.ts.
+  @Column(revisionColumn)
+  revision!: number;
 }

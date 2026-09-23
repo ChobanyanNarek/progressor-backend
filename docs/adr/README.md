@@ -30,6 +30,7 @@ Format: [MADR 3.0](https://adr.github.io/madr/). New ADRs copy
 | [0015](./0015-api-errors-return-codes-not-translations.md) | API errors return stable codes, not server-side translations | Accepted |
 | [0016](./0016-endpoints-return-dto-or-pagedto.md) | API endpoints return a `Dto` or `PageDto<Dto>` (no bare arrays/interfaces) | Accepted |
 | [0017](./0017-integration-tokens-encrypted-server-side.md) | Integration tokens are stored encrypted server-side and never returned | Accepted |
+| [0018](./0018-pm-tracker-per-record-storage.md) | pm-tracker data is stored per record, with a revision on every write | Accepted |
 
 ## How to add an ADR
 

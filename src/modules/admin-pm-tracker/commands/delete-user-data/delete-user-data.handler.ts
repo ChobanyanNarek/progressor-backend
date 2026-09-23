@@ -28,10 +28,19 @@ export class DeleteUserDataHandler
       throw new UserNotFoundException();
     }
 
-    await this.stateRepository
-      .createQueryBuilder()
-      .delete()
-      .where('user_id = :userId', { userId: command.userId })
-      .execute();
+    // The blob and every per-record table (ADR-0018), together.
+    await this.stateRepository.manager.transaction(async (manager) => {
+      for (const table of [
+        'pm_tracker_task',
+        'pm_tracker_doc',
+        'pm_tracker_tombstone',
+        'pm_tracker_state',
+      ]) {
+        // eslint-disable-next-line no-await-in-loop -- sequential inside one transaction
+        await manager.query(`DELETE FROM ${table} WHERE user_id = $1`, [
+          command.userId,
+        ]);
+      }
+    });
   }
 }

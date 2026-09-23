@@ -32,6 +32,14 @@ describe('syncTasksFromState', () => {
       upsert,
       createQueryBuilder: jest.fn().mockReturnValue(qb),
     };
+    // Runs inside a transaction under the user's lock; the user is not yet migrated.
+    const manager = {
+      query: jest.fn(() => Promise.resolve([])),
+      getRepository: () => repo,
+    };
+    repo.manager = {
+      transaction: (fn: (m: typeof manager) => Promise<unknown>) => fn(manager),
+    };
   });
 
   it('does nothing when data.tasks is not an array', async () => {

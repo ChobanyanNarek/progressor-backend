@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -33,20 +33,34 @@ export class SavePmTrackerStateHandler
      */
     const existing = await this.repo
       .createQueryBuilder('s')
-      .select(['s.id', 's.createdAt', 's.updatedAt'])
+      .select(['s.id', 's.createdAt', 's.updatedAt', 's.migratedAt'])
       .where('s.user_id = :userId', { userId: command.userId })
       .getOne();
+
+    /*
+     * Once a user's data has moved to per-record storage (ADR-0018) the blob is a frozen
+     * backup. A whole-blob write from an old open tab would be silently ignored at best,
+     * so refuse it; that tab picks up the new version when reloaded.
+     */
+    if (existing?.migratedAt) {
+      throw new ConflictException('error.pmTrackerStateMigrated');
+    }
 
     let saved: PmTrackerStateEntity;
 
     if (existing) {
-      await this.repo
+      const result = await this.repo
         .createQueryBuilder()
         .update(PmTrackerStateEntity)
         .set({ data: () => ':data' } as never)
         .setParameter('data', JSON.stringify(command.data))
-        .where('id = :id', { id: existing.id })
+        // Re-checked under the row lock: a migration that finished meanwhile wins.
+        .where('id = :id AND migrated_at IS NULL', { id: existing.id })
         .execute();
+
+      if (result.affected === 0) {
+        throw new ConflictException('error.pmTrackerStateMigrated');
+      }
 
       saved = existing;
     } else {

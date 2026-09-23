@@ -1,7 +1,8 @@
 import type { Repository } from 'typeorm';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity.js';
 
-import type { PmTrackerTaskEntity } from '../../entities/pm-tracker-task.entity.ts';
+import { PmTrackerTaskEntity } from '../../entities/pm-tracker-task.entity.ts';
+import { lockUser, queryRows } from '../../records/record-mapping.ts';
 
 interface IFrontendTask {
   id?: unknown;
@@ -68,18 +69,14 @@ function toTaskRow(userId: Uuid, raw: IFrontendTask): TaskRow | null {
 const UPSERT_CHUNK = 500;
 const DELETE_CHUNK = 1000;
 
-export async function syncTasksFromState(
+async function mirrorTasks(
   taskRepository: Repository<PmTrackerTaskEntity>,
   userId: Uuid,
   data: Record<string, unknown>,
 ): Promise<void> {
-  const rawTasks = data.tasks;
+  const rawTasks = data.tasks as IFrontendTask[];
 
-  if (!Array.isArray(rawTasks)) {
-    return;
-  }
-
-  const rows = (rawTasks as IFrontendTask[])
+  const rows = rawTasks
     .map((raw) => toTaskRow(userId, raw))
     .filter((row): row is TaskRow => row !== null);
 
@@ -116,4 +113,37 @@ export async function syncTasksFromState(
       })
       .execute();
   }
+}
+
+export async function syncTasksFromState(
+  taskRepository: Repository<PmTrackerTaskEntity>,
+  userId: Uuid,
+  data: Record<string, unknown>,
+): Promise<void> {
+  if (!Array.isArray(data.tasks)) {
+    return;
+  }
+
+  /*
+   * Under the user's lock, and only while the user is still on the blob: once migrated,
+   * pm_tracker_task holds the real records and this blob-derived copy must not touch
+   * them. A mirror refresh still running from a save made just before the migration
+   * either finishes first (and the migration then rebuilds from the blob) or sees the
+   * migration and stops.
+   */
+  await taskRepository.manager.transaction(async (manager) => {
+    await lockUser(manager, userId);
+
+    const migrated = await queryRows<{ id: string }>(
+      manager,
+      `SELECT id FROM pm_tracker_state WHERE user_id = $1 AND migrated_at IS NOT NULL`,
+      [userId],
+    );
+
+    if (migrated.length > 0) {
+      return;
+    }
+
+    await mirrorTasks(manager.getRepository(PmTrackerTaskEntity), userId, data);
+  });
 }

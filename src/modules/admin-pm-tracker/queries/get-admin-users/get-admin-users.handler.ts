@@ -9,6 +9,31 @@ import { AdminPmTrackerUserDto } from '../../dtos/admin-pm-tracker-user.dto.ts';
 import { AdminPmTrackerUsersDto } from '../../dtos/admin-pm-tracker-users.dto.ts';
 import { GetAdminUsersQuery } from './get-admin-users.query.ts';
 
+interface IStateSummary {
+  userId: string;
+  devCount: number;
+  projectCount: number;
+  jiraConnections: unknown;
+  gitlabConnections: unknown;
+  githubConnections: unknown;
+}
+
+/*
+ * One settings section of a user's data, wherever it lives: the records once the user
+ * has moved to per-record storage (ADR-0018), the blob before. Only the sections the
+ * list needs leave the database -- never the whole blob, which runs to megabytes per user.
+ * Keys are constants from this file, never user input.
+ */
+function section(key: string): string {
+  return `CASE WHEN s.migrated_at IS NULL THEN s.data->'${key}'
+    ELSE (SELECT d.data FROM pm_tracker_doc d WHERE d.user_id = s.user_id AND d.key = '${key}') END`;
+}
+
+function count(key: string): string {
+  return `(SELECT CASE WHEN jsonb_typeof(v) = 'array' THEN jsonb_array_length(v) ELSE 0 END
+    FROM (SELECT ${section(key)} AS v) x)::int`;
+}
+
 @QueryHandler(GetAdminUsersQuery)
 export class GetAdminUsersHandler
   implements IQueryHandler<GetAdminUsersQuery, AdminPmTrackerUsersDto>
@@ -32,10 +57,16 @@ export class GetAdminUsersHandler
 
     const states =
       userIds.length > 0
-        ? await this.stateRepository
-            .createQueryBuilder('state')
-            .where('state.user_id IN (:...userIds)', { userIds })
-            .getMany()
+        ? await this.stateRepository.manager.query<IStateSummary[]>(
+            `SELECT s.user_id AS "userId",
+               ${count('developers')} AS "devCount",
+               ${count('projects')} AS "projectCount",
+               ${section('jiraConnections')} AS "jiraConnections",
+               ${section('gitlabConnections')} AS "gitlabConnections",
+               ${section('githubConnections')} AS "githubConnections"
+             FROM pm_tracker_state s WHERE s.user_id = ANY($1)`,
+            [userIds],
+          )
         : [];
 
     const stateMap = new Map(states.map((s) => [s.userId, s]));
@@ -62,15 +93,12 @@ export class GetAdminUsersHandler
     }
 
     const userDtos = users.map((user) => {
-      const state = stateMap.get(user.id) ?? null;
-      const data = state?.data;
-
-      const asArr = (key: string): unknown[] =>
-        Array.isArray(data?.[key]) ? (data[key] as unknown[]) : [];
+      const state = stateMap.get(user.id);
 
       const vaultedIds = vaultedByUser.get(user.id) ?? new Set<string>();
-      const hasActive = (key: string): boolean =>
-        (asArr(key) as Array<Record<string, unknown>>).some(
+      const hasActive = (connections: unknown): boolean =>
+        Array.isArray(connections) &&
+        (connections as Array<Record<string, unknown>>).some(
           (c) =>
             c.enabled && (Boolean(c.token) || vaultedIds.has(String(c.id))),
         );
@@ -83,11 +111,11 @@ export class GetAdminUsersHandler
         phone: user.phone,
         role: user.role,
         status: user.status,
-        devCount: asArr('developers').length,
-        projectCount: asArr('projects').length,
-        jiraConnected: hasActive('jiraConnections'),
-        gitlabConnected: hasActive('gitlabConnections'),
-        githubConnected: hasActive('githubConnections'),
+        devCount: state?.devCount ?? 0,
+        projectCount: state?.projectCount ?? 0,
+        jiraConnected: hasActive(state?.jiraConnections),
+        gitlabConnected: hasActive(state?.gitlabConnections),
+        githubConnected: hasActive(state?.githubConnections),
         subscriptionActive: user.subscriptionActive,
         subscriptionUntil: user.subscriptionUntil,
         trialUntil: user.trialUntil,

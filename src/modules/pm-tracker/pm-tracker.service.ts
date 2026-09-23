@@ -2,10 +2,13 @@ import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 
 import type { PageDto } from '../../common/dto/page.dto.ts';
+import { CommitRecordsCommand } from './commands/commit-records/commit-records.command.ts';
 import { DeleteCredentialCommand } from './commands/delete-credential/delete-credential.command.ts';
+import { MigrateStateToRecordsCommand } from './commands/migrate-state/migrate-state-to-records.command.ts';
 import { ReportClientErrorCommand } from './commands/report-client-error/report-client-error.command.ts';
 import { SaveCredentialCommand } from './commands/save-credential/save-credential.command.ts';
 import { SavePmTrackerStateCommand } from './commands/save-state/save-pm-tracker-state.command.ts';
+import type { CommitPmTrackerRecordsDto } from './dtos/commit-pm-tracker-records.dto.ts';
 import type {
   JiraBoardIssuesRequestDto,
   JiraBoardsRequestDto,
@@ -14,7 +17,9 @@ import type {
   JiraSprintsRequestDto,
   JiraStatusesRequestDto,
 } from './dtos/jira-proxy.dto.ts';
+import type { PmTrackerCommitResultDto } from './dtos/pm-tracker-commit-result.dto.ts';
 import type { PmTrackerCredentialListDto } from './dtos/pm-tracker-credential-list.dto.ts';
+import type { PmTrackerRecordsDto } from './dtos/pm-tracker-records.dto.ts';
 import type { PmTrackerTaskDto } from './dtos/pm-tracker-task.dto.ts';
 import {
   type GithubProxyRequestDto,
@@ -29,6 +34,7 @@ import type { SavePmTrackerCredentialDto } from './dtos/save-pm-tracker-credenti
 import type { SavePmTrackerStateDto } from './dtos/save-pm-tracker-state.dto.ts';
 import type { SearchTasksPageOptionsDto } from './dtos/search-tasks-page-options.dto.ts';
 import type { PmTrackerStateEntity } from './pm-tracker-state.entity.ts';
+import { GetRecordsQuery } from './queries/get-records/get-records.query.ts';
 import { GetPmTrackerStateQuery } from './queries/get-state/get-pm-tracker-state.query.ts';
 import { ListCredentialsQuery } from './queries/list-credentials/list-credentials.query.ts';
 import { ReleaseNoteTasksQuery } from './queries/release-note-tasks/release-note-tasks.query.ts';
@@ -78,6 +84,30 @@ export class PmTrackerService {
       GetPmTrackerStateQuery,
       PmTrackerStateEntity | null
     >(new GetPmTrackerStateQuery(userId));
+  }
+
+  /*
+   * Per-record storage (ADR-0018). Both calls first make sure the user's blob has been
+   * copied into records -- a no-op after the first time.
+   */
+  async getRecords(userId: Uuid, since?: number): Promise<PmTrackerRecordsDto> {
+    await this.commandBus.execute(new MigrateStateToRecordsCommand(userId));
+
+    return this.queryBus.execute<GetRecordsQuery, PmTrackerRecordsDto>(
+      new GetRecordsQuery(userId, since),
+    );
+  }
+
+  async commitRecords(
+    userId: Uuid,
+    dto: CommitPmTrackerRecordsDto,
+  ): Promise<PmTrackerCommitResultDto> {
+    await this.commandBus.execute(new MigrateStateToRecordsCommand(userId));
+
+    return this.commandBus.execute<
+      CommitRecordsCommand,
+      PmTrackerCommitResultDto
+    >(new CommitRecordsCommand(userId, dto));
   }
 
   saveState(

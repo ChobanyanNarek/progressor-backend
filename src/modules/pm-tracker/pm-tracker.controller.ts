@@ -23,6 +23,7 @@ import { ApiPageResponse } from '../../decorators/api-page-response.decorator.ts
 import { AuthUser } from '../../decorators/auth-user.decorator.ts';
 import { Auth } from '../../decorators/http.decorators.ts';
 import type { UserEntity } from '../user/user.entity.ts';
+import { CommitPmTrackerRecordsDto } from './dtos/commit-pm-tracker-records.dto.ts';
 import {
   JiraBoardIssuesRequestDto,
   JiraBoardsRequestDto,
@@ -31,7 +32,10 @@ import {
   JiraSprintsRequestDto,
   JiraStatusesRequestDto,
 } from './dtos/jira-proxy.dto.ts';
+import type { PmTrackerCommitResultDto } from './dtos/pm-tracker-commit-result.dto.ts';
 import { PmTrackerCredentialListDto } from './dtos/pm-tracker-credential-list.dto.ts';
+import type { PmTrackerRecordsDto } from './dtos/pm-tracker-records.dto.ts';
+import { PmTrackerRecordsQueryDto } from './dtos/pm-tracker-records-query.dto.ts';
 import type { PmTrackerStateDto } from './dtos/pm-tracker-state.dto.ts';
 import { PmTrackerTaskDto } from './dtos/pm-tracker-task.dto.ts';
 import {
@@ -149,6 +153,37 @@ export class PmTrackerController {
     @Body() dto: GitlabProxyRequestDto,
   ): Promise<GitlabProxyResultDto> {
     return this.pmTrackerService.gitlabProxy(user.id, dto);
+  }
+
+  /*
+   * Per-record storage (ADR-0018): the whole state, or with ?since=<cursor> only what
+   * changed after it. Replaces GET /state for current clients.
+   */
+  @Get('records')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Get the user's records, or those changed since a cursor",
+  })
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  getRecords(
+    @AuthUser() user: UserEntity,
+    @Query() query: PmTrackerRecordsQueryDto,
+  ): Promise<PmTrackerRecordsDto> {
+    return this.pmTrackerService.getRecords(user.id, query.since);
+  }
+
+  // Saves only the records that changed; stale writes come back as conflicts. Replaces PUT /state.
+  @Post('records/commit')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Save changed records, each checked against its revision',
+  })
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  commitRecords(
+    @AuthUser() user: UserEntity,
+    @Body() dto: CommitPmTrackerRecordsDto,
+  ): Promise<PmTrackerCommitResultDto> {
+    return this.pmTrackerService.commitRecords(user.id, dto);
   }
 
   @Put('state')
