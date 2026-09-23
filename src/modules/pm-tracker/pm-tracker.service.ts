@@ -56,6 +56,28 @@ export const GITLAB_PATHS: RegExp[] = [
   /^\/api\/v4\/(groups|projects|users)\/[\w%.-]+\/merge_requests(\?[^#]*)?$/,
 ];
 
+/*
+ * Jira calls send the user's credentials to `baseUrl`, so it must really be an Atlassian
+ * Cloud site. A substring test let https://evil.example/?atlassian.net through; now the
+ * host itself must be *.atlassian.net, over https. The server-side sync calls these
+ * automatically, which makes the difference matter more.
+ */
+export function assertAtlassianUrl(baseUrl: string): void {
+  let url: URL | null = null;
+
+  try {
+    url = new URL(baseUrl);
+  } catch {
+    url = null;
+  }
+
+  if (url?.protocol !== 'https:' || !url.hostname.endsWith('.atlassian.net')) {
+    throw new BadRequestException(
+      'Only Atlassian Cloud URLs (*.atlassian.net) are supported',
+    );
+  }
+}
+
 export function assertAllowedPath(path: string, allowed: RegExp[]): void {
   if (path.includes('..') || !allowed.some((re) => re.test(path))) {
     throw new BadRequestException('error.proxyPathNotAllowed');
@@ -229,11 +251,7 @@ export class PmTrackerService {
   async jiraSearch(dto: JiraSearchRequestDto): Promise<JiraSearchResultDto> {
     const { baseUrl, email, token, jql } = dto;
 
-    if (!baseUrl.includes('atlassian.net')) {
-      throw new BadRequestException(
-        'Only Atlassian Cloud URLs (*.atlassian.net) are supported',
-      );
-    }
+    assertAtlassianUrl(baseUrl);
 
     const auth = Buffer.from(`${email}:${token}`).toString('base64');
     const headers: Record<string, string> = {
@@ -300,9 +318,7 @@ export class PmTrackerService {
   async jiraTimeTracking(dto: JiraStatusesRequestDto): Promise<Record<string, unknown>> {
     const { baseUrl, email, token } = dto;
 
-    if (!baseUrl.includes('atlassian.net')) {
-      throw new BadRequestException('Only Atlassian Cloud URLs (*.atlassian.net) are supported');
-    }
+    assertAtlassianUrl(baseUrl);
 
     const url = `${baseUrl.replace(/\/$/, '')}/rest/api/3/configuration/timetracking/options`;
     const auth = Buffer.from(`${email}:${token}`).toString('base64');
@@ -326,11 +342,7 @@ export class PmTrackerService {
   ): Promise<Array<Record<string, unknown>>> {
     const { baseUrl, email, token } = dto;
 
-    if (!baseUrl.includes('atlassian.net')) {
-      throw new BadRequestException(
-        'Only Atlassian Cloud URLs (*.atlassian.net) are supported',
-      );
-    }
+    assertAtlassianUrl(baseUrl);
 
     const url = `${baseUrl.replace(/\/$/, '')}/rest/api/3/status`;
     const auth = Buffer.from(`${email}:${token}`).toString('base64');
@@ -358,11 +370,7 @@ export class PmTrackerService {
   ): Promise<Array<Record<string, unknown>>> {
     const { baseUrl, email, token } = dto;
 
-    if (!baseUrl.includes('atlassian.net')) {
-      throw new BadRequestException(
-        'Only Atlassian Cloud URLs (*.atlassian.net) are supported',
-      );
-    }
+    assertAtlassianUrl(baseUrl);
 
     const auth = Buffer.from(`${email}:${token}`).toString('base64');
     const headers: Record<string, string> = {
@@ -407,9 +415,7 @@ export class PmTrackerService {
   async jiraBoardIssues(dto: JiraBoardIssuesRequestDto): Promise<JiraSearchResultDto> {
     const { baseUrl, email, token, boardId, assigneeEmail } = dto;
 
-    if (!baseUrl.includes('atlassian.net')) {
-      throw new BadRequestException('Only Atlassian Cloud URLs (*.atlassian.net) are supported');
-    }
+    assertAtlassianUrl(baseUrl);
 
     const auth = Buffer.from(`${email}:${token}`).toString('base64');
     const headers: Record<string, string> = {
@@ -493,9 +499,7 @@ export class PmTrackerService {
   async jiraBoardKeys(dto: JiraSprintsRequestDto): Promise<{ keys: string[] }> {
     const { baseUrl, email, token, boardId } = dto;
 
-    if (!baseUrl.includes('atlassian.net')) {
-      throw new BadRequestException('Only Atlassian Cloud URLs (*.atlassian.net) are supported');
-    }
+    assertAtlassianUrl(baseUrl);
 
     const auth = Buffer.from(`${email}:${token}`).toString('base64');
     const headers: Record<string, string> = {
@@ -546,11 +550,7 @@ export class PmTrackerService {
   ): Promise<Array<Record<string, unknown>>> {
     const { baseUrl, email, token, boardId } = dto;
 
-    if (!baseUrl.includes('atlassian.net')) {
-      throw new BadRequestException(
-        'Only Atlassian Cloud URLs (*.atlassian.net) are supported',
-      );
-    }
+    assertAtlassianUrl(baseUrl);
 
     const auth = Buffer.from(`${email}:${token}`).toString('base64');
     const headers: Record<string, string> = {

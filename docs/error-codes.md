@@ -24,6 +24,8 @@ This page is the contract: the list of codes the frontend must handle. The
 | `error.credentialRequired` | 400 | A proxy call carried neither a token nor a connection id |
 | `error.invalidProvider` | 400 | Credential provider is not one of jira, github, gitlab |
 | `error.proxyPathNotAllowed` | 400 | A GitHub/GitLab proxy path is outside the read-only allow-list |
+| `error.syncTimezoneUnknown` | 400 | A server-side sync was requested without a timezone, and the user has not saved one yet (ADR-0019); send `timezone` with `POST /pm-tracker/sync` |
+| `error.hookNotFound` | 404 | A webhook call with an unknown token |
 | `error.pmTrackerStateMigrated` | 409 | `PUT /pm-tracker/state` after the user moved to per-record storage (ADR-0018); the client must reload and use `/pm-tracker/records` |
 | `error.invalidRecord` | — | Not an HTTP error: the `reason` of an entry in a records commit's `rejected` list (a task without an id or `YYYY-MM-DD` date, or a section named `tasks`/`_v` or not a plain identifier) |
 | `error.phoneNumber` | 422 | Phone number failed validation |

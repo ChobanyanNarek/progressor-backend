@@ -37,6 +37,12 @@ import { PmTrackerCredentialListDto } from './dtos/pm-tracker-credential-list.dt
 import type { PmTrackerRecordsDto } from './dtos/pm-tracker-records.dto.ts';
 import { PmTrackerRecordsQueryDto } from './dtos/pm-tracker-records-query.dto.ts';
 import type { PmTrackerStateDto } from './dtos/pm-tracker-state.dto.ts';
+import {
+  PmTrackerHookAckDto,
+  PmTrackerSyncResultDto,
+  PmTrackerSyncStatusDto,
+  RunPmTrackerSyncDto,
+} from './dtos/pm-tracker-sync.dto.ts';
 import { PmTrackerTaskDto } from './dtos/pm-tracker-task.dto.ts';
 import {
   GithubProxyRequestDto,
@@ -51,11 +57,15 @@ import { SavePmTrackerCredentialDto } from './dtos/save-pm-tracker-credential.dt
 import type { SavePmTrackerStateDto } from './dtos/save-pm-tracker-state.dto.ts';
 import { SearchTasksPageOptionsDto } from './dtos/search-tasks-page-options.dto.ts';
 import { PmTrackerService } from './pm-tracker.service.ts';
+import { ServerSyncService } from './services/server-sync.service.ts';
 
 @Controller('pm-tracker')
 @ApiTags('pm-tracker')
 export class PmTrackerController {
-  constructor(private readonly pmTrackerService: PmTrackerService) {}
+  constructor(
+    private readonly pmTrackerService: PmTrackerService,
+    private readonly serverSync: ServerSyncService,
+  ) {}
 
   @Get('state')
   @HttpCode(HttpStatus.OK)
@@ -184,6 +194,71 @@ export class PmTrackerController {
     @Body() dto: CommitPmTrackerRecordsDto,
   ): Promise<PmTrackerCommitResultDto> {
     return this.pmTrackerService.commitRecords(user.id, dto);
+  }
+
+  /*
+   * Server-side sync (ADR-0019). Runs the Jira, GitLab and GitHub syncs for this user now,
+   * on the server, and saves the result as records; the web app then pulls the changes.
+   */
+  @Post('sync')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Run the Jira, GitLab and GitHub syncs on the server now',
+  })
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  async runSync(
+    @AuthUser() user: UserEntity,
+    @Body() dto: RunPmTrackerSyncDto,
+  ): Promise<PmTrackerSyncResultDto> {
+    const outcome = await this.serverSync.syncUser(user.id, {
+      background: false,
+      kinds: dto.kinds,
+      timezone: dto.timezone,
+    });
+
+    return PmTrackerSyncResultDto.create(outcome);
+  }
+
+  @Get('sync')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Whether the server runs syncs, and its last run for this user',
+  })
+  @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  async syncStatus(
+    @AuthUser() user: UserEntity,
+  ): Promise<PmTrackerSyncStatusDto> {
+    const status = this.serverSync.status(user.id);
+
+    return PmTrackerSyncStatusDto.create({
+      serverSync: true,
+      running: status.running,
+      lastRun: status.lastRun as unknown as Record<string, unknown> | null,
+      hookPath: await this.serverSync.hookPath(user.id),
+    });
+  }
+
+  /*
+   * Change notifications from Jira, GitHub or GitLab. Public: the random token in the path
+   * is the credential, and a call only prompts a background sync -- the payload is never
+   * read. Throttled per client.
+   */
+  @Post('hooks/:token')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: 'Webhook: prompt a background sync for the token owner',
+  })
+  @Auth([], { public: true })
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  async receiveHook(
+    @Param('token') token: string,
+  ): Promise<PmTrackerHookAckDto> {
+    if (!(await this.serverSync.receiveHook(token))) {
+      throw new NotFoundException('error.hookNotFound');
+    }
+
+    return PmTrackerHookAckDto.create({ accepted: true });
   }
 
   @Put('state')

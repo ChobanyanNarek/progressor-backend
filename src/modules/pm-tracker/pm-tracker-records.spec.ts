@@ -4,6 +4,7 @@ import { gzipSync } from 'node:zlib';
 
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -36,6 +37,7 @@ import { DataSource, type Repository } from 'typeorm';
 import { AccountStatus } from '../../constants/account-status.ts';
 import { RoleType } from '../../constants/role-type.ts';
 import { AddPmTrackerRecords1790177513294 } from '../../database/migrations/1790177513294-AddPmTrackerRecords.ts';
+import { AddPmTrackerHook1790182444388 } from '../../database/migrations/1790182444388-AddPmTrackerHook.ts';
 import { SnakeNamingStrategy } from '../../snake-naming.strategy.ts';
 import { DeleteUserDataCommand } from '../admin-pm-tracker/commands/delete-user-data/delete-user-data.command.ts';
 import { DeleteUserDataHandler } from '../admin-pm-tracker/commands/delete-user-data/delete-user-data.handler.ts';
@@ -58,6 +60,7 @@ import type {
 import { PmTrackerRecordsQueryDto } from './dtos/pm-tracker-records-query.dto.ts';
 import { PmTrackerCredentialEntity } from './entities/pm-tracker-credential.entity.ts';
 import { PmTrackerDocEntity } from './entities/pm-tracker-doc.entity.ts';
+import { PmTrackerHookEntity } from './entities/pm-tracker-hook.entity.ts';
 import { PmTrackerTaskEntity } from './entities/pm-tracker-task.entity.ts';
 import { PmTrackerTombstoneEntity } from './entities/pm-tracker-tombstone.entity.ts';
 import { PmTrackerService } from './pm-tracker.service.ts';
@@ -66,6 +69,9 @@ import { GetRecordsHandler } from './queries/get-records/get-records.handler.ts'
 import { GetRecordsQuery } from './queries/get-records/get-records.query.ts';
 import { GetPmTrackerStateHandler } from './queries/get-state/get-pm-tracker-state.handler.ts';
 import { GetPmTrackerStateQuery } from './queries/get-state/get-pm-tracker-state.query.ts';
+import { ServerSyncService } from './services/server-sync.service.ts';
+import { dateInZone, latestWorkdayOn } from './sync-core/dates.ts';
+import type { Transport, TransportResponse } from './sync-core/transport.ts';
 
 /*
  * Per-record storage against a real Postgres: the SQL (compare-and-set writes, advisory
@@ -149,6 +155,9 @@ function existingUserRepo(): unknown {
 
 // The pm-tracker tables as production has them before this change.
 const BASE_SCHEMA = [
+  `CREATE TABLE users (
+     id uuid PRIMARY KEY, status varchar NOT NULL DEFAULT 'ACTIVE', role varchar NOT NULL DEFAULT 'CREATOR',
+     subscription_active boolean NOT NULL DEFAULT false, subscription_until timestamp, trial_until timestamp)`,
   `CREATE TABLE pm_tracker_state (
      id uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY, created_at TIMESTAMP NOT NULL DEFAULT now(),
      updated_at TIMESTAMP NOT NULL DEFAULT now(), workspace_key varchar, data jsonb NOT NULL, user_id uuid)`,
@@ -164,6 +173,118 @@ const BASE_SCHEMA = [
      updated_at TIMESTAMP NOT NULL DEFAULT now(), user_id uuid NOT NULL, connection_id varchar NOT NULL,
      provider varchar(16) NOT NULL, secret text NOT NULL)`,
 ];
+
+const SYNC_TZ = 'Asia/Yerevan';
+
+// The tracker's workday right now, as the server works it out.
+const today = (): string => latestWorkdayOn(dateInZone(Date.now(), SYNC_TZ));
+
+function answer(status: number, body: unknown): TransportResponse {
+  const text = JSON.stringify(body);
+
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => Promise.resolve(JSON.parse(text) as unknown),
+    text: () => Promise.resolve(text),
+  };
+}
+
+const jiraConnection = (
+  patch: Record<string, unknown> = {},
+): Record<string, unknown> => ({
+  id: 'j1',
+  name: 'Mabrook',
+  enabled: true,
+  baseUrl: 'https://mab.atlassian.net',
+  email: 'a@b.c',
+  token: 'tok',
+  projectKeys: ['COM'],
+  syncInterval: 5,
+  projectId: 'p1',
+  hoursPerDay: 8,
+  developerEmails: { d1: ['dev@mab.com'] },
+  statusMappings: [{ jiraStatus: 'To Do', groupId: 'todo' }],
+  ...patch,
+});
+const syncBlob = (
+  patch: Record<string, unknown> = {},
+): Record<string, unknown> => ({
+  developers: [
+    { id: 'd1', name: 'Dev', color: '#000', role: 'dev', periods: [] },
+  ],
+  projects: [
+    {
+      id: 'p1',
+      name: 'Mabrook',
+      desc: '',
+      color: '#000',
+      members: ['d1'],
+      nonWorkingDays: [0, 6],
+    },
+  ],
+  jiraConnections: [jiraConnection()],
+  browserTimezone: SYNC_TZ,
+  tasks: [],
+  ...patch,
+});
+const rawIssue = (key: string): Record<string, unknown> => ({
+  key,
+  fields: {
+    summary: key,
+    status: { name: 'To Do', statusCategory: { key: 'new' } },
+    assignee: { emailAddress: 'dev@mab.com', displayName: 'Dev' },
+  },
+});
+
+// A provider backend that answers every Jira search with these issues.
+function jiraReturning(
+  keys: string[],
+  onSearch?: () => Promise<void>,
+): Transport {
+  return {
+    post: async (path) => {
+      if (path !== '/pm-tracker/jira-search') {
+        return answer(200, {});
+      }
+
+      await onSearch?.();
+
+      return answer(200, {
+        issues: keys.map((key) => rawIssue(key)),
+        truncated: false,
+      });
+    },
+  };
+}
+
+const unreachable: Transport = {
+  post: () => Promise.reject(new Error('GitLab is down')),
+};
+
+const toUnreachable = (): Transport => unreachable;
+
+const failing: Transport = {
+  post: () => Promise.resolve(answer(401, { message: 'bad token' })),
+};
+
+async function addUser(
+  ds: DataSource,
+  id: Uuid,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  await ds.query(
+    `INSERT INTO users (id, status, role, subscription_active, subscription_until, trial_until) VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      id,
+      patch.status ?? 'ACTIVE',
+      patch.role ?? 'CREATOR',
+      patch.active ?? true,
+      patch.until ?? null,
+      patch.trial ?? null,
+    ],
+  );
+}
 
 /*
  * The records routes as PmTrackerController declares them, minus authentication (a
@@ -257,6 +378,7 @@ describeDb('pm-tracker per-record storage (Postgres)', () => {
         PmTrackerDocEntity,
         PmTrackerTombstoneEntity,
         PmTrackerCredentialEntity,
+        PmTrackerHookEntity,
       ],
     });
     await ds.initialize();
@@ -273,6 +395,7 @@ describeDb('pm-tracker per-record storage (Postgres)', () => {
     // ...then this change's migration on top.
     const runner = ds.createQueryRunner();
     await new AddPmTrackerRecords1790177513294().up(runner);
+    await new AddPmTrackerHook1790182444388().up(runner);
     await runner.release();
 
     stateRepo = ds.getRepository(PmTrackerStateEntity);
@@ -288,7 +411,7 @@ describeDb('pm-tracker per-record storage (Postgres)', () => {
 
   beforeEach(async () => {
     await ds.query(
-      `TRUNCATE pm_tracker_state, pm_tracker_task, pm_tracker_doc, pm_tracker_tombstone, pm_tracker_credential`,
+      `TRUNCATE users, pm_tracker_state, pm_tracker_task, pm_tracker_doc, pm_tracker_tombstone, pm_tracker_credential, pm_tracker_hook`,
     );
   });
 
@@ -966,6 +1089,231 @@ describeDb('pm-tracker per-record storage (Postgres)', () => {
           tasks: [{ id: 't1', data: 'not an object', baseRevision: null }],
         })
         .expect(422);
+    });
+  });
+
+  describe('server-side sync', () => {
+    let sync: ServerSyncService;
+
+    beforeEach(() => {
+      const commandBus = {
+        execute: (command: unknown) =>
+          command instanceof MigrateStateToRecordsCommand
+            ? migrate.execute(command)
+            : commit.execute(command as CommitRecordsCommand),
+      };
+      const queryBus = {
+        execute: (query: GetRecordsQuery) => records.execute(query),
+      };
+
+      sync = new ServerSyncService(
+        commandBus as never,
+        queryBus as never,
+        {} as never,
+        ds.getRepository(PmTrackerHookEntity),
+      );
+    });
+
+    afterEach(() => {
+      sync.onModuleDestroy();
+    });
+
+    it("runs the web app's Jira sync and saves the result as records", async () => {
+      await seedBlob(USER, syncBlob());
+      sync.transportFor = () => jiraReturning(['COM-1', 'COM-2']);
+
+      const outcome = await sync.syncUser(USER, { background: true });
+
+      expect(outcome.errors).toEqual([]);
+      expect(outcome.results.jira).toEqual({
+        added: 2,
+        updated: 0,
+        removed: 0,
+      });
+
+      const tasks = await tasksOf();
+
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0]!.data).toMatchObject({
+        devId: 'd1',
+        projectId: 'p1',
+        date: today(),
+        jiraSync: true,
+      });
+      expect(
+        (tasks[0]!.data.jiras as Array<{ issueId: string }>).map(
+          (j) => j.issueId,
+        ),
+      ).toEqual(['COM-1', 'COM-2']);
+
+      const jiraDoc = await docRecord('jiraConnections');
+      const conns = jiraDoc.data as Array<{ lastSync?: string }>;
+
+      expect(Date.parse(conns[0]!.lastSync!)).toBeGreaterThan(
+        Date.now() - 60_000,
+      );
+    });
+
+    it('merges an edit a browser saved while the sync was running', async () => {
+      await seedBlob(
+        USER,
+        syncBlob({ tasks: [task('t1', { date: today(), jiras: [] })] }),
+      );
+      await run(USER);
+
+      // Mid-sync, a tab comments on the task the sync is about to fill.
+      const commentFromTab = async (): Promise<void> => {
+        const current = await taskRecord('t1');
+
+        await save({
+          tasks: [
+            {
+              id: 't1',
+              data: { ...current.data, comment: 'typed in a tab' },
+              baseRevision: current.revision,
+            },
+          ],
+        });
+      };
+
+      const midSync = jiraReturning(['COM-1'], commentFromTab);
+
+      sync.transportFor = () => midSync;
+
+      await sync.syncUser(USER, { background: true });
+
+      const t1 = await taskRecord('t1');
+
+      expect(t1.data.comment).toBe('typed in a tab');
+      expect(
+        (t1.data.jiras as Array<{ issueId: string }>).map((j) => j.issueId),
+      ).toEqual(['COM-1']);
+    });
+
+    it('refuses to guess the day without a timezone', async () => {
+      await seedBlob(USER, syncBlob({ browserTimezone: undefined }));
+      sync.transportFor = () => jiraReturning([]);
+
+      await expect(sync.syncUser(USER, { background: true })).rejects.toThrow(
+        'error.syncTimezoneUnknown',
+      );
+      // A manual sync brings the browser's zone with it.
+      await expect(
+        sync.syncUser(USER, { background: false, timezone: SYNC_TZ }),
+      ).resolves.toMatchObject({ errors: [] });
+    });
+
+    it('reports a provider failure without losing the other providers', async () => {
+      await seedBlob(
+        USER,
+        syncBlob({
+          jiraConnections: [
+            jiraConnection({ baseUrl: 'https://mab.atlassian.net' }),
+          ],
+        }),
+      );
+      sync.transportFor = () => failing;
+
+      const outcome = await sync.syncUser(USER, { background: true });
+
+      // Per-developer Jira failures are skipped by the sync itself, as in the browser.
+      expect(outcome.errors).toEqual([]);
+      await expect(tasksOf()).resolves.toEqual([]);
+    });
+
+    describe('which users are due', () => {
+      it('picks users whose connection interval has passed, and skips the rest', async () => {
+        const recent = new Date().toISOString();
+
+        await addUser(ds, USER, {});
+        await seedBlob(USER, syncBlob());
+        await run(USER);
+        await addUser(ds, OTHER, {});
+        await seedBlob(
+          OTHER,
+          syncBlob({ jiraConnections: [jiraConnection({ lastSync: recent })] }),
+        );
+        await run(OTHER);
+
+        await expect(sync.findDueUsers(Date.now())).resolves.toEqual([
+          { userId: USER, kinds: ['jira'] },
+        ]);
+      });
+
+      it('skips users without a current subscription or timezone', async () => {
+        await addUser(ds, USER, { active: false });
+        await seedBlob(USER, syncBlob());
+        await run(USER);
+        await addUser(ds, OTHER, {});
+        await seedBlob(OTHER, syncBlob({ browserTimezone: undefined }));
+        await run(OTHER);
+
+        await expect(sync.findDueUsers(Date.now())).resolves.toEqual([]);
+      });
+
+      it('counts a trial or an admin as allowed', async () => {
+        await addUser(ds, USER, {
+          active: false,
+          trial: new Date(Date.now() + 86_400_000),
+        });
+        await seedBlob(USER, syncBlob());
+        await run(USER);
+
+        await expect(sync.findDueUsers(Date.now())).resolves.toHaveLength(1);
+      });
+
+      it('backs off a provider that keeps failing', async () => {
+        const gitlab = {
+          id: 'gl1',
+          name: 'GL',
+          enabled: true,
+          token: 'tok',
+          groupPath: 'acme',
+          syncInterval: 5,
+          projectId: 'p1',
+        };
+
+        await addUser(ds, USER, {});
+        await seedBlob(
+          USER,
+          syncBlob({ jiraConnections: [], gitlabConnections: [gitlab] }),
+        );
+        await run(USER);
+        sync.transportFor = toUnreachable;
+
+        await sync.tick();
+
+        // The failure left lastSync alone, so without backoff it would be due again at once.
+        const gitlabDoc = await docRecord('gitlabConnections');
+        const conns = gitlabDoc.data as Array<{ lastSync?: string }>;
+
+        expect(conns[0]!.lastSync).toBeUndefined();
+        await expect(sync.findDueUsers(Date.now() + 60_000)).resolves.toEqual(
+          [],
+        );
+        await expect(
+          sync.findDueUsers(Date.now() + 6 * 60_000),
+        ).resolves.toEqual([{ userId: USER, kinds: ['gitlab'] }]);
+      });
+    });
+
+    describe('webhooks', () => {
+      it('gives each user one stable, secret path', async () => {
+        const first = await sync.hookPath(USER);
+
+        expect(first).toMatch(/^\/pm-tracker\/hooks\/[\w-]{32}$/);
+        await expect(sync.hookPath(USER)).resolves.toBe(first);
+        await expect(sync.hookPath(OTHER)).resolves.not.toBe(first);
+      });
+
+      it('accepts only a known token', async () => {
+        const path = await sync.hookPath(USER);
+
+        await expect(sync.receiveHook(path.split('/').pop()!)).resolves.toBe(
+          true,
+        );
+        await expect(sync.receiveHook('not-a-token')).resolves.toBe(false);
+      });
     });
   });
 });

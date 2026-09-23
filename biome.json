@@ -12,6 +12,7 @@
       "*src/**/*",
       "!src/metadata.ts",
       "!src/database/migrations/**",
+      "!src/modules/pm-tracker/sync-core/**",
       "!**/.vscode/**/*"
     ]
   },

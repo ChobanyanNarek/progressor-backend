@@ -11,6 +11,7 @@ import { SaveCredentialHandler } from './commands/save-credential/save-credentia
 import { SavePmTrackerStateHandler } from './commands/save-state/save-pm-tracker-state.handler.ts';
 import { PmTrackerCredentialEntity } from './entities/pm-tracker-credential.entity.ts';
 import { PmTrackerDocEntity } from './entities/pm-tracker-doc.entity.ts';
+import { PmTrackerHookEntity } from './entities/pm-tracker-hook.entity.ts';
 import { PmTrackerTaskEntity } from './entities/pm-tracker-task.entity.ts';
 import { PmTrackerTombstoneEntity } from './entities/pm-tracker-tombstone.entity.ts';
 import { PmTrackerController } from './pm-tracker.controller.ts';
@@ -23,6 +24,7 @@ import { ReleaseNoteTasksHandler } from './queries/release-note-tasks/release-no
 import { ResolveCredentialHandler } from './queries/resolve-credential/resolve-credential.handler.ts';
 import { SearchTasksHandler } from './queries/search-tasks/search-tasks.handler.ts';
 import { CredentialCipherService } from './services/credential-cipher.service.ts';
+import { ServerSyncService } from './services/server-sync.service.ts';
 
 @Module({
   imports: [
@@ -34,11 +36,13 @@ import { CredentialCipherService } from './services/credential-cipher.service.ts
       PmTrackerCredentialEntity,
       PmTrackerDocEntity,
       PmTrackerTombstoneEntity,
+      PmTrackerHookEntity,
     ]),
   ],
   controllers: [PmTrackerController],
   providers: [
     PmTrackerService,
+    ServerSyncService,
     SavePmTrackerStateHandler,
     ReportClientErrorHandler,
     CredentialCipherService,

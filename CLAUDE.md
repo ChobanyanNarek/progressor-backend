@@ -27,6 +27,7 @@ significant decision, add or supersede an ADR in the same PR.** Current ADRs:
 - [ADR-0016](docs/adr/0016-endpoints-return-dto-or-pagedto.md) — Every endpoint that returns a body returns a **`Dto`** or **`PageDto<Dto>`** — never a bare array, inline object, interface, or primitive (wrap lists in a `Dto` envelope, e.g. `{ items: SomeDto[] }`). Structured returns are `Dto`s **everywhere** — CQRS query/command handlers and services that produce a shape return the `Dto` (built via `.create()`/`.toDto()`), owned by the **producing** module; the controller passes it through. Plain interfaces are only for non-return internal shapes (query rows, config). Exempt: `void`/204 and framework health checks.
 - [ADR-0017](docs/adr/0017-integration-tokens-encrypted-server-side.md) — Integration tokens (Jira/GitHub/GitLab) are stored **encrypted server-side** (AES-256-GCM, `PM_TRACKER_CREDENTIALS_KEY`) and never returned; provider calls go through allow-listed backend proxies.
 - [ADR-0018](docs/adr/0018-pm-tracker-per-record-storage.md) — pm-tracker data is **stored per record** (`pm_tracker_task`, `pm_tracker_doc`, tombstones) with a **revision on every write** (compare-and-set; stale writes come back as conflicts). The legacy blob is a frozen backup after each user's one-time migration.
+- [ADR-0019](docs/adr/0019-pm-tracker-server-side-sync.md) — pm-tracker **syncs run on the server** with the web app's own sync code: `src/modules/pm-tracker/sync-core` is a **generated copy** (pm-tracker `scripts/vendor-sync-core.mjs`) — never edit it here.
 
 ## Project Overview
 
