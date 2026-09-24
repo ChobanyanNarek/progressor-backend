@@ -45,6 +45,7 @@ const jiraAnswer = {
 };
 const githubAnswer = {
   status: 200,
+  // biome-ignore lint/style/useNamingConvention: GitHub's own field name
   data: [{ id: 1, head: { ref: 'feature/COM-1' }, merged_at: null }],
 };
 

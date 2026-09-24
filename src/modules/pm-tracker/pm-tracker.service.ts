@@ -55,6 +55,84 @@ export const GITLAB_PATHS: RegExp[] = [
   /^\/api\/v4\/(groups|projects|users)\/[\w%.-]+\/merge_requests(\?[^#]*)?$/,
 ];
 
+type Json = Record<string, unknown>;
+
+const TO_STRING = 'toString';
+
+const asObject = (value: unknown): Json | undefined =>
+  value !== null && typeof value === 'object' ? (value as Json) : undefined;
+
+/*
+ * A Jira issue cut down to what the tracker reads (rawToJiraItem in sync-core): Jira sends
+ * every issue with avatars, links and full status, user and change-history objects. The
+ * full form made a sync hold several MB per developer; this is a fraction of it. Only
+ * status changes survive from the changelog -- the only entries the tracker uses.
+ */
+export function compactJiraIssue(raw: Json): Json {
+  const fields = asObject(raw.fields) ?? {};
+  const status = asObject(fields.status);
+  const category = asObject(status?.statusCategory);
+  const assignee = asObject(fields.assignee);
+  const issuetype = asObject(fields.issuetype);
+  const parent = asObject(fields.parent);
+  const priority = asObject(fields.priority);
+  const histories = asObject(raw.changelog)?.histories;
+
+  return {
+    key: raw.key,
+    fields: {
+      summary: fields.summary,
+      status: status && {
+        name: status.name,
+        statusCategory: category && { key: category.key },
+      },
+      priority: priority ? { name: priority.name } : fields.priority,
+      duedate: fields.duedate,
+      assignee: assignee
+        ? {
+            emailAddress: assignee.emailAddress,
+            displayName: assignee.displayName,
+          }
+        : fields.assignee,
+      created: fields.created,
+      timeoriginalestimate: fields.timeoriginalestimate,
+      timespent: fields.timespent,
+      // biome-ignore lint/style/useNamingConvention: Jira's own field name
+      customfield_10016: fields.customfield_10016,
+      // biome-ignore lint/style/useNamingConvention: Jira's own field name
+      customfield_10028: fields.customfield_10028,
+      issuetype: issuetype
+        ? { name: issuetype.name, iconUrl: issuetype.iconUrl }
+        : fields.issuetype,
+      parent: parent
+        ? {
+            key: parent.key,
+            fields: { summary: asObject(parent.fields)?.summary },
+          }
+        : fields.parent,
+    },
+    ...(Array.isArray(histories)
+      ? {
+          changelog: {
+            histories: (histories as Json[])
+              .map((h) => ({
+                created: h.created,
+                items: (Array.isArray(h.items) ? (h.items as Json[]) : [])
+                  .filter((item) => item.field === 'status')
+                  .map((item) => ({
+                    field: item.field,
+                    fromString: item.fromString,
+                    // Jira's field is literally named toString; read it as data, not a method.
+                    toString: item[TO_STRING],
+                  })),
+              }))
+              .filter((h) => h.items.length > 0),
+          },
+        }
+      : {}),
+  };
+}
+
 /*
  * Jira calls send the user's credentials to `baseUrl`, so it must really be an Atlassian
  * Cloud site. A substring test let https://evil.example/?atlassian.net through; now the
@@ -304,7 +382,8 @@ export class PmTrackerService {
         nextPageToken?: string;
       };
       const issues = data.issues ?? [];
-      allIssues.push(...issues);
+      // Trimmed page by page, so the full issues never pile up (see compactJiraIssue).
+      allIssues.push(...issues.map((issue) => compactJiraIssue(issue)));
       page += 1;
 
       const exhausted = data.isLast !== false && !data.nextPageToken;
@@ -481,7 +560,8 @@ export class PmTrackerService {
         total?: number;
       };
       const issues = data.issues ?? [];
-      allIssues.push(...issues);
+      // Trimmed page by page, so the full issues never pile up (see compactJiraIssue).
+      allIssues.push(...issues.map((issue) => compactJiraIssue(issue)));
 
       startAt += maxResults;
       page += 1;

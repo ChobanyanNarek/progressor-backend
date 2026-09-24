@@ -31,14 +31,17 @@ const pipe = new ValidationPipe({
   exceptionFactory: (errors) => new UnprocessableEntityException(errors),
 });
 
+/*
+ * The answer object itself, not a JSON round-trip of it: the copy doubled the memory of
+ * every provider response. The service returns plain objects, so the core sees the same
+ * data a browser would receive.
+ */
 function respond(status: number, body: unknown): TransportResponse {
-  const text = JSON.stringify(body);
-
   return {
     ok: status >= 200 && status < 300,
     status,
-    json: () => Promise.resolve(JSON.parse(text) as unknown),
-    text: () => Promise.resolve(text),
+    json: () => Promise.resolve(body),
+    text: () => Promise.resolve(JSON.stringify(body)),
   };
 }
 
@@ -54,8 +57,7 @@ async function validated<T extends object>(
 /*
  * The sync core's route to the provider endpoints when it runs on the server (ADR-0019):
  * the same service methods the HTTP routes call, validated the same way, with the
- * credential resolved under this user only. Answers are passed through JSON so the core
- * sees exactly what a browser would.
+ * credential resolved under this user only.
  */
 export function serverTransport(
   service: PmTrackerService,

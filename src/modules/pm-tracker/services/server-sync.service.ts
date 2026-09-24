@@ -77,13 +77,16 @@ interface IDueUser {
 }
 
 /*
- * OFF. On 2026-09-24 production health checks timed out twice. The first cause (records
- * loaded through class-transformer) is fixed, but the instance still failed at 16:09 with
- * scheduled syncs running against real Jira data -- whose responses (changelogs, every
- * developer held at once) are far larger than the benchmark's. Until that is measured
- * and bounded, the server runs no syncs and the web app syncs in the browser.
+ * On 2026-09-24 the instance failed Render's 5s health check repeatedly. The causes were
+ * class-transformer walking large payloads (records, Jira and GitHub relays) and a sync
+ * holding every developer's raw Jira responses at once. Both are fixed: payloads skip
+ * the serializer, Jira issues are trimmed page by page, each developer's results are
+ * compacted as soon as they arrive, and pull requests keep only the fields the sync
+ * reads. Measured with 10 developers x 1000 Jira issues and 1500 tasks under the 300 MB
+ * heap before switching back on. Set to false to stop all server syncs; the web app then
+ * syncs in the browser.
  */
-export const isServerSyncEnabled = false;
+export const isServerSyncEnabled = true;
 
 // Scheduled syncs wait while the heap is this full (the instance caps it at 300 MB).
 const HEAP_CEILING_BYTES = 200 * 1024 * 1024;
@@ -224,6 +227,11 @@ export class ServerSyncService implements OnModuleDestroy {
     request: ISyncRequest,
   ): Promise<ISyncOutcome> {
     const startedAt = new Date().toISOString();
+
+    // Never start a sync on an already-full heap; the web app falls back to syncing itself.
+    if (process.memoryUsage().heapUsed > HEAP_CEILING_BYTES) {
+      throw new ServiceUnavailableException('error.serverSyncBusy');
+    }
 
     await this.commandBus.execute(new MigrateStateToRecordsCommand(userId));
 
