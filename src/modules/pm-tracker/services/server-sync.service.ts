@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   type OnModuleDestroy,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { Interval } from '@nestjs/schedule';
@@ -75,6 +76,14 @@ interface IDueUser {
   userId: Uuid;
   kinds: SyncKind[];
 }
+
+/*
+ * Switched off after production health checks timed out on 2026-09-24: a user's sync held
+ * several full copies of their data in the 300MB heap and blocked the event loop past the
+ * 5s health check. While false, the server runs no syncs, GET /sync reports serverSync:
+ * false, and the web app syncs in the browser exactly as before.
+ */
+export const IS_SERVER_SYNC_ENABLED = false;
 
 const TICK_MS = 60_000;
 // A tick stops starting new users after this long; the next tick carries on.
@@ -152,6 +161,9 @@ export class ServerSyncService implements OnModuleDestroy {
 
   private ticking = false;
 
+  // Tests switch it on to exercise the sync while production has it off.
+  isEnabled = IS_SERVER_SYNC_ENABLED;
+
   // Swapped in tests for a fake provider backend.
   transportFor: (userId: Uuid) => Transport;
 
@@ -176,6 +188,12 @@ export class ServerSyncService implements OnModuleDestroy {
 
   // One run per user at a time: a second request joins the one in progress.
   syncUser(userId: Uuid, request: ISyncRequest): Promise<ISyncOutcome> {
+    if (!this.isEnabled) {
+      return Promise.reject(
+        new ServiceUnavailableException('error.serverSyncDisabled'),
+      );
+    }
+
     const inFlight = this.running.get(userId);
 
     if (inFlight) {
@@ -360,7 +378,7 @@ export class ServerSyncService implements OnModuleDestroy {
    */
   @Interval(TICK_MS)
   async tick(): Promise<void> {
-    if (this.ticking) {
+    if (!this.isEnabled || this.ticking) {
       return;
     }
 

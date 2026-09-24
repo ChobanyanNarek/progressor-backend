@@ -1112,6 +1112,7 @@ describeDb('pm-tracker per-record storage (Postgres)', () => {
         {} as never,
         ds.getRepository(PmTrackerHookEntity),
       );
+      sync.isEnabled = true;
     });
 
     afterEach(() => {
@@ -1295,6 +1296,18 @@ describeDb('pm-tracker per-record storage (Postgres)', () => {
           sync.findDueUsers(Date.now() + 6 * 60_000),
         ).resolves.toEqual([{ userId: USER, kinds: ['gitlab'] }]);
       });
+    });
+
+    it('runs nothing while switched off', async () => {
+      await seedBlob(USER, syncBlob());
+      sync.isEnabled = false;
+      sync.transportFor = () => jiraReturning(['COM-1']);
+
+      await expect(sync.syncUser(USER, { background: true })).rejects.toThrow(
+        'error.serverSyncDisabled',
+      );
+      await sync.tick();
+      await expect(tasksOf()).resolves.toEqual([]);
     });
 
     describe('webhooks', () => {

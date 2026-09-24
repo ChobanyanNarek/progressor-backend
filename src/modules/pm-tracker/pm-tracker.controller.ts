@@ -231,7 +231,7 @@ export class PmTrackerController {
     const status = this.serverSync.status(user.id);
 
     return PmTrackerSyncStatusDto.create({
-      serverSync: true,
+      serverSync: this.serverSync.isEnabled,
       running: status.running,
       lastRun: status.lastRun as unknown as Record<string, unknown> | null,
       hookPath: await this.serverSync.hookPath(user.id),
