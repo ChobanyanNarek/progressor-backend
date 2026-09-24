@@ -77,13 +77,13 @@ interface IDueUser {
 }
 
 /*
- * On 2026-09-24 production health checks timed out: loading a user's records through
- * class-transformer blocked the event loop for seconds (GetRecordsHandler now returns plain
- * objects). Measured with 21 MB of task data under the 300 MB heap: a sync now takes about
- * 0.2 s with no block over 100 ms. Set to false to stop all server syncs; the web app then
- * syncs in the browser.
+ * OFF. On 2026-09-24 production health checks timed out twice. The first cause (records
+ * loaded through class-transformer) is fixed, but the instance still failed at 16:09 with
+ * scheduled syncs running against real Jira data -- whose responses (changelogs, every
+ * developer held at once) are far larger than the benchmark's. Until that is measured
+ * and bounded, the server runs no syncs and the web app syncs in the browser.
  */
-export const isServerSyncEnabled = true;
+export const isServerSyncEnabled = false;
 
 // Scheduled syncs wait while the heap is this full (the instance caps it at 300 MB).
 const HEAP_CEILING_BYTES = 200 * 1024 * 1024;
