@@ -17,6 +17,10 @@ import { initializeTransactionalContext } from 'typeorm-transactional';
 
 import { AppModule } from './app.module.ts';
 import { bodyParserErrorHandler } from './common/middleware/body-parser-error.middleware.ts';
+import {
+  slowRequestLogger,
+  watchEventLoop,
+} from './common/monitoring/runtime-watch.ts';
 import { parseCorsOrigins } from './common/utils.ts';
 import { HttpExceptionFilter } from './filters/bad-request.filter.ts';
 import { QueryFailedFilter } from './filters/query-failed.filter.ts';
@@ -68,6 +72,8 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   app.use(helmet());
   app.use(compression());
   app.use(morgan('combined'));
+  app.use(slowRequestLogger);
+  watchEventLoop();
   app.enableVersioning();
 
   const reflector = app.get(Reflector);

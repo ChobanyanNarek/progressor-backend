@@ -38,7 +38,6 @@ import type { PmTrackerCommitResultDto } from './dtos/pm-tracker-commit-result.d
 import { PmTrackerCredentialListDto } from './dtos/pm-tracker-credential-list.dto.ts';
 import { PmTrackerRecordsDto } from './dtos/pm-tracker-records.dto.ts';
 import { PmTrackerRecordsQueryDto } from './dtos/pm-tracker-records-query.dto.ts';
-import type { PmTrackerStateDto } from './dtos/pm-tracker-state.dto.ts';
 import {
   PmTrackerHookAckDto,
   PmTrackerSyncResultDto,
@@ -75,14 +74,19 @@ export class PmTrackerController {
   @Auth([RoleType.CREATOR, RoleType.ADMIN])
   async getState(
     @AuthUser() user: UserEntity,
-  ): Promise<PmTrackerStateDto | null> {
+    @Res() res: Response,
+  ): Promise<void> {
     const entity = await this.pmTrackerService.getState(user.id);
 
     if (!entity) {
       throw new NotFoundException('No state found');
     }
 
-    return entity.toDto();
+    /*
+     * Serialised directly, like GET /records: the serializer's walk over the whole blob
+     * took seconds and could fail the health check. Shape: PmTrackerStateDto.
+     */
+    res.type('application/json').send(JSON.stringify(entity.toDto()));
   }
 
   /*
