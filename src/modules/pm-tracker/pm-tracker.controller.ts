@@ -20,6 +20,7 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Response } from 'express';
 
 import type { PageDto } from '../../common/dto/page.dto.ts';
+import { sendJson } from '../../common/http/send-json.ts';
 import { RoleType } from '../../constants/role-type.ts';
 import { ApiPageResponse } from '../../decorators/api-page-response.decorator.ts';
 import { AuthUser } from '../../decorators/auth-user.decorator.ts';
@@ -151,11 +152,14 @@ export class PmTrackerController {
     summary: 'Proxy an allow-listed GitHub read with a vaulted token',
   })
   @Auth([RoleType.CREATOR, RoleType.ADMIN])
-  githubProxy(
+  @ApiOkResponse({ type: GithubProxyResultDto })
+  async githubProxy(
     @AuthUser() user: UserEntity,
     @Body() dto: GithubProxyRequestDto,
-  ): Promise<GithubProxyResultDto> {
-    return this.pmTrackerService.githubProxy(user.id, dto);
+    @Res() res: Response,
+  ): Promise<void> {
+    // Sent as plain JSON: a page of pull requests is megabytes (see sendJson).
+    sendJson(res, await this.pmTrackerService.githubProxy(user.id, dto));
   }
 
   @Post('gitlab')
@@ -164,11 +168,13 @@ export class PmTrackerController {
     summary: 'Proxy an allow-listed GitLab read with a vaulted token',
   })
   @Auth([RoleType.CREATOR, RoleType.ADMIN])
-  gitlabProxy(
+  @ApiOkResponse({ type: GitlabProxyResultDto })
+  async gitlabProxy(
     @AuthUser() user: UserEntity,
     @Body() dto: GitlabProxyRequestDto,
-  ): Promise<GitlabProxyResultDto> {
-    return this.pmTrackerService.gitlabProxy(user.id, dto);
+    @Res() res: Response,
+  ): Promise<void> {
+    sendJson(res, await this.pmTrackerService.gitlabProxy(user.id, dto));
   }
 
   /*
@@ -334,12 +340,18 @@ export class PmTrackerController {
     summary: 'Proxy a Jira issue search to avoid browser CORS restrictions',
   })
   @Auth([RoleType.CREATOR, RoleType.ADMIN])
+  @ApiOkResponse({ type: JiraSearchResultDto })
   async jiraSearch(
     @AuthUser() user: UserEntity,
     @Body() dto: JiraSearchRequestDto,
-  ): Promise<JiraSearchResultDto> {
-    return this.pmTrackerService.jiraSearch(
-      await this.pmTrackerService.withResolvedToken(user.id, dto),
+    @Res() res: Response,
+  ): Promise<void> {
+    // Up to 1000 issues: sent as plain JSON (see sendJson).
+    sendJson(
+      res,
+      await this.pmTrackerService.jiraSearch(
+        await this.pmTrackerService.withResolvedToken(user.id, dto),
+      ),
     );
   }
 
@@ -383,9 +395,13 @@ export class PmTrackerController {
   async jiraBoardIssues(
     @AuthUser() user: UserEntity,
     @Body() dto: JiraBoardIssuesRequestDto,
-  ): Promise<JiraSearchResultDto> {
-    return this.pmTrackerService.jiraBoardIssues(
-      await this.pmTrackerService.withResolvedToken(user.id, dto),
+    @Res() res: Response,
+  ): Promise<void> {
+    sendJson(
+      res,
+      await this.pmTrackerService.jiraBoardIssues(
+        await this.pmTrackerService.withResolvedToken(user.id, dto),
+      ),
     );
   }
 

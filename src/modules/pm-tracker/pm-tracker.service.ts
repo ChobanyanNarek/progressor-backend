@@ -223,10 +223,11 @@ export class PmTrackerService {
       ]),
     });
 
-    return GithubProxyResultDto.create({
+    // Plain object, not DTO.create: class-transformer over a 100-PR page blocked the loop.
+    return {
       status: res.status,
       data: await res.json().catch(() => null),
-    });
+    } as GithubProxyResultDto;
   }
 
   async gitlabProxy(
@@ -242,10 +243,11 @@ export class PmTrackerService {
       ]),
     });
 
-    return GitlabProxyResultDto.create({
+    // Plain object, not DTO.create: see githubProxy.
+    return {
       status: res.status,
       data: await res.json().catch(() => null),
-    });
+    } as GitlabProxyResultDto;
   }
 
   async jiraSearch(dto: JiraSearchRequestDto): Promise<JiraSearchResultDto> {
