@@ -18,6 +18,7 @@ import { PmTrackerController } from './pm-tracker.controller.ts';
 import { PmTrackerService } from './pm-tracker.service.ts';
 import { PmTrackerStateEntity } from './pm-tracker-state.entity.ts';
 import { GetRecordsHandler } from './queries/get-records/get-records.handler.ts';
+import { GetRecordsJsonHandler } from './queries/get-records-json/get-records-json.handler.ts';
 import { GetPmTrackerStateHandler } from './queries/get-state/get-pm-tracker-state.handler.ts';
 import { ListCredentialsHandler } from './queries/list-credentials/list-credentials.handler.ts';
 import { ReleaseNoteTasksHandler } from './queries/release-note-tasks/release-note-tasks.handler.ts';
@@ -52,6 +53,7 @@ import { ServerSyncService } from './services/server-sync.service.ts';
     ResolveCredentialHandler,
     GetPmTrackerStateHandler,
     GetRecordsHandler,
+    GetRecordsJsonHandler,
     MigrateStateToRecordsHandler,
     CommitRecordsHandler,
     SearchTasksHandler,

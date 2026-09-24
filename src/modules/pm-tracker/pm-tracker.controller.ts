@@ -11,11 +11,13 @@ import {
   Post,
   Put,
   Query,
+  Res,
   UseGuards,
   ValidationPipe,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import type { Response } from 'express';
 
 import type { PageDto } from '../../common/dto/page.dto.ts';
 import { RoleType } from '../../constants/role-type.ts';
@@ -34,7 +36,7 @@ import {
 } from './dtos/jira-proxy.dto.ts';
 import type { PmTrackerCommitResultDto } from './dtos/pm-tracker-commit-result.dto.ts';
 import { PmTrackerCredentialListDto } from './dtos/pm-tracker-credential-list.dto.ts';
-import type { PmTrackerRecordsDto } from './dtos/pm-tracker-records.dto.ts';
+import { PmTrackerRecordsDto } from './dtos/pm-tracker-records.dto.ts';
 import { PmTrackerRecordsQueryDto } from './dtos/pm-tracker-records-query.dto.ts';
 import type { PmTrackerStateDto } from './dtos/pm-tracker-state.dto.ts';
 import {
@@ -174,12 +176,24 @@ export class PmTrackerController {
   @ApiOperation({
     summary: "Get the user's records, or those changed since a cursor",
   })
+  @ApiOkResponse({ type: PmTrackerRecordsDto })
   @Auth([RoleType.CREATOR, RoleType.ADMIN])
-  getRecords(
+  async getRecords(
     @AuthUser() user: UserEntity,
     @Query() query: PmTrackerRecordsQueryDto,
-  ): Promise<PmTrackerRecordsDto> {
-    return this.pmTrackerService.getRecords(user.id, query.since);
+    @Res() res: Response,
+  ): Promise<void> {
+    /*
+     * Sent as ready-made JSON, bypassing the serializer: walking megabytes of task data
+     * through class-transformer blocked the event loop past Render's 5s health check
+     * (2026-09-24). The shape is PmTrackerRecordsDto; the HTTP test pins it.
+     */
+    const json = await this.pmTrackerService.getRecordsJson(
+      user.id,
+      query.since,
+    );
+
+    res.type('application/json').send(json);
   }
 
   // Saves only the records that changed; stale writes come back as conflicts. Replaces PUT /state.

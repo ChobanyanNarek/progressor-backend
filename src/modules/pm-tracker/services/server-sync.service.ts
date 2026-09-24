@@ -16,7 +16,6 @@ import { CommitRecordsCommand } from '../commands/commit-records/commit-records.
 import { MigrateStateToRecordsCommand } from '../commands/migrate-state/migrate-state-to-records.command.ts';
 import type { CommitPmTrackerRecordsDto } from '../dtos/commit-pm-tracker-records.dto.ts';
 import type { PmTrackerCommitResultDto } from '../dtos/pm-tracker-commit-result.dto.ts';
-import type { PmTrackerRecordsDto } from '../dtos/pm-tracker-records.dto.ts';
 import { PmTrackerHookEntity } from '../entities/pm-tracker-hook.entity.ts';
 import { PmTrackerService } from '../pm-tracker.service.ts';
 import { GetRecordsQuery } from '../queries/get-records/get-records.query.ts';
@@ -78,12 +77,16 @@ interface IDueUser {
 }
 
 /*
- * Switched off after production health checks timed out on 2026-09-24: a user's sync held
- * several full copies of their data in the 300MB heap and blocked the event loop past the
- * 5s health check. While false, the server runs no syncs, GET /sync reports serverSync:
- * false, and the web app syncs in the browser exactly as before.
+ * On 2026-09-24 production health checks timed out: loading a user's records through
+ * class-transformer blocked the event loop for seconds (GetRecordsHandler now returns plain
+ * objects). Measured with 21 MB of task data under the 300 MB heap: a sync now takes about
+ * 0.2 s with no block over 100 ms. Set to false to stop all server syncs; the web app then
+ * syncs in the browser.
  */
-export const IS_SERVER_SYNC_ENABLED = false;
+export const isServerSyncEnabled = true;
+
+// Scheduled syncs wait while the heap is this full (the instance caps it at 300 MB).
+const HEAP_CEILING_BYTES = 200 * 1024 * 1024;
 
 const TICK_MS = 60_000;
 // A tick stops starting new users after this long; the next tick carries on.
@@ -162,7 +165,7 @@ export class ServerSyncService implements OnModuleDestroy {
   private ticking = false;
 
   // Tests switch it on to exercise the sync while production has it off.
-  isEnabled = IS_SERVER_SYNC_ENABLED;
+  isEnabled = isServerSyncEnabled;
 
   // Swapped in tests for a fake provider backend.
   transportFor: (userId: Uuid) => Transport;
@@ -224,10 +227,9 @@ export class ServerSyncService implements OnModuleDestroy {
 
     await this.commandBus.execute(new MigrateStateToRecordsCommand(userId));
 
-    const res = (await this.queryBus.execute<
-      GetRecordsQuery,
-      PmTrackerRecordsDto
-    >(new GetRecordsQuery(userId))) as unknown as RecordsResponse;
+    const res = await this.queryBus.execute<GetRecordsQuery, RecordsResponse>(
+      new GetRecordsQuery(userId),
+    );
     const next = cloudToState(recordsToCloud(res));
     const records = new RecordTracker();
 
@@ -389,7 +391,11 @@ export class ServerSyncService implements OnModuleDestroy {
       const deadline = Date.now() + TICK_BUDGET_MS;
 
       for (const { userId, kinds } of due) {
-        if (Date.now() > deadline) {
+        // Out of time, or memory already high (a big page load in flight): the next tick continues.
+        if (
+          Date.now() > deadline ||
+          process.memoryUsage().heapUsed > HEAP_CEILING_BYTES
+        ) {
           break;
         }
 

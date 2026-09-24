@@ -22,6 +22,7 @@ import {
   type INestApplication,
   Post,
   Query,
+  Res,
   UnprocessableEntityException,
   ValidationPipe,
 } from '@nestjs/common';
@@ -30,7 +31,7 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import express from 'express';
+import express, { type Response } from 'express';
 import request from 'supertest';
 import { DataSource, type Repository } from 'typeorm';
 
@@ -67,6 +68,7 @@ import { PmTrackerService } from './pm-tracker.service.ts';
 import { PmTrackerStateEntity } from './pm-tracker-state.entity.ts';
 import { GetRecordsHandler } from './queries/get-records/get-records.handler.ts';
 import { GetRecordsQuery } from './queries/get-records/get-records.query.ts';
+import { GetRecordsJsonHandler } from './queries/get-records-json/get-records-json.handler.ts';
 import { GetPmTrackerStateHandler } from './queries/get-state/get-pm-tracker-state.handler.ts';
 import { GetPmTrackerStateQuery } from './queries/get-state/get-pm-tracker-state.query.ts';
 import { ServerSyncService } from './services/server-sync.service.ts';
@@ -173,6 +175,10 @@ const BASE_SCHEMA = [
      updated_at TIMESTAMP NOT NULL DEFAULT now(), user_id uuid NOT NULL, connection_id varchar NOT NULL,
      provider varchar(16) NOT NULL, secret text NOT NULL)`,
 ];
+
+// What a value looks like after a trip through JSON (undefined fields dropped), unlike structuredClone.
+// eslint-disable-next-line unicorn/prefer-structured-clone -- JSON semantics are the point
+const asJson = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 
 const SYNC_TZ = 'Asia/Yerevan';
 
@@ -297,8 +303,13 @@ class RecordsRoutesUnderTest {
 
   @Get('records')
   @HttpCode(HttpStatus.OK)
-  getRecords(@Query() query: PmTrackerRecordsQueryDto): Promise<unknown> {
-    return this.service.getRecords(USER, query.since);
+  async getRecords(
+    @Query() query: PmTrackerRecordsQueryDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    res
+      .type('application/json')
+      .send(await this.service.getRecordsJson(USER, query.since));
   }
 
   @Post('records/commit')
@@ -962,6 +973,7 @@ describeDb('pm-tracker per-record storage (Postgres)', () => {
           MigrateStateToRecordsHandler,
           CommitRecordsHandler,
           GetRecordsHandler,
+          GetRecordsJsonHandler,
         ],
       }).compile();
 
@@ -1079,6 +1091,51 @@ describeDb('pm-tracker per-record storage (Postgres)', () => {
           data: task('t1', { comment: 'A' }),
           revision: expect.any(Number),
         },
+      ]);
+    });
+
+    it('writes exactly what the object path returns, for awkward tasks too', async () => {
+      await seedBlob(USER, {
+        developers: [{ id: 'd1', name: String.raw`Zoë "the" dev \ ☃` }],
+        trackerTimezone: null,
+        tasks: [
+          task('t1'),
+          task('t2', {
+            title: 42,
+            comment: undefined,
+            extra: { nested: [1, null, 'x'] },
+          }), // coerced title kept in rest
+          task('t3', { comment: 'line\nbreak "quoted" ☃', jiras: [] }),
+        ],
+      });
+
+      // In order: the HTTP load moves the blob into records, which the direct read then sees.
+      // eslint-disable-next-line awesome-nest/prefer-promise-all -- the second read must follow the first
+      const http = await request(app.getHttpServer())
+        .get('/pm-tracker/records')
+        .expect(200);
+      const direct = await load();
+
+      expect(http.headers['content-type']).toContain('application/json');
+      expect(http.body).toEqual(asJson(direct));
+      expect(
+        http.body.tasks.find((t: { id: string }) => t.id === 't2').data.title,
+      ).toBe(42);
+
+      // ...and for a changes-only answer with a tombstone.
+      const t1 = direct.tasks.find((t) => t.id === 't1')!;
+
+      await commitGzipped({
+        deletes: [{ id: 't1', baseRevision: t1.revision }],
+      }).expect(200);
+
+      const changes = await request(app.getHttpServer())
+        .get(`/pm-tracker/records?since=${direct.cursor}`)
+        .expect(200);
+
+      expect(changes.body).toEqual(asJson(await load(direct.cursor)));
+      expect(changes.body.deleted.map((d: { id: string }) => d.id)).toEqual([
+        't1',
       ]);
     });
 

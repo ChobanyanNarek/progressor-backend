@@ -19,7 +19,6 @@ import type {
 } from './dtos/jira-proxy.dto.ts';
 import type { PmTrackerCommitResultDto } from './dtos/pm-tracker-commit-result.dto.ts';
 import type { PmTrackerCredentialListDto } from './dtos/pm-tracker-credential-list.dto.ts';
-import type { PmTrackerRecordsDto } from './dtos/pm-tracker-records.dto.ts';
 import type { PmTrackerTaskDto } from './dtos/pm-tracker-task.dto.ts';
 import {
   type GithubProxyRequestDto,
@@ -34,7 +33,7 @@ import type { SavePmTrackerCredentialDto } from './dtos/save-pm-tracker-credenti
 import type { SavePmTrackerStateDto } from './dtos/save-pm-tracker-state.dto.ts';
 import type { SearchTasksPageOptionsDto } from './dtos/search-tasks-page-options.dto.ts';
 import type { PmTrackerStateEntity } from './pm-tracker-state.entity.ts';
-import { GetRecordsQuery } from './queries/get-records/get-records.query.ts';
+import { GetRecordsJsonQuery } from './queries/get-records-json/get-records-json.query.ts';
 import { GetPmTrackerStateQuery } from './queries/get-state/get-pm-tracker-state.query.ts';
 import { ListCredentialsQuery } from './queries/list-credentials/list-credentials.query.ts';
 import { ReleaseNoteTasksQuery } from './queries/release-note-tasks/release-note-tasks.query.ts';
@@ -112,11 +111,12 @@ export class PmTrackerService {
    * Per-record storage (ADR-0018). Both calls first make sure the user's blob has been
    * copied into records -- a no-op after the first time.
    */
-  async getRecords(userId: Uuid, since?: number): Promise<PmTrackerRecordsDto> {
+  // The response body, already JSON (see GetRecordsJsonHandler for why).
+  async getRecordsJson(userId: Uuid, since?: number): Promise<string> {
     await this.commandBus.execute(new MigrateStateToRecordsCommand(userId));
 
-    return this.queryBus.execute<GetRecordsQuery, PmTrackerRecordsDto>(
-      new GetRecordsQuery(userId, since),
+    return this.queryBus.execute<GetRecordsJsonQuery, string>(
+      new GetRecordsJsonQuery(userId, since),
     );
   }
 
