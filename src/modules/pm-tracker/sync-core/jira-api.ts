@@ -1,6 +1,6 @@
 // GENERATED from pm-tracker/src/sync-core by scripts/vendor-sync-core.mjs -- do not edit here.
 
-import type { JiraConfig, JiraIssue, JiraStatusMapping, Priority, Status, StatusHistoryEntry } from './types.ts'
+import type { DeadlineHistoryEntry, JiraConfig, JiraIssue, JiraStatusMapping, Priority, Status, StatusHistoryEntry } from './types.ts'
 import { groupForJiraStatus, buildJqlFromMappings } from './status-groups.ts'
 import { authFor } from './credentials.ts'
 import type { Transport } from './transport.ts'
@@ -104,6 +104,26 @@ function buildStatusHistory(raw: JiraIssueRaw, mappings?: JiraStatusMapping[]): 
     history.push({ status: resolveStatus(t.to), at: t.at })
   }
   return history
+}
+
+/*
+ * Record every deadline an issue has had, oldest first. "On time" cannot be checked by
+ * anyone unless it is visible whether the target moved: an issue whose due date was pushed
+ * on the final day otherwise looks exactly like one delivered comfortably early.
+ *
+ * The first deadline seen is recorded as the original, not as a change, so nothing looks
+ * moved that never moved.
+ */
+export function mergeDeadlineHistory(
+  existing: DeadlineHistoryEntry[] | undefined,
+  deadline: string,
+  deadlineTime?: string,
+  at: string = new Date().toISOString(),
+): DeadlineHistoryEntry[] | undefined {
+  if (!deadline) return existing
+  const last = existing?.[existing.length - 1]
+  if (last && last.deadline === deadline && (last.deadlineTime ?? '') === (deadlineTime ?? '')) return existing
+  return [...(existing ?? []), { deadline, ...(deadlineTime ? { deadlineTime } : {}), at }]
 }
 
 export function mergeStatusHistory(

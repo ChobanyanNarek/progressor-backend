@@ -4,7 +4,7 @@ import type { AppState, JiraConfig, JiraIssue, PrEntry, Task } from './types.ts'
 import { hasCredential } from './credentials.ts'
 import {
   buildJqlStatusFilter, fetchBoardIssueKeys, fetchJiraBoardIssues, fetchJiraIssues, fetchJiraTimeTracking,
-  mergeStatusHistory, rawToJiraItem, type JiraIssueRaw,
+  mergeDeadlineHistory, mergeStatusHistory, rawToJiraItem, type JiraIssueRaw,
 } from './jira-api.ts'
 import { identityList, jiraDedupeKey } from './keys.ts'
 import type { Transport } from './transport.ts'
@@ -284,7 +284,7 @@ export async function computeJiraSync(state: SyncState, transport: Transport, ru
             // Jira is the source of truth on sync: take the fresh Jira status and
             // clear any manual override (manualStatus is only an optimistic hint
             // between syncs — it must never permanently mask the real Jira status).
-            syncTask.jiras[existIdx] = { ...ex, boardId: nj.boardId ?? ex.boardId, status: nj.status, groupId: nj.groupId, manualStatus: undefined, priority: nj.priority, deadline: nj.deadline || ex.deadline, statusHistory: mergeStatusHistory(ex.statusHistory, nj.statusHistory), storyPoints: nj.storyPoints ?? ex.storyPoints, timeOriginalEstimate: nj.timeOriginalEstimate ?? ex.timeOriginalEstimate, timeSpent: nj.timeSpent ?? ex.timeSpent, jiraCreatedAt: nj.jiraCreatedAt ?? ex.jiraCreatedAt, issueTypeName: nj.issueTypeName ?? ex.issueTypeName, issueTypeIconUrl: nj.issueTypeIconUrl ?? ex.issueTypeIconUrl, parentKey: nj.parentKey ?? ex.parentKey, jiraStatusName: nj.jiraStatusName }
+            syncTask.jiras[existIdx] = { ...ex, boardId: nj.boardId ?? ex.boardId, status: nj.status, groupId: nj.groupId, manualStatus: undefined, priority: nj.priority, deadline: nj.deadline || ex.deadline, deadlineHistory: mergeDeadlineHistory(ex.deadlineHistory, nj.deadline || ex.deadline, ex.deadlineTime), statusHistory: mergeStatusHistory(ex.statusHistory, nj.statusHistory), storyPoints: nj.storyPoints ?? ex.storyPoints, timeOriginalEstimate: nj.timeOriginalEstimate ?? ex.timeOriginalEstimate, timeSpent: nj.timeSpent ?? ex.timeSpent, jiraCreatedAt: nj.jiraCreatedAt ?? ex.jiraCreatedAt, issueTypeName: nj.issueTypeName ?? ex.issueTypeName, issueTypeIconUrl: nj.issueTypeIconUrl ?? ex.issueTypeIconUrl, parentKey: nj.parentKey ?? ex.parentKey, jiraStatusName: nj.jiraStatusName }
             connUpdated++
             return
           }
@@ -294,7 +294,7 @@ export async function computeJiraSync(state: SyncState, transport: Transport, ru
           const { task, idx } = keyToTask.get(njKey)!
           const ex = task.jiras[idx]!
           // Jira is the source of truth on sync — take fresh status, clear manual override.
-          task.jiras[idx] = { ...ex, boardId: nj.boardId ?? ex.boardId, status: nj.status, groupId: nj.groupId, manualStatus: undefined, priority: nj.priority, deadline: nj.deadline || ex.deadline, statusHistory: mergeStatusHistory(ex.statusHistory, nj.statusHistory), storyPoints: nj.storyPoints ?? ex.storyPoints, timeOriginalEstimate: nj.timeOriginalEstimate ?? ex.timeOriginalEstimate, timeSpent: nj.timeSpent ?? ex.timeSpent, issueTypeName: nj.issueTypeName ?? ex.issueTypeName, issueTypeIconUrl: nj.issueTypeIconUrl ?? ex.issueTypeIconUrl, parentKey: nj.parentKey ?? ex.parentKey, jiraStatusName: nj.jiraStatusName }
+          task.jiras[idx] = { ...ex, boardId: nj.boardId ?? ex.boardId, status: nj.status, groupId: nj.groupId, manualStatus: undefined, priority: nj.priority, deadline: nj.deadline || ex.deadline, deadlineHistory: mergeDeadlineHistory(ex.deadlineHistory, nj.deadline || ex.deadline, ex.deadlineTime), statusHistory: mergeStatusHistory(ex.statusHistory, nj.statusHistory), storyPoints: nj.storyPoints ?? ex.storyPoints, timeOriginalEstimate: nj.timeOriginalEstimate ?? ex.timeOriginalEstimate, timeSpent: nj.timeSpent ?? ex.timeSpent, issueTypeName: nj.issueTypeName ?? ex.issueTypeName, issueTypeIconUrl: nj.issueTypeIconUrl ?? ex.issueTypeIconUrl, parentKey: nj.parentKey ?? ex.parentKey, jiraStatusName: nj.jiraStatusName }
           connUpdated++
           return
         }
