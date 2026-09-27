@@ -6,6 +6,7 @@ import { SaveCredentialHandler } from './commands/save-credential/save-credentia
 import {
   assertAllowedPath,
   GITHUB_PATHS,
+  GITLAB_PATHS,
   PmTrackerService,
 } from './pm-tracker.service.ts';
 import { ListCredentialsHandler } from './queries/list-credentials/list-credentials.handler.ts';
@@ -30,6 +31,9 @@ describe('assertAllowedPath', () => {
     '/orgs/acme/repos?type=all&page=2',
     '/users/narek/repos',
     '/search/issues?q=is:pr+author:narek',
+    // Deployment records, for the DORA measures.
+    '/repos/acme/web/deployments?per_page=100&page=1',
+    '/repos/acme/web/deployments/1234/statuses?per_page=1',
   ])('allows the reads the app makes: %s', (path) => {
     expect(() => {
       assertAllowedPath(path, github);
@@ -40,11 +44,35 @@ describe('assertAllowedPath', () => {
     '/user', // the token owner's profile
     '/repos/acme/web/collaborators', // not a pull-request read
     '/repos/acme/web/pulls/42/merge', // a write endpoint
+    '/repos/acme/web/deployments/1234', // a single deployment is not one of the reads
+    '/repos/acme/web/environments', // nor the environments themselves
     '/repos/acme/../../user', // traversal
     'https://evil.example/steal', // another host
   ])('refuses anything else: %s', (path) => {
     expect(() => {
       assertAllowedPath(path, github);
+    }).toThrow(BadRequestException);
+  });
+});
+
+describe('the GitLab allow-list', () => {
+  it.each([
+    '/api/v4/groups/acme/merge_requests?state=merged',
+    '/api/v4/projects/acme%2Fweb/merge_requests?state=opened',
+    '/api/v4/projects/acme%2Fweb/deployments?per_page=100&page=1',
+  ])('allows the reads the app makes: %s', (path) => {
+    expect(() => {
+      assertAllowedPath(path, GITLAB_PATHS);
+    }).not.toThrow();
+  });
+
+  it.each([
+    '/api/v4/projects/acme%2Fweb/deployments/7', // a single deployment is not one of them
+    '/api/v4/projects/acme%2Fweb/variables', // secrets
+    '/api/v4/user',
+  ])('refuses anything else: %s', (path) => {
+    expect(() => {
+      assertAllowedPath(path, GITLAB_PATHS);
     }).toThrow(BadRequestException);
   });
 });

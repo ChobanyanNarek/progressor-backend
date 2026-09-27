@@ -16,7 +16,7 @@ import { makeId, pause, sortJiraIssues } from './util.ts'
  * it is when the work finishes, so edits made meanwhile are kept.
  */
 
-export type SyncState = Pick<AppState, 'developers' | 'projects' | 'tasks' | 'jiraConnections' | 'gitlabConnections' | 'githubConnections'>
+export type SyncState = Pick<AppState, 'developers' | 'projects' | 'tasks' | 'jiraConnections' | 'gitlabConnections' | 'githubConnections' | 'deployments'>
 
 export interface SyncRun {
   // An automatic sync (startup, timer, server schedule) rather than one the user asked for.

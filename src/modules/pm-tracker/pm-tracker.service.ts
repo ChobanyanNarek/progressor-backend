@@ -49,10 +49,14 @@ export const GITHUB_PATHS: RegExp[] = [
   /^\/repos(?:\/[\w.-]+){2}\/pul{2}s(\/\d+)?(\?[^#]*)?$/,
   /^\/(orgs|users)\/[\w.-]+\/repos(\?[^#]*)?$/,
   /^\/search\/issues(\?[^#]*)?$/,
+  // Deployment records and their outcome, for the DORA measures. Read-only, like the rest.
+  /^\/repos(?:\/[\w.-]+){2}\/deployments(\?[^#]*)?$/,
+  /^\/repos(?:\/[\w.-]+){2}\/deployments\/\d+\/statuses(\?[^#]*)?$/,
 ];
 
 export const GITLAB_PATHS: RegExp[] = [
   /^\/api\/v4\/(groups|projects|users)\/[\w%.-]+\/merge_requests(\?[^#]*)?$/,
+  /^\/api\/v4\/projects\/[\w%.-]+\/deployments(\?[^#]*)?$/,
 ];
 
 type Json = Record<string, unknown>;
