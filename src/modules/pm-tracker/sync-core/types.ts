@@ -3,7 +3,7 @@
 export type Status = 'todo' | 'inprogress' | 'review' | 'done' | 'blocked'
 export type Priority = 'low' | 'medium' | 'high' | 'critical'
 export type ScheduleType = 'work' | 'vacation' | 'dayoff' | 'sick' | 'holiday'
-export type View = 'daily' | 'deadlines' | 'search' | 'performance' | 'schedule' | 'sprint' | 'timeline' | 'report' | 'notes' | 'team'
+export type View = 'daily' | 'deadlines' | 'search' | 'performance' | 'plan' | 'schedule' | 'sprint' | 'timeline' | 'report' | 'notes' | 'team'
 
 export interface Note {
   id: string
@@ -232,6 +232,32 @@ export interface Sprint {
   jiraBoardId?: number   // board this sprint was synced from
 }
 
+/*
+ * A commitment sent to a partner before development starts: how many hours each kind of
+ * developer will spend, and by when. Lines are independent and add up — an allocation for
+ * one person sits alongside a role allocation rather than inside it.
+ */
+export interface PlanLine {
+  id: string
+  label: string
+  /*
+   * Who this line's hours belong to. A line naming a person wins over a line naming their
+   * role, so an issue is only ever counted once.
+   */
+  target: { kind: 'roles'; roles: string[] } | { kind: 'developer'; devId: string }
+  hours: number
+  /** This line's own date, when it differs from the project's. YYYY-MM-DD. */
+  end?: string
+}
+
+export interface ProjectPlan {
+  /** The whole project's date; a line without its own `end` is judged against this. */
+  targetEnd?: string
+  /** When the document was agreed, so work before it is not counted against the plan. */
+  approvedAt?: string
+  lines: PlanLine[]
+}
+
 export interface Project {
   id: string
   name: string
@@ -252,6 +278,8 @@ export interface Project {
   jiraConnectionId?: string  // links this project to a specific Jira connection
   boardProjectKeys?: string[]  // Jira project key prefixes the selected board covers (e.g. ['COM']); resolved when board is saved. Empty array = board resolved but has no issues.
   boardIssueKeys?: string[]    // EXACT Jira issue keys on the selected board (e.g. ['COM-826','COM-813']); the accurate board-membership signal. Resolved on board save and refreshed each sync.
+  /** The agreed hours-per-role document this project is delivered against. */
+  plan?: ProjectPlan
 }
 
 export interface DeadlineItem {
