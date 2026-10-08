@@ -16,12 +16,12 @@
     "assets": [
       {
         "include": "i18n/**/*",
-        "outDir": "dist/i18n",
+        "outDir": "dist",
         "watchAssets": true
       },
       {
         "include": "shared/services/logo-wordmark.gif",
-        "outDir": "dist/shared/services",
+        "outDir": "dist",
         "watchAssets": true
       }
     ]
