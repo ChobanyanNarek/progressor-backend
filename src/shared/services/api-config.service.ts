@@ -168,16 +168,47 @@ export class ApiConfigService {
     };
   }
 
+  /*
+   * Render (and most managed Postgres) hands out one connection URL. Keeping five separate
+   * variables in step with it by hand is a standing trap: the database moved, DB_HOST was
+   * left pointing at the address it used to have, and every boot died on ECONNREFUSED to an
+   * IP that nothing listened on any more. A URL is one value to paste and cannot drift
+   * against itself.
+   *
+   * The five discrete variables still work, so nothing has to change to keep running.
+   */
+  private get databaseUrl(): string | undefined {
+    const url =
+      this.configService.get<string>('DATABASE_URL') ??
+      this.configService.get<string>('DB_URL');
+
+    return url && url.trim().length > 0 ? url.trim() : undefined;
+  }
+
+  /** Host, port and database name only — never the password, which must not reach a log. */
+  get databaseTarget(): string {
+    const url = this.databaseUrl;
+
+    if (url) {
+      try {
+        const parsed = new URL(url);
+
+        return `${parsed.hostname}:${parsed.port || '5432'}${parsed.pathname} (from DATABASE_URL)`;
+      } catch {
+        return 'an unparseable DATABASE_URL';
+      }
+    }
+
+    return `${this.getString('DB_HOST')}:${this.getNumber('DB_PORT')}/${this.getString('DB_DATABASE')} (from DB_* variables)`;
+  }
+
   get postgresConfig(): TypeOrmModuleOptions {
-    return {
+    const url = this.databaseUrl;
+
+    const shared = {
       autoLoadEntities: true,
       dropSchema: this.isTest,
-      type: 'postgres',
-      host: this.getString('DB_HOST'),
-      port: this.getNumber('DB_PORT'),
-      username: this.getString('DB_USERNAME'),
-      password: this.getString('DB_PASSWORD'),
-      database: this.getString('DB_DATABASE'),
+      type: 'postgres' as const,
       ssl:
         process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
       subscribers: [UserSubscriber],
@@ -187,6 +218,19 @@ export class ApiConfigService {
       migrationsRun: !this.isDevelopment,
       logging: this.getBoolean('ENABLE_ORM_LOGS'),
       namingStrategy: new SnakeNamingStrategy(),
+    };
+
+    if (url) {
+      return { ...shared, url };
+    }
+
+    return {
+      ...shared,
+      host: this.getString('DB_HOST'),
+      port: this.getNumber('DB_PORT'),
+      username: this.getString('DB_USERNAME'),
+      password: this.getString('DB_PASSWORD'),
+      database: this.getString('DB_DATABASE'),
     };
   }
 

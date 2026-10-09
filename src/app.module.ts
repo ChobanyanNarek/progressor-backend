@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -67,8 +67,19 @@ import { SharedModule } from './shared/shared.module.ts';
     }),
     TypeOrmModule.forRootAsync({
       imports: [SharedModule],
-      useFactory: (configService: ApiConfigService) =>
-        configService.postgresConfig,
+      useFactory: (configService: ApiConfigService) => {
+        /*
+         * Say where we are about to connect, before trying. When the database moved and the
+         * host was left stale, the only clue in the log was ECONNREFUSED to a bare private
+         * IP — nothing to say which setting had produced it. Password never printed.
+         */
+        Logger.log(
+          `Connecting to ${configService.databaseTarget}`,
+          'DatabaseConfig',
+        );
+
+        return configService.postgresConfig;
+      },
       inject: [ApiConfigService],
       dataSourceFactory: (options) => {
         if (!options) {
