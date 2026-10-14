@@ -141,6 +141,19 @@ export class ApiConfigService {
     return this.getString('FALLBACK_LANGUAGE');
   }
 
+  /*
+   * Opens the /auth/init-* routes, which promote an account to super admin or set its
+   * password with no session of any kind. The secret used to be a literal in the
+   * controller, so every copy of this repository was a key to the production account
+   * list. Unset is the normal state: the routes stay shut until someone deliberately
+   * puts a value here, and should be shut again once they have done what they needed.
+   */
+  get bootstrapSecret(): string | undefined {
+    const secret = this.configService.get<string>('BOOTSTRAP_SECRET');
+
+    return secret && secret.trim().length > 0 ? secret.trim() : undefined;
+  }
+
   /**
    * Maximum age (in milliseconds) a PENDING memory point may keep before its
    * details are submitted. Older detail-less drafts are purged by the cleanup

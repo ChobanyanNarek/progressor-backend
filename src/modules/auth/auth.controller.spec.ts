@@ -1,55 +1,80 @@
-import { beforeAll, describe, expect, it, jest } from '@jest/globals';
-import { Reflector } from '@nestjs/core';
-import type { TestingModule } from '@nestjs/testing';
-import { Test } from '@nestjs/testing';
+import { describe, expect, it, jest } from '@jest/globals';
+import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 
-import { RoleType } from '../../constants/role-type.ts';
-import { RolesGuard } from '../../guards/roles.guard.ts';
-import type { UserEntity } from '../user/user.entity.ts';
-import { UserService } from '../user/user.service.ts';
+import type { ApiConfigService } from '../../shared/services/api-config.service.ts';
 import { AuthController } from './auth.controller.ts';
-import { AuthService } from './auth.service.ts';
+import type { AuthService } from './auth.service.ts';
 
-describe('AuthController', () => {
-  let controller: AuthController;
+/*
+ * The /auth/init-* routes promote an account to super admin, or set its password, with
+ * no session of any kind behind them. The secret that gated them was a literal in this
+ * controller, so every copy of the repository was a key to the production account list.
+ * What matters most here is the missing-value case: a gate that opens when its secret is
+ * unset is worse than no gate, because nothing looks wrong.
+ */
 
-  beforeAll(async () => {
-    const app: TestingModule = await Test.createTestingModule({
-      controllers: [AuthController],
-      providers: [
-        Reflector,
-        {
-          provide: AuthService,
-          useValue: { validateUser: jest.fn(), createAccessToken: jest.fn() },
-        },
-        { provide: UserService, useValue: { createUser: jest.fn() } },
-        {
-          provide: RolesGuard,
-          useValue: { canActivate: jest.fn().mockReturnValue(true) },
-        },
-      ],
-    }).compile();
+const SECRET = 'a-secret-that-lives-in-the-environment';
 
-    controller = app.get<AuthController>(AuthController);
+function controller(bootstrapSecret?: string): AuthController {
+  return new AuthController(
+    {} as AuthService,
+    {
+      bootstrapSecret,
+    } as ApiConfigService,
+  );
+}
+
+const call = (c: AuthController, secret?: string): Promise<void> =>
+  c.initSuperAdmin(secret!, 'someone@example.com');
+
+describe('the bootstrap routes', () => {
+  it('are not there at all when no secret is configured', async () => {
+    await expect(call(controller(), SECRET)).rejects.toThrow(NotFoundException);
   });
 
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
+  it('stay shut when the secret is blank rather than absent', async () => {
+    await expect(call(controller(''), '')).rejects.toThrow(NotFoundException);
   });
 
-  it('getCurrentUser returns the user id so clients need not decode the token', () => {
-    const user = {
-      id: '11111111-1111-4111-8111-111111111111',
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'john@test.com',
-      role: RoleType.ADMIN,
-      avatar: null,
-    } as UserEntity;
+  it('refuse a wrong secret', async () => {
+    await expect(call(controller(SECRET), 'wrong')).rejects.toThrow(
+      UnauthorizedException,
+    );
+  });
 
-    const result = controller.getCurrentUser(user);
+  it('refuse a secret that is merely a prefix of the real one', async () => {
+    await expect(call(controller(SECRET), SECRET.slice(0, 10))).rejects.toThrow(
+      UnauthorizedException,
+    );
+  });
 
-    expect(result.id).toBe('11111111-1111-4111-8111-111111111111');
-    expect(result.email).toBe('john@test.com');
+  it('refuse a missing header', async () => {
+    await expect(call(controller(SECRET))).rejects.toThrow(
+      UnauthorizedException,
+    );
+  });
+
+  it('let the right secret through to the service', async () => {
+    const promoteToSuperAdmin = jest.fn<(email: string) => Promise<void>>();
+    const c = new AuthController(
+      { promoteToSuperAdmin } as never,
+      {
+        bootstrapSecret: SECRET,
+      } as ApiConfigService,
+    );
+
+    await c.initSuperAdmin(SECRET, 'someone@example.com');
+
+    expect(promoteToSuperAdmin).toHaveBeenCalledWith('someone@example.com');
+  });
+
+  it('carries no secret of its own in the source', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const source = await readFile(
+      new URL('auth.controller.ts', import.meta.url),
+      'utf8',
+    );
+
+    expect(source).not.toMatch(/[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}/);
   });
 });

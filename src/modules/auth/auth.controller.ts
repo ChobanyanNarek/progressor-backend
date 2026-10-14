@@ -1,3 +1,5 @@
+import { timingSafeEqual } from 'node:crypto';
+
 import {
   Body,
   Controller,
@@ -5,15 +7,17 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Post,
   UnauthorizedException,
 } from '@nestjs/common';
-import { IsEmail } from 'class-validator';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { IsEmail } from 'class-validator';
 
 import { RoleType } from '../../constants/role-type.ts';
 import { AuthUser } from '../../decorators/auth-user.decorator.ts';
 import { Auth } from '../../decorators/http.decorators.ts';
+import { ApiConfigService } from '../../shared/services/api-config.service.ts';
 import type { UserEntity } from '../user/user.entity.ts';
 import { AuthService } from './auth.service.ts';
 import { GetMeDto } from './dto/get-me.dto.ts';
@@ -24,17 +28,39 @@ class SendRegistrationCodeDto {
 }
 import { GoogleTokenDto } from './dto/google-token.dto.ts';
 import { LoginPayloadDto } from './dto/login-payload.dto.ts';
-import {
-  RefreshPayloadDto,
-  RefreshTokenDto,
-} from './dto/refresh-token.dto.ts';
+import { RefreshPayloadDto, RefreshTokenDto } from './dto/refresh-token.dto.ts';
 import { RegisterDto } from './dto/register.dto.ts';
 import { UserLoginDto } from './dto/user-login.dto.ts';
 
 @Controller('auth')
 @ApiTags('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private configService: ApiConfigService,
+  ) {}
+
+  /*
+   * These routes hand out super admin with no session behind them, so the gate is the
+   * only thing between the open internet and the account list. The secret lives in the
+   * environment now, and an unset one shuts the route rather than falling back to
+   * anything: a missing variable must never mean "let everyone in". Compared in constant
+   * time, and reported as 404 so an attacker cannot even learn the route is there.
+   */
+  private assertBootstrapSecret(given: string | undefined): void {
+    const expected = this.configService.bootstrapSecret;
+
+    if (!expected) {
+      throw new NotFoundException();
+    }
+
+    const a = Buffer.from(given ?? '');
+    const b = Buffer.from(expected);
+
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      throw new UnauthorizedException();
+    }
+  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -65,6 +91,7 @@ export class AuthController {
     summary: 'Exchange a refresh token for a fresh access token',
   })
   @ApiOkResponse({
+    // eslint-disable-next-line awesome-nest/unique-endpoint-dtos
     type: RefreshPayloadDto,
     description: 'New access token and a rotated refresh token',
   })
@@ -112,9 +139,7 @@ export class AuthController {
     @Headers('x-secret') secret: string,
     @Body('email') email: string,
   ): Promise<void> {
-    if (secret !== '29b439fb-e538-400e-936d-7b93ce7778f9') {
-      throw new UnauthorizedException();
-    }
+    this.assertBootstrapSecret(secret);
 
     await this.authService.promoteToAdmin(email);
   }
@@ -125,9 +150,7 @@ export class AuthController {
     @Headers('x-secret') secret: string,
     @Body('email') email: string,
   ): Promise<void> {
-    if (secret !== '29b439fb-e538-400e-936d-7b93ce7778f9') {
-      throw new UnauthorizedException();
-    }
+    this.assertBootstrapSecret(secret);
 
     await this.authService.promoteToSuperAdmin(email);
   }
@@ -139,9 +162,7 @@ export class AuthController {
     @Body('phone') phone: string,
     @Body('password') password: string,
   ): Promise<void> {
-    if (secret !== '29b439fb-e538-400e-936d-7b93ce7778f9') {
-      throw new UnauthorizedException();
-    }
+    this.assertBootstrapSecret(secret);
 
     await this.authService.createSuperAdminAccount(phone, password);
   }
@@ -152,9 +173,7 @@ export class AuthController {
     @Headers('x-secret') secret: string,
     @Body('email') email: string,
   ): Promise<void> {
-    if (secret !== '29b439fb-e538-400e-936d-7b93ce7778f9') {
-      throw new UnauthorizedException();
-    }
+    this.assertBootstrapSecret(secret);
 
     await this.authService.demoteToCreator(email);
   }
@@ -168,14 +187,16 @@ export class AuthController {
     type: GetMeDto,
   })
   getCurrentUser(@AuthUser() user: UserEntity): GetMeDto {
-    const {
-      id, firstName, lastName, email, role, avatar,
-      subscriptionActive, subscriptionUntil, trialUntil,
-    } = user;
-
     return GetMeDto.create({
-      id, firstName, lastName, email, role, avatar,
-      subscriptionActive, subscriptionUntil, trialUntil,
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+      subscriptionActive: user.subscriptionActive,
+      subscriptionUntil: user.subscriptionUntil,
+      trialUntil: user.trialUntil,
     });
   }
 }

@@ -56,10 +56,15 @@ services:
       # PM_TRACKER_CREDENTIALS_KEY -- AES-256 key for the integration token vault:
       #   openssl rand -base64 32
       #   Without it the vault stays off and clients keep their tokens locally.
+      # BOOTSTRAP_SECRET -- opens the /auth/init-* routes, which hand out super admin
+      #   with no session behind them. Leave it UNSET: the routes answer 404 without it.
+      #   Set it only for as long as it takes to recover an account, then remove it.
 
 databases:
   - name: ghost-app-db
     databaseName: ghost_app
     user: ghost_app
-    plan: free
+    # Not `free`: Render deletes a free database after 30 days, which is what took the
+    # API down with ECONNREFUSED to a host that no longer existed.
+    plan: basic-256mb
     region: frankfurt
