@@ -63,6 +63,16 @@ describe('database configuration', () => {
     expect(cfg.host).toBe(URL_HOST);
   });
 
+  it('keeps the database DB_HOST names when a URL is set as well', () => {
+    const cfg = config(
+      ['DATABASE_URL', 'postgresql://other:pw@dpg-somewhere-else-a/other'],
+      ...varSettings,
+    ).postgresConfig as { host?: string; url?: string };
+
+    expect(cfg.host).toBe(URL_HOST);
+    expect(cfg.url).toBeUndefined();
+  });
+
   it('names the host it is about to use, and which setting said so', () => {
     expect(withUrl().databaseTarget).toBe(
       `${URL_HOST}:5432/ghost_app (from DATABASE_URL)`,

@@ -175,9 +175,18 @@ export class ApiConfigService {
    * IP that nothing listened on any more. A URL is one value to paste and cannot drift
    * against itself.
    *
-   * The five discrete variables still work, so nothing has to change to keep running.
+   * The five discrete variables still work, and they win: the URL is only read when
+   * DB_HOST is absent. A deploy that silently moved to whatever DATABASE_URL happened to
+   * hold would run its migrations into an empty database and come up healthy with no
+   * accounts in it, which is indistinguishable from every password being wrong.
    */
   private get databaseUrl(): string | undefined {
+    const host = this.configService.get<string>('DB_HOST');
+
+    if (host && host.trim().length > 0) {
+      return undefined;
+    }
+
     const url =
       this.configService.get<string>('DATABASE_URL') ??
       this.configService.get<string>('DB_URL');
